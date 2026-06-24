@@ -132,7 +132,7 @@ export default function OwnerPage() {
     return true;
   }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const vendors = [...new Set(items.map(i => i.vendor))].sort();
+  const vendors = items.map(i => i.vendor).filter((v, i, a) => a.indexOf(v) === i).sort();
   const totalValue = items.reduce((s, i) => s + i.price * i.qty, 0);
   const approvedCount = items.filter(i => i.status === 'approved').length;
   const pendingCount = items.filter(i => i.status === 'pending').length;
