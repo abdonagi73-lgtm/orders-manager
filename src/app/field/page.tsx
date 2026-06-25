@@ -465,7 +465,7 @@ export default function FieldPage() {
         <button className="btn btn-success"
           style={{width:'100%',justifyContent:'center',padding:14,fontSize:15}}
           onClick={handleSubmitOrder} disabled={loading}>
-          {loading?'Submitting...':'Submit order to owner ✓'}
+          {loading?'Submitting...':'Submit to owner ✓'}
         </button>
       </div>
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
@@ -483,11 +483,12 @@ export default function FieldPage() {
               <div className="header-sub">{items.length} items · {worker?.name}</div>
             </div>
             <div style={{display:'flex',gap:6}}>
+              <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
               <button className={`btn btn-sm ${showItemList?'btn-primary':''}`}
                 onClick={()=>{setShowItemList(true);resetItemForm();}}>List ({items.length})</button>
               <button className={`btn btn-sm ${!showItemList&&!editingItem?'btn-primary':''}`}
                 onClick={()=>{setShowItemList(false);resetItemForm();}}>+ Add</button>
-              <button className="btn btn-sm btn-success" onClick={()=>setScreen('summary')}>Done →</button>
+              <button className="btn btn-sm btn-success" onClick={()=>setScreen('summary')}>Review & Submit →</button>
             </div>
           </div>
         </div>
