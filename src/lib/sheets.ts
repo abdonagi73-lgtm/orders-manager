@@ -1,22 +1,16 @@
 // src/lib/sheets.ts
-// All Google Sheets read/write logic lives here.
-// The sheet has 3 tabs: Items | Settings | Registry
+// Tabs: Workers | Orders | Items | Settings | Registry
 
 import { google } from 'googleapis';
-import type { OrderItem, SessionSettings, SheetItemRow } from './types';
+import type { Worker, Order, OrderItem, SessionSettings } from './types';
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
 
-// Tab names
+const TAB_WORKERS  = 'Workers';
+const TAB_ORDERS   = 'Orders';
 const TAB_ITEMS    = 'Items';
 const TAB_SETTINGS = 'Settings';
 const TAB_REGISTRY = 'Registry';
-
-// Items tab columns (A→L)
-const ITEM_HEADERS = [
-  'id','vendor','code','category','colors','sizes',
-  'price','qty','notes','ownerNote','status','createdAt'
-];
 
 function getAuth() {
   return new google.auth.GoogleAuth({
@@ -27,115 +21,190 @@ function getAuth() {
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 }
-
 async function getSheets() {
-  const auth = getAuth();
-  return google.sheets({ version: 'v4', auth });
+  return google.sheets({ version: 'v4', auth: getAuth() });
+}
+
+function safeJSON<T>(v: string, fb: T): T {
+  try { return JSON.parse(v); } catch { return fb; }
+}
+
+// ── WORKERS ────────────────────────────────────────────────────────────────
+
+export async function getWorkers(): Promise<Worker[]> {
+  const sheets = await getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_WORKERS}!A2:C`,
+  });
+  return (res.data.values ?? []).filter(r => r[0]).map(r => ({
+    id: r[0], name: r[1] ?? '', pin: r[2] ?? '',
+  }));
+}
+
+export async function verifyWorker(pin: string): Promise<Worker | null> {
+  const workers = await getWorkers();
+  return workers.find(w => w.pin === pin) ?? null;
+}
+
+export async function saveWorkers(workers: Worker[]): Promise<void> {
+  const sheets = await getSheets();
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: SHEET_ID, range: `${TAB_WORKERS}!A2:C`,
+  });
+  if (!workers.length) return;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_WORKERS}!A2:C${workers.length + 1}`,
+    valueInputOption: 'RAW',
+    requestBody: { values: workers.map(w => [w.id, w.name, w.pin]) },
+  });
+}
+
+// ── ORDERS ─────────────────────────────────────────────────────────────────
+
+export async function getAllOrders(): Promise<Order[]> {
+  const sheets = await getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:J`,
+  });
+  return (res.data.values ?? []).filter(r => r[0]).map(r => ({
+    id: r[0], name: r[1] ?? '', startDate: r[2] ?? '',
+    workerId: r[3] ?? '', workerName: r[4] ?? '',
+    status: (r[5] ?? 'open') as Order['status'],
+    shippingCost: parseFloat(r[6]) || 0,
+    createdAt: r[7] ?? '', closedAt: r[8] ?? '',
+    itemCount: parseInt(r[9]) || 0,
+    totalValue: parseFloat(r[10]) || 0,
+  }));
+}
+
+export async function getOrdersByWorker(workerId: string): Promise<Order[]> {
+  const all = await getAllOrders();
+  return all.filter(o => o.workerId === workerId);
+}
+
+export async function createOrder(order: Order): Promise<void> {
+  const sheets = await getSheets();
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:J`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [orderToRow(order)] },
+  });
+}
+
+export async function updateOrder(order: Order): Promise<void> {
+  const sheets = await getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+  });
+  const ids = (res.data.values ?? []).map(r => r[0]);
+  const rowIndex = ids.findIndex(id => id === order.id);
+  if (rowIndex < 1) throw new Error('Order not found');
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_ORDERS}!A${rowIndex + 1}:K${rowIndex + 1}`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [orderToRow(order)] },
+  });
+}
+
+function orderToRow(o: Order): string[] {
+  return [
+    o.id, o.name, o.startDate, o.workerId, o.workerName,
+    o.status, String(o.shippingCost), o.createdAt, o.closedAt,
+    String(o.itemCount), String(o.totalValue),
+  ];
 }
 
 // ── ITEMS ──────────────────────────────────────────────────────────────────
 
+export async function getItemsByOrder(orderId: string): Promise<OrderItem[]> {
+  const all = await getAllItems();
+  return all.filter(i => i.orderId === orderId);
+}
+
 export async function getAllItems(): Promise<OrderItem[]> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A2:L`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A2:M`,
   });
-  const rows = res.data.values ?? [];
-  return rows.map(rowToItem).filter(Boolean) as OrderItem[];
+  return (res.data.values ?? []).filter(r => r[0]).map(r => ({
+    id: r[0], orderId: r[1] ?? '', vendor: r[2] ?? '',
+    code: r[3] ?? '', category: r[4] ?? '',
+    colors: safeJSON(r[5], []), sizes: safeJSON(r[6], []),
+    price: parseFloat(r[7]) || 0, qty: parseInt(r[8]) || 1,
+    notes: r[9] ?? '', ownerNote: r[10] ?? '',
+    status: (r[11] ?? 'pending') as OrderItem['status'],
+    createdAt: r[12] ?? new Date().toISOString(),
+  }));
 }
 
 export async function appendItem(item: OrderItem): Promise<void> {
   const sheets = await getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A:L`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:M`,
     valueInputOption: 'RAW',
-    requestBody: {
-      values: [itemToRow(item)],
-    },
+    requestBody: { values: [itemToRow(item)] },
   });
+  // Update order item count + total value
+  await refreshOrderStats(item.orderId);
 }
 
 export async function updateItem(item: OrderItem): Promise<void> {
-  // Find the row index by id, then overwrite it
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A:A`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:A`,
   });
   const ids = (res.data.values ?? []).map(r => r[0]);
   const rowIndex = ids.findIndex(id => id === item.id);
-  if (rowIndex < 1) throw new Error(`Item ${item.id} not found in sheet`);
-
+  if (rowIndex < 1) throw new Error('Item not found');
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:L${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
     valueInputOption: 'RAW',
-    requestBody: {
-      values: [itemToRow(item)],
-    },
+    requestBody: { values: [itemToRow(item)] },
   });
 }
 
 export async function deleteItem(id: string): Promise<void> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A:A`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:A`,
   });
   const ids = (res.data.values ?? []).map(r => r[0]);
   const rowIndex = ids.findIndex(r => r === id);
   if (rowIndex < 1) return;
-
-  // Clear the row (we don't physically delete to avoid row-shift bugs)
+  const item = (await getAllItems()).find(i => i.id === id);
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:L${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
   });
+  if (item) await refreshOrderStats(item.orderId);
 }
 
-function rowToItem(row: string[]): OrderItem | null {
-  if (!row[0]) return null;
-  return {
-    id:        row[0] ?? '',
-    vendor:    row[1] ?? '',
-    code:      row[2] ?? '',
-    category:  row[3] ?? '',
-    colors:    safeParseJSON(row[4], []),
-    sizes:     safeParseJSON(row[5], []),
-    price:     parseFloat(row[6]) || 0,
-    qty:       parseInt(row[7]) || 1,
-    notes:     row[8] ?? '',
-    ownerNote: row[9] ?? '',
-    status:    (row[10] as OrderItem['status']) ?? 'pending',
-    createdAt: row[11] ?? new Date().toISOString(),
-  };
+async function refreshOrderStats(orderId: string): Promise<void> {
+  const items = await getItemsByOrder(orderId);
+  const orders = await getAllOrders();
+  const order = orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.itemCount = items.length;
+  order.totalValue = items.reduce((s, i) => s + i.price * i.qty, 0);
+  await updateOrder(order);
 }
 
-function itemToRow(item: OrderItem): string[] {
+function itemToRow(i: OrderItem): string[] {
   return [
-    item.id,
-    item.vendor,
-    item.code,
-    item.category,
-    JSON.stringify(item.colors),
-    JSON.stringify(item.sizes),
-    String(item.price),
-    String(item.qty),
-    item.notes,
-    item.ownerNote,
-    item.status,
-    item.createdAt,
+    i.id, i.orderId, i.vendor, i.code, i.category,
+    JSON.stringify(i.colors), JSON.stringify(i.sizes),
+    String(i.price), String(i.qty), i.notes, i.ownerNote,
+    i.status, i.createdAt,
   ];
 }
 
 // ── SETTINGS ───────────────────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS: SessionSettings = {
-  tax: 6,
-  markup: 3.5,
-  shipping: 6.10,
+  tax: 6, markup: 3.5, shipping: 6.10,
   ownerPin: process.env.OWNER_PIN ?? '1234',
 };
 
@@ -143,118 +212,102 @@ export async function getSettings(): Promise<SessionSettings> {
   try {
     const sheets = await getSheets();
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `${TAB_SETTINGS}!B1:B4`,
+      spreadsheetId: SHEET_ID, range: `${TAB_SETTINGS}!B1:B4`,
     });
-    const vals = res.data.values ?? [];
+    const v = res.data.values ?? [];
     return {
-      tax:      parseFloat(vals[0]?.[0]) || DEFAULT_SETTINGS.tax,
-      markup:   parseFloat(vals[1]?.[0]) || DEFAULT_SETTINGS.markup,
-      shipping: parseFloat(vals[2]?.[0]) || DEFAULT_SETTINGS.shipping,
-      ownerPin: vals[3]?.[0]            || DEFAULT_SETTINGS.ownerPin,
+      tax:      parseFloat(v[0]?.[0]) || DEFAULT_SETTINGS.tax,
+      markup:   parseFloat(v[1]?.[0]) || DEFAULT_SETTINGS.markup,
+      shipping: parseFloat(v[2]?.[0]) || DEFAULT_SETTINGS.shipping,
+      ownerPin: v[3]?.[0]            || DEFAULT_SETTINGS.ownerPin,
     };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+  } catch { return DEFAULT_SETTINGS; }
 }
 
 export async function saveSettings(s: SessionSettings): Promise<void> {
   const sheets = await getSheets();
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_SETTINGS}!A1:B4`,
+    spreadsheetId: SHEET_ID, range: `${TAB_SETTINGS}!A1:B4`,
     valueInputOption: 'RAW',
-    requestBody: {
-      values: [
-        ['tax',      String(s.tax)],
-        ['markup',   String(s.markup)],
-        ['shipping', String(s.shipping)],
-        ['ownerPin', String(s.ownerPin)],
-      ],
-    },
+    requestBody: { values: [
+      ['tax', String(s.tax)], ['markup', String(s.markup)],
+      ['shipping', String(s.shipping)], ['ownerPin', String(s.ownerPin)],
+    ]},
   });
 }
 
-// ── VENDOR REGISTRY ────────────────────────────────────────────────────────
+// ── REGISTRY ───────────────────────────────────────────────────────────────
 
 export async function getRegistry(): Promise<Record<string, number>> {
   try {
     const sheets = await getSheets();
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `${TAB_REGISTRY}!A:B`,
+      spreadsheetId: SHEET_ID, range: `${TAB_REGISTRY}!A:B`,
     });
-    const rows = res.data.values ?? [];
     const reg: Record<string, number> = {};
-    rows.forEach(r => {
-      if (r[0] && r[1]) reg[r[0]] = parseInt(r[1]);
-    });
+    (res.data.values ?? []).forEach(r => { if (r[0] && r[1]) reg[r[0]] = parseInt(r[1]); });
     return reg;
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 
-export async function ensureVendorInRegistry(vendorName: string): Promise<number> {
-  const registry = await getRegistry();
-  const existing = Object.entries(registry).find(
-    ([k]) => k.toLowerCase() === vendorName.toLowerCase()
-  );
+export async function ensureVendorInRegistry(name: string): Promise<number> {
+  const reg = await getRegistry();
+  const existing = Object.entries(reg).find(([k]) => k.toLowerCase() === name.toLowerCase());
   if (existing) return existing[1];
-
-  // Assign next code
-  const maxCode = Math.max(1040, ...Object.values(registry));
-  const newCode = maxCode + 1;
-
+  const newCode = Math.max(1060, ...Object.values(reg)) + 1;
   const sheets = await getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_REGISTRY}!A:B`,
+    spreadsheetId: SHEET_ID, range: `${TAB_REGISTRY}!A:B`,
     valueInputOption: 'RAW',
-    requestBody: { values: [[vendorName, String(newCode)]] },
+    requestBody: { values: [[name, String(newCode)]] },
   });
   return newCode;
 }
 
-// ── SHEET INITIALISATION ───────────────────────────────────────────────────
-// Call once to set up headers and seed the registry.
-// Triggered by GET /api/init (owner only)
+// ── INIT ───────────────────────────────────────────────────────────────────
 
 export async function initSheet(): Promise<void> {
   const sheets = await getSheets();
-
-  // Ensure tabs exist
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-  const existingTabs = meta.data.sheets?.map(s => s.properties?.title) ?? [];
+  const existing = meta.data.sheets?.map(s => s.properties?.title) ?? [];
+  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY]
+    .filter(t => !existing.includes(t));
 
-  const tabsToCreate = [TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY].filter(
-    t => !existingTabs.includes(t)
-  );
-
-  if (tabsToCreate.length > 0) {
+  if (toCreate.length) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SHEET_ID,
-      requestBody: {
-        requests: tabsToCreate.map(title => ({
-          addSheet: { properties: { title } },
-        })),
-      },
+      requestBody: { requests: toCreate.map(title => ({ addSheet: { properties: { title } } })) },
     });
   }
 
-  // Write headers to Items tab
+  // Headers
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A1:L1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_WORKERS}!A1:C1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [ITEM_HEADERS] },
+    requestBody: { values: [['id','name','pin']] },
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:K1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','createdAt','closedAt','itemCount','totalValue']] },
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:M1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt']] },
   });
 
-  // Write default settings
+  // Seed workers: Morad + Abdo
+  await saveWorkers([
+    { id: 'w1', name: 'Morad', pin: '2026' },
+    { id: 'w2', name: 'Abdo',  pin: '7111' },
+  ]);
+
+  // Default settings
   await saveSettings(DEFAULT_SETTINGS);
 
-  // Seed the vendor registry
-  const seedVendors: [string, number][] = [
+  // Vendor registry
+  const vendors: [string, number][] = [
     ['SAW',1001],['ACTUAL',1002],['AirLife',1003],['Daynamo',1004],
     ['Punch',1005],['RCJ',1006],['Rugatchi',1007],['Crash',1008],
     ['2Y',1009],['Plus18',1010],['Marrakesh',1011],['Rollie',1012],
@@ -266,20 +319,12 @@ export async function initSheet(): Promise<void> {
     ['2 Morrow',1033],['Lorben',1033],['Essens of life',1033],
     ['Antioch',1034],['doa',1034],['Dezzy',1034],['Sparf',1034],
     ['Daniel',1035],['Gabbia',1035],['Jacy jace',1035],['The Dad',1035],
-    ['Delart',1036],['GUARESS',1037],['Marrakesh',1037],
-    ['Breezify',1060],
+    ['Delart',1036],['GUARESS',1037],['Marrakesh',1037],['Breezify',1060],
   ];
-
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_REGISTRY}!A1:B${seedVendors.length}`,
+    range: `${TAB_REGISTRY}!A1:B${vendors.length}`,
     valueInputOption: 'RAW',
-    requestBody: { values: seedVendors.map(([n, c]) => [n, String(c)]) },
+    requestBody: { values: vendors.map(([n,c]) => [n, String(c)]) },
   });
-}
-
-// ── HELPERS ────────────────────────────────────────────────────────────────
-
-function safeParseJSON<T>(val: string, fallback: T): T {
-  try { return JSON.parse(val); } catch { return fallback; }
 }

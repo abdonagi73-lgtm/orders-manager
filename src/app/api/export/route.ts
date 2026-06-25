@@ -1,29 +1,29 @@
-// src/app/api/export/route.ts
-import { NextResponse } from 'next/server';
-import { getAllItems, getSettings, ensureVendorInRegistry } from '@/lib/sheets';
+import { NextRequest, NextResponse } from 'next/server';
+import { getItemsByOrder, getSettings, ensureVendorInRegistry, getAllOrders } from '@/lib/sheets';
 import { itemToSquareRows, rowsToCSV } from '@/lib/pricing';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const [items, settings] = await Promise.all([getAllItems(), getSettings()]);
+    const orderId = req.nextUrl.searchParams.get('orderId');
+    if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
 
-    const exportableItems = items.filter(i => i.status !== 'flagged');
-    if (exportableItems.length === 0) {
-      return NextResponse.json({ error: 'No items to export' }, { status: 400 });
-    }
+    const [items, settings, orders] = await Promise.all([
+      getItemsByOrder(orderId), getSettings(), getAllOrders()
+    ]);
+    const order = orders.find(o => o.id === orderId);
+    const exportable = items.filter(i => i.status !== 'flagged');
+    if (!exportable.length) return NextResponse.json({ error: 'No items to export' }, { status: 400 });
 
     const allRows = [];
-    for (const item of exportableItems) {
+    for (const item of exportable) {
       const vendorCode = await ensureVendorInRegistry(item.vendor);
-      const rows = itemToSquareRows(item, vendorCode, settings);
-      allRows.push(...rows);
+      allRows.push(...itemToSquareRows(item, vendorCode, settings));
     }
 
     const csv = rowsToCSV(allRows);
-    const filename = `SQUARE_${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = `SQUARE_${order?.name.replace(/\s+/g,'_') ?? orderId}_${new Date().toISOString().split('T')[0]}.csv`;
 
     return new NextResponse(csv, {
-      status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="${filename}"`,
