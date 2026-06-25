@@ -72,9 +72,11 @@ export async function getAllOrders(): Promise<Order[]> {
     workerId: r[3] ?? '', workerName: r[4] ?? '',
     status: (r[5] ?? 'open') as Order['status'],
     shippingCost: parseFloat(r[6]) || 0,
-    createdAt: r[7] ?? '', closedAt: r[8] ?? '',
-    itemCount: parseInt(r[9]) || 0,
-    totalValue: parseFloat(r[10]) || 0,
+    workerCommission: parseFloat(r[7]) || 0,
+    totalOrderCost: parseFloat(r[8]) || 0,
+    createdAt: r[9] ?? '', closedAt: r[10] ?? '',
+    itemCount: parseInt(r[11]) || 0,
+    totalValue: parseFloat(r[12]) || 0,
   }));
 }
 
@@ -111,7 +113,8 @@ export async function updateOrder(order: Order): Promise<void> {
 function orderToRow(o: Order): string[] {
   return [
     o.id, o.name, o.startDate, o.workerId, o.workerName,
-    o.status, String(o.shippingCost), o.createdAt, o.closedAt,
+    o.status, String(o.shippingCost), String(o.workerCommission || 0),
+    String(o.totalOrderCost || 0), o.createdAt, o.closedAt,
     String(o.itemCount), String(o.totalValue),
   ];
 }
@@ -287,9 +290,9 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: [['id','name','pin']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:K1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:M1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','createdAt','closedAt','itemCount','totalValue']] },
+    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','createdAt','closedAt','itemCount','totalValue']] },
   });
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:M1`,

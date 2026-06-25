@@ -33,6 +33,8 @@ export interface Order {
   workerName: string;
   status: OrderStatus;
   shippingCost: number;
+  workerCommission: number;  // 3% of totalValue (excluding shipping)
+  totalOrderCost: number;    // totalValue + shippingCost + workerCommission
   createdAt: string;
   closedAt: string;
   itemCount: number;

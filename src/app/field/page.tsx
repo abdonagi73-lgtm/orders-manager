@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Worker, Order, OrderItem } from '@/lib/types';
 
-const EVEN_SIZES = Array.from({length:16},(_,i)=>String(28+i*2)); // 28,30,...58
+const EVEN_SIZES = Array.from({length:16},(_,i)=>String(28+i*2));
 const LETTER_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
 const QUICK_COLORS = [
   'Black','White','Gray','Navy','Beige','Brown','Green','Blue',
@@ -15,19 +15,26 @@ const DEFAULT_CATEGORIES = [
   'Sweatshirt','T-Shirt','Tank Top','Tracksuit','Underwear'
 ];
 
-type Screen = 'login' | 'orders' | 'new-order' | 'items' | 'shipping';
-type SizeMode = 'letter' | 'numeric';
-interface Sel { value: string; count: number; }
+type Screen = 'login'|'orders'|'new-order'|'items'|'summary';
+type SizeMode = 'letter'|'numeric';
+interface Sel { value:string; count:number; }
 
-function addOrInc(arr: Sel[], v: string): Sel[] {
-  const e = arr.find(x => x.value===v);
-  return e ? arr.map(x=>x.value===v?{...x,count:x.count+1}:x) : [...arr,{value:v,count:1}];
+function addOrInc(arr:Sel[], v:string):Sel[] {
+  const e=arr.find(x=>x.value===v);
+  return e?arr.map(x=>x.value===v?{...x,count:x.count+1}:x):[...arr,{value:v,count:1}];
 }
-function dec(arr: Sel[], v: string): Sel[] {
+function dec(arr:Sel[], v:string):Sel[] {
   return arr.map(x=>x.value===v?{...x,count:Math.max(0,x.count-1)}:x).filter(x=>x.count>0);
 }
-function total(arr: Sel[]): number { return arr.reduce((s,x)=>s+x.count,0); }
-function flat(arr: Sel[]): string[] { return arr.flatMap(x=>Array(x.count).fill(x.value)); }
+function total(arr:Sel[]):number { return arr.reduce((s,x)=>s+x.count,0); }
+function flat(arr:Sel[]):string[] { return arr.flatMap(x=>Array(x.count).fill(x.value)); }
+
+// Convert stored flat arrays back to Sel[] for editing
+function toSel(arr:string[]):Sel[] {
+  const map:Record<string,number>={};
+  arr.forEach(v=>{ map[v]=(map[v]||0)+1; });
+  return Object.entries(map).map(([value,count])=>({value,count}));
+}
 
 function SelTag({sel,onAdd,onRemove}:{sel:Sel;onAdd:()=>void;onRemove:()=>void}) {
   return (
@@ -62,11 +69,13 @@ export default function FieldPage() {
   const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // New order form
+  // New order
   const [orderName, setOrderName] = useState('');
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Item form
+  const [editingItem, setEditingItem] = useState<OrderItem|null>(null);
+  const [showItemList, setShowItemList] = useState(false);
   const [vendor, setVendor] = useState('');
   const [customVendor, setCustomVendor] = useState('');
   const [code, setCode] = useState('');
@@ -80,14 +89,11 @@ export default function FieldPage() {
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string,string>>({});
-  const [showItemList, setShowItemList] = useState(false);
 
-  // Shipping
+  // Summary
   const [shippingCost, setShippingCost] = useState('');
 
-  function showToast(msg: string) {
-    setToast(msg); setTimeout(()=>setToast(''),2500);
-  }
+  function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2500); }
 
   useEffect(()=>{
     fetch('/api/session').then(r=>r.json()).then(d=>{
@@ -97,17 +103,16 @@ export default function FieldPage() {
 
   async function handleLogin() {
     setPinLoading(true); setPinError(false);
-    const res = await fetch('/api/session',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'verify-worker', pin}),
-    });
+    const res = await fetch('/api/session',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'verify-worker',pin})});
     const d = await res.json();
     setPinLoading(false);
     if(d.ok){ setWorker(d.worker); loadOrders(d.worker.id); setScreen('orders'); }
     else setPinError(true);
   }
 
-  async function loadOrders(workerId: string) {
+  async function loadOrders(workerId:string) {
     const res = await fetch(`/api/orders?workerId=${workerId}`);
     const d = await res.json();
     if(d.orders) setOrders(d.orders.sort((a:Order,b:Order)=>
@@ -117,37 +122,55 @@ export default function FieldPage() {
   async function handleCreateOrder() {
     if(!orderName.trim()){ showToast('Enter order name'); return; }
     setLoading(true);
-    const res = await fetch('/api/orders',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'create', name:orderName.trim(),
-        startDate:orderDate, workerId:worker!.id, workerName:worker!.name}),
-    });
+    const res = await fetch('/api/orders',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'create',name:orderName.trim(),
+        startDate:orderDate,workerId:worker!.id,workerName:worker!.name})});
     const d = await res.json();
     setLoading(false);
     if(d.order){
       setCurrentOrder(d.order); setItems([]);
       setOrderName(''); setScreen('items'); setShowItemList(false);
+      resetItemForm();
     }
   }
 
-  async function openOrder(order: Order) {
+  async function openOrder(order:Order) {
     setCurrentOrder(order);
     const res = await fetch(`/api/items?orderId=${order.id}`);
     const d = await res.json();
-    setItems(d.items ?? []);
-    setScreen('items'); setShowItemList(true);
+    setItems(d.items??[]);
+    setScreen('items'); setShowItemList(true); resetItemForm();
   }
 
   function resetItemForm() {
-    setCode(''); setCategory(''); setCustomCategory('');
+    setEditingItem(null);
+    setVendor(''); setCustomVendor(''); setCode('');
+    setCategory(''); setCustomCategory('');
     setColors([]); setColorInput('');
     setSizes([]); setNumericInput('');
     setPrice(''); setNotes(''); setErrors({});
   }
 
+  function startEdit(item:OrderItem) {
+    setEditingItem(item);
+    setVendor(item.vendor);
+    setCode(item.code);
+    setCategory(item.category);
+    setColors(toSel(item.colors));
+    setSizes(toSel(item.sizes));
+    // detect size mode
+    const firstSize = item.sizes[0];
+    setSizeMode(!isNaN(Number(firstSize))&&Number(firstSize)>=28?'numeric':'letter');
+    setPrice(String(item.price));
+    setNotes(item.notes);
+    setErrors({});
+    setShowItemList(false);
+  }
+
   async function handleSaveItem() {
-    const errs: Record<string,string> = {};
-    const finalVendor = vendor==='__new__' ? customVendor.trim() : vendor;
+    const errs:Record<string,string>={};
+    const finalVendor = vendor==='__new__'?customVendor.trim():vendor;
     const szArr = flat(sizes);
     if(!finalVendor) errs.vendor='Select a vendor';
     if(!code.trim()) errs.code='Enter item code';
@@ -160,52 +183,100 @@ export default function FieldPage() {
 
     const autoQty = total(colors)*total(sizes);
     setLoading(true);
-    const res = await fetch('/api/items',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({orderId:currentOrder!.id, vendor:finalVendor,
-        code:code.trim(), category, colors:flat(colors), sizes:szArr,
-        price:Number(price), qty:autoQty||1, notes}),
-    });
-    const d = await res.json();
-    setLoading(false);
-    if(d.item){ setItems(prev=>[d.item,...prev]); resetItemForm(); showToast('✓ Item saved'); }
-    else showToast('Error: '+d.error);
+
+    if(editingItem) {
+      // EDIT existing
+      const updated:OrderItem = {
+        ...editingItem,
+        vendor:finalVendor, code:code.trim(), category,
+        colors:flat(colors), sizes:szArr,
+        price:Number(price), qty:autoQty||1, notes,
+      };
+      const res = await fetch('/api/items',{method:'PATCH',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
+      setLoading(false);
+      if(res.ok){
+        setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
+        resetItemForm(); setShowItemList(true);
+        showToast('✓ Item updated');
+      } else showToast('Error updating item');
+    } else {
+      // NEW item
+      const res = await fetch('/api/items',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:currentOrder!.id,vendor:finalVendor,
+          code:code.trim(),category,colors:flat(colors),sizes:szArr,
+          price:Number(price),qty:autoQty||1,notes})});
+      const d = await res.json();
+      setLoading(false);
+      if(d.item){
+        setItems(prev=>[d.item,...prev]);
+        resetItemForm();
+        showToast('✓ Item saved — add next');
+      } else showToast('Error: '+d.error);
+    }
   }
 
-  async function handleSubmitShipping() {
-    if(!shippingCost||Number(shippingCost)<0){ showToast('Enter shipping cost'); return; }
+  async function handleDeleteItem(id:string) {
+    if(!confirm('Remove this item?')) return;
+    await fetch('/api/items',{method:'DELETE',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    setItems(prev=>prev.filter(i=>i.id!==id));
+    showToast('Item removed');
+  }
+
+  async function handleSubmitOrder() {
+    if(!shippingCost||Number(shippingCost)<0){ showToast('Enter shipping cost (0 if none)'); return; }
     setLoading(true);
-    const updated = {...currentOrder!, shippingCost:Number(shippingCost), status:'submitted' as const};
-    await fetch('/api/orders',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'update', order:updated}),
-    });
+    const totalValue = items.reduce((s,i)=>s+i.price*i.qty,0);
+    const shipping = Number(shippingCost);
+    const commission = parseFloat((totalValue*0.03).toFixed(2));
+    const totalOrderCost = parseFloat((totalValue+shipping+commission).toFixed(2));
+    const updated:Order = {
+      ...currentOrder!,
+      shippingCost:shipping,
+      workerCommission:commission,
+      totalOrderCost,
+      status:'submitted',
+    };
+    await fetch('/api/orders',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'update',order:updated})});
     setLoading(false);
     setCurrentOrder(updated);
     if(worker) loadOrders(worker.id);
-    showToast('✓ Order submitted to owner');
+    showToast('✓ Order submitted!');
     setTimeout(()=>setScreen('orders'),1500);
   }
 
   const autoQty = total(colors)*total(sizes);
-  const totalColors = total(colors);
-  const totalSizes = total(sizes);
+
+  // Summary calculations
+  const totalPurchaseValue = items.reduce((s,i)=>s+i.price*i.qty,0);
+  const commission = parseFloat((totalPurchaseValue*0.03).toFixed(2));
+  const vendorSummary = items.reduce((map,item)=>{
+    if(!map[item.vendor]) map[item.vendor]={items:0,value:0};
+    map[item.vendor].items++;
+    map[item.vendor].value+=item.price*item.qty;
+    return map;
+  },{} as Record<string,{items:number;value:number}>);
 
   // ── LOGIN ──
   if(screen==='login') return (
-    <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem',background:'var(--bg)'}}>
+    <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
+      padding:'2rem',background:'var(--bg)'}}>
       <div style={{width:'100%',maxWidth:340}}>
         <div style={{marginBottom:24}}>
           <div style={{fontSize:22,fontWeight:700}}>Orders Manager</div>
-          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Field worker login</div>
+          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Field worker</div>
         </div>
         <div className="card">
           <div className="field">
             <label className="label">Enter your PIN</label>
-            <input type="password" inputMode="numeric" placeholder="PIN"
+            <input type="password" inputMode="numeric" placeholder="••••"
               value={pin} onChange={e=>setPin(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoFocus
-              style={{fontSize:20,letterSpacing:6,textAlign:'center'}} />
+              style={{fontSize:22,letterSpacing:8,textAlign:'center'}}/>
             {pinError&&<div className="field-error">Incorrect PIN</div>}
           </div>
           <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',padding:12}}
@@ -214,6 +285,7 @@ export default function FieldPage() {
           </button>
         </div>
       </div>
+      {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
     </main>
   );
 
@@ -232,29 +304,40 @@ export default function FieldPage() {
         </div>
       </div>
       <div className="container" style={{paddingTop:16,paddingBottom:80}}>
-        <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',padding:14,fontSize:15,marginBottom:20}}
+        <button className="btn btn-primary"
+          style={{width:'100%',justifyContent:'center',padding:14,fontSize:15,marginBottom:20}}
           onClick={()=>setScreen('new-order')}>
           + Start new order
         </button>
-
-        {orders.length===0 ? (
+        {orders.length===0?(
           <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
-        ) : (
+        ):(
           orders.map(order=>(
-            <div key={order.id} className="item-card" style={{cursor:'pointer'}} onClick={()=>order.status!=='imported'&&openOrder(order)}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+            <div key={order.id} className="item-card"
+              style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1}}
+              onClick={()=>order.status!=='imported'&&openOrder(order)}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                 <div>
                   <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
                   <div style={{fontSize:12,color:'var(--text-muted)',marginTop:3}}>
-                    Started {order.startDate} · {order.itemCount} items · ${order.totalValue.toFixed(0)}
+                    Started {order.startDate} · {order.itemCount} items
                   </div>
-                  {order.shippingCost>0&&<div style={{fontSize:12,color:'var(--text-muted)'}}>Shipping: ${order.shippingCost}</div>}
+                  <div style={{fontSize:12,color:'var(--text-muted)'}}>
+                    Purchase value: ${order.totalValue.toFixed(2)}
+                    {order.shippingCost>0&&` · Shipping: $${order.shippingCost.toFixed(2)}`}
+                    {order.workerCommission>0&&` · Your commission: $${order.workerCommission.toFixed(2)}`}
+                  </div>
+                  {order.totalOrderCost>0&&(
+                    <div style={{fontSize:12,fontWeight:600,marginTop:2}}>
+                      Total order cost: ${order.totalOrderCost.toFixed(2)}
+                    </div>
+                  )}
                 </div>
                 <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
                   {order.status}
                 </span>
               </div>
-              {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-muted)',marginTop:6}}>This order is closed — imported to POS</div>}
+              {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-muted)',marginTop:6}}>Closed — imported to POS</div>}
             </div>
           ))
         )}
@@ -281,14 +364,15 @@ export default function FieldPage() {
             <label className="label">Order name</label>
             <input type="text" placeholder="e.g. Punch Summer 2025"
               value={orderName} onChange={e=>setOrderName(e.target.value)}
-              onKeyDown={e=>e.key==='Enter'&&handleCreateOrder()} autoFocus />
+              onKeyDown={e=>e.key==='Enter'&&handleCreateOrder()} autoFocus/>
           </div>
           <div className="field" style={{marginBottom:0}}>
             <label className="label">Start date</label>
-            <input type="date" value={orderDate} onChange={e=>setOrderDate(e.target.value)} />
+            <input type="date" value={orderDate} onChange={e=>setOrderDate(e.target.value)}/>
           </div>
         </div>
-        <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',padding:14,fontSize:15,marginTop:14}}
+        <button className="btn btn-primary"
+          style={{width:'100%',justifyContent:'center',padding:14,fontSize:15,marginTop:14}}
           onClick={handleCreateOrder} disabled={loading}>
           {loading?'Creating...':'Create order & add items →'}
         </button>
@@ -297,34 +381,81 @@ export default function FieldPage() {
     </div>
   );
 
-  // ── SHIPPING SCREEN ──
-  if(screen==='shipping') return (
+  // ── ORDER SUMMARY + SHIPPING ──
+  if(screen==='summary') return (
     <div className="page">
       <div className="header">
         <div className="container">
           <div className="header-inner">
             <div>
-              <div className="header-title">Shipping cost</div>
+              <div className="header-title">Order summary</div>
               <div className="header-sub">{currentOrder?.name}</div>
             </div>
             <button className="btn btn-sm" onClick={()=>setScreen('items')}>← Back</button>
           </div>
         </div>
       </div>
-      <div className="container" style={{paddingTop:16}}>
-        <div className="card" style={{marginBottom:14}}>
-          <div style={{fontSize:13,color:'var(--text-muted)',marginBottom:14}}>
-            Order summary: <strong>{items.length} items</strong> · Total purchase value <strong>${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</strong>
-          </div>
-          <div className="field" style={{marginBottom:0}}>
-            <label className="label">Total shipping cost for this order (USD)</label>
-            <input type="number" inputMode="decimal" placeholder="0.00" step="0.01" min="0"
-              value={shippingCost} onChange={e=>setShippingCost(e.target.value)}
-              style={{fontSize:20}} autoFocus />
+      <div className="container" style={{paddingTop:16,paddingBottom:80}}>
+
+        {/* Vendor breakdown */}
+        <div className="card" style={{marginBottom:12}}>
+          <div className="card-title">By vendor</div>
+          {Object.entries(vendorSummary).sort((a,b)=>b[1].value-a[1].value).map(([v,d])=>(
+            <div key={v} style={{display:'flex',justifyContent:'space-between',
+              padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
+              <div>
+                <strong>{v}</strong>
+                <span style={{marginLeft:8,color:'var(--text-muted)',fontSize:12}}>{d.items} item{d.items!==1?'s':''}</span>
+              </div>
+              <span style={{fontWeight:500}}>${d.value.toFixed(2)}</span>
+            </div>
+          ))}
+          <div style={{display:'flex',justifyContent:'space-between',paddingTop:10,fontWeight:600,fontSize:14}}>
+            <span>Total purchase value</span>
+            <span>${totalPurchaseValue.toFixed(2)}</span>
           </div>
         </div>
-        <button className="btn btn-success" style={{width:'100%',justifyContent:'center',padding:14,fontSize:15}}
-          onClick={handleSubmitShipping} disabled={loading}>
+
+        {/* Commission */}
+        <div className="card" style={{marginBottom:12,background:'var(--blue-bg)',border:'1px solid var(--blue-border)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontWeight:600,color:'var(--blue)'}}>Your commission (3%)</div>
+              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>3% of ${totalPurchaseValue.toFixed(2)} purchase value</div>
+            </div>
+            <div style={{fontSize:24,fontWeight:700,color:'var(--blue)'}}>${commission.toFixed(2)}</div>
+          </div>
+        </div>
+
+        {/* Shipping input */}
+        <div className="card" style={{marginBottom:12}}>
+          <div className="card-title">Shipping cost</div>
+          <input type="number" inputMode="decimal" placeholder="0.00" step="0.01" min="0"
+            value={shippingCost} onChange={e=>setShippingCost(e.target.value)}
+            style={{fontSize:18}} autoFocus/>
+          <div style={{fontSize:12,color:'var(--text-muted)',marginTop:6}}>Total shipping cost paid for this order</div>
+        </div>
+
+        {/* Total order cost preview */}
+        {shippingCost!==''&&(
+          <div className="card" style={{marginBottom:16,background:'var(--green-bg)',border:'1px solid var(--green-border)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontWeight:600,color:'var(--green)',fontSize:15}}>Total order cost</div>
+                <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                  ${totalPurchaseValue.toFixed(2)} + ${Number(shippingCost||0).toFixed(2)} shipping + ${commission.toFixed(2)} commission
+                </div>
+              </div>
+              <div style={{fontSize:26,fontWeight:700,color:'var(--green)'}}>
+                ${(totalPurchaseValue+Number(shippingCost||0)+commission).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button className="btn btn-success"
+          style={{width:'100%',justifyContent:'center',padding:14,fontSize:15}}
+          onClick={handleSubmitOrder} disabled={loading}>
           {loading?'Submitting...':'Submit order to owner ✓'}
         </button>
       </div>
@@ -343,184 +474,225 @@ export default function FieldPage() {
               <div className="header-sub">{items.length} items · {worker?.name}</div>
             </div>
             <div style={{display:'flex',gap:6}}>
-              <button className={`btn btn-sm ${showItemList?'btn-primary':''}`} onClick={()=>setShowItemList(true)}>List ({items.length})</button>
-              <button className={`btn btn-sm ${!showItemList?'btn-primary':''}`} onClick={()=>setShowItemList(false)}>+ Add</button>
-              <button className="btn btn-sm btn-success" onClick={()=>setScreen('shipping')}>Done →</button>
+              <button className={`btn btn-sm ${showItemList?'btn-primary':''}`}
+                onClick={()=>{setShowItemList(true);resetItemForm();}}>List ({items.length})</button>
+              <button className={`btn btn-sm ${!showItemList&&!editingItem?'btn-primary':''}`}
+                onClick={()=>{setShowItemList(false);resetItemForm();}}>+ Add</button>
+              <button className="btn btn-sm btn-success" onClick={()=>setScreen('summary')}>Done →</button>
             </div>
           </div>
         </div>
       </div>
+
       <div className="container" style={{paddingTop:16,paddingBottom:80}}>
 
         {/* ITEM LIST */}
         {showItemList&&(
           items.length===0?(
-            <div className="empty"><div className="empty-icon">📋</div><div className="empty-text">No items yet</div></div>
+            <div className="empty">
+              <div className="empty-icon">📋</div>
+              <div className="empty-text">No items yet — tap + Add</div>
+            </div>
           ):(
             [...items].sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()).map(item=>(
               <div key={item.id} className="item-card">
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                  <div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                  <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace'}}>{item.code}</span></div>
-                    <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>{item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}</div>
+                    <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                      {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
+                    </div>
                     <div style={{fontSize:12,color:'var(--text-muted)'}}>${item.price} · {item.qty} units</div>
                     {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)',marginTop:3}}>Owner: {item.ownerNote}</div>}
                   </div>
-                  <span className={`badge badge-${item.status}`}>{item.status}</span>
+                  <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+                    <span className={`badge badge-${item.status}`}>{item.status}</span>
+                    <button className="btn btn-sm" onClick={()=>startEdit(item)}>Edit</button>
+                    <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
+                      onClick={()=>handleDeleteItem(item.id)}>✕</button>
+                  </div>
                 </div>
               </div>
             ))
           )
         )}
 
-        {/* ADD ITEM FORM */}
-        {!showItemList&&(<>
-          {/* 1. VENDOR */}
-          <div className="card">
-            <div className="card-title">1 · Vendor</div>
-            <select value={vendor} onChange={e=>setVendor(e.target.value)}>
-              <option value="">Select vendor...</option>
-              {vendors.map(v=><option key={v} value={v}>{v}</option>)}
-              <option value="__new__">+ New vendor</option>
-            </select>
-            {vendor==='__new__'&&<input type="text" style={{marginTop:6}} placeholder="Vendor name" value={customVendor} onChange={e=>setCustomVendor(e.target.value)}/>}
-            {errors.vendor&&<div className="field-error">{errors.vendor}</div>}
-          </div>
-
-          {/* 2. ITEM CODE */}
-          <div className="card">
-            <div className="card-title">2 · Item code</div>
-            <input type="text" placeholder="e.g. 8855 or P-26.113" value={code}
-              onChange={e=>setCode(e.target.value)} style={{fontSize:16,fontFamily:'monospace'}}/>
-            {errors.code&&<div className="field-error">{errors.code}</div>}
-          </div>
-
-          {/* 3. CATEGORY */}
-          <div className="card">
-            <div className="card-title">3 · Category</div>
-            <div className="chip-group" style={{marginBottom:10}}>
-              {categories.map(c=>(
-                <div key={c} className={`chip ${category===c?'active':''}`} onClick={()=>setCategory(c)}>{c}</div>
-              ))}
-            </div>
-            <div style={{display:'flex',gap:8}}>
-              <input type="text" placeholder="Add new category..." value={customCategory}
-                onChange={e=>setCustomCategory(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter'&&customCategory.trim()){
-                  const v=customCategory.trim();
-                  if(!categories.includes(v)) setCategories(prev=>[...prev,v].sort());
-                  setCategory(v); setCustomCategory('');
-                }}} style={{flex:1}}/>
-              <button className="btn btn-sm btn-primary" onClick={()=>{
-                const v=customCategory.trim();
-                if(!v) return;
-                if(!categories.includes(v)) setCategories(prev=>[...prev,v].sort());
-                setCategory(v); setCustomCategory('');
-              }}>Add</button>
-            </div>
-            {errors.category&&<div className="field-error" style={{marginTop:6}}>{errors.category}</div>}
-          </div>
-
-          {/* 4. COLORS */}
-          <div className="card">
-            <div className="card-title">4 · Colors — tap to add, + for more packs</div>
-            <div style={{display:'flex',gap:8,marginBottom:10}}>
-              <input type="text" placeholder="Type color, Enter to add" value={colorInput}
-                onChange={e=>setColorInput(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter'&&colorInput.trim()){setColors(prev=>addOrInc(prev,colorInput.trim()));setColorInput('');}}}
-                style={{flex:1}}/>
-              <button className="btn btn-sm btn-primary" onClick={()=>{if(colorInput.trim()){setColors(prev=>addOrInc(prev,colorInput.trim()));setColorInput('');}}}>Add</button>
-            </div>
-            <div className="chip-group" style={{marginBottom:10}}>
-              {QUICK_COLORS.map(c=><div key={c} className="chip" onClick={()=>setColors(prev=>addOrInc(prev,c))}>{c}</div>)}
-            </div>
-            {colors.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
-              {colors.map(sel=><SelTag key={sel.value} sel={sel} onAdd={()=>setColors(prev=>addOrInc(prev,sel.value))} onRemove={()=>setColors(prev=>dec(prev,sel.value))}/>)}
-            </div>}
-            {errors.colors&&<div className="field-error" style={{marginTop:6}}>{errors.colors}</div>}
-          </div>
-
-          {/* 5. SIZES */}
-          <div className="card">
-            <div className="card-title">5 · Sizes — tap to add, + for more packs</div>
-            <div style={{display:'flex',gap:8,marginBottom:12}}>
-              <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`}
-                onClick={()=>{setSizeMode('letter');setSizes([]);}}>S / M / L</button>
-              <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`}
-                onClick={()=>{setSizeMode('numeric');setSizes([]);}}>28 / 30 / 32</button>
-            </div>
-            {sizeMode==='letter'&&(
-              <div className="chip-group" style={{marginBottom:sizes.length?10:0}}>
-                {LETTER_SIZES.map(s=><div key={s} className="chip" onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>)}
+        {/* ADD / EDIT FORM */}
+        {!showItemList&&(
+          <>
+            {editingItem&&(
+              <div style={{background:'var(--amber-bg)',border:'1px solid var(--amber-border)',
+                borderRadius:'var(--radius)',padding:'10px 14px',marginBottom:12,
+                display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{fontSize:13,color:'var(--amber)',fontWeight:500}}>
+                  Editing: {editingItem.vendor} · {editingItem.code}
+                </div>
+                <button className="btn btn-sm" onClick={()=>{resetItemForm();setShowItemList(true);}}>Cancel</button>
               </div>
             )}
-            {sizeMode==='numeric'&&(
-              <>
+
+            {/* 1. VENDOR */}
+            <div className="card">
+              <div className="card-title">1 · Vendor</div>
+              <select value={vendor} onChange={e=>setVendor(e.target.value)}>
+                <option value="">Select vendor...</option>
+                {vendors.map(v=><option key={v} value={v}>{v}</option>)}
+                <option value="__new__">+ New vendor</option>
+              </select>
+              {vendor==='__new__'&&<input type="text" style={{marginTop:6}} placeholder="Vendor name"
+                value={customVendor} onChange={e=>setCustomVendor(e.target.value)}/>}
+              {errors.vendor&&<div className="field-error">{errors.vendor}</div>}
+            </div>
+
+            {/* 2. ITEM CODE */}
+            <div className="card">
+              <div className="card-title">2 · Item code</div>
+              <input type="text" placeholder="e.g. 8855 or P-26.113" value={code}
+                onChange={e=>setCode(e.target.value)}
+                style={{fontSize:16,fontFamily:'monospace'}}/>
+              {errors.code&&<div className="field-error">{errors.code}</div>}
+            </div>
+
+            {/* 3. CATEGORY */}
+            <div className="card">
+              <div className="card-title">3 · Category</div>
+              <div className="chip-group" style={{marginBottom:10}}>
+                {categories.map(c=>(
+                  <div key={c} className={`chip ${category===c?'active':''}`}
+                    onClick={()=>setCategory(c)}>{c}</div>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <input type="text" placeholder="Add new category..." value={customCategory}
+                  onChange={e=>setCustomCategory(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter'&&customCategory.trim()){
+                    const v=customCategory.trim();
+                    if(!categories.includes(v)) setCategories(prev=>[...prev,v].sort());
+                    setCategory(v); setCustomCategory('');
+                  }}} style={{flex:1}}/>
+                <button className="btn btn-sm btn-primary" onClick={()=>{
+                  const v=customCategory.trim(); if(!v) return;
+                  if(!categories.includes(v)) setCategories(prev=>[...prev,v].sort());
+                  setCategory(v); setCustomCategory('');
+                }}>Add</button>
+              </div>
+              {errors.category&&<div className="field-error" style={{marginTop:6}}>{errors.category}</div>}
+            </div>
+
+            {/* 4. COLORS */}
+            <div className="card">
+              <div className="card-title">4 · Colors — tap to add, + for more packs</div>
+              <div style={{display:'flex',gap:8,marginBottom:10}}>
+                <input type="text" placeholder="Type color, Enter to add" value={colorInput}
+                  onChange={e=>setColorInput(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter'&&colorInput.trim()){
+                    setColors(prev=>addOrInc(prev,colorInput.trim())); setColorInput('');
+                  }}} style={{flex:1}}/>
+                <button className="btn btn-sm btn-primary" onClick={()=>{
+                  if(colorInput.trim()){setColors(prev=>addOrInc(prev,colorInput.trim()));setColorInput('');}
+                }}>Add</button>
+              </div>
+              <div className="chip-group" style={{marginBottom:10}}>
+                {QUICK_COLORS.map(c=><div key={c} className="chip"
+                  onClick={()=>setColors(prev=>addOrInc(prev,c))}>{c}</div>)}
+              </div>
+              {colors.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
+                {colors.map(sel=><SelTag key={sel.value} sel={sel}
+                  onAdd={()=>setColors(prev=>addOrInc(prev,sel.value))}
+                  onRemove={()=>setColors(prev=>dec(prev,sel.value))}/>)}
+              </div>}
+              {errors.colors&&<div className="field-error" style={{marginTop:6}}>{errors.colors}</div>}
+            </div>
+
+            {/* 5. SIZES */}
+            <div className="card">
+              <div className="card-title">5 · Sizes — tap to add, + for more packs</div>
+              <div style={{display:'flex',gap:8,marginBottom:12}}>
+                <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`}
+                  onClick={()=>{setSizeMode('letter');setSizes([]);}}>S / M / L</button>
+                <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`}
+                  onClick={()=>{setSizeMode('numeric');setSizes([]);}}>28 / 30 / 32</button>
+              </div>
+              {sizeMode==='letter'&&(
                 <div className="chip-group" style={{marginBottom:sizes.length?10:0}}>
-                  {EVEN_SIZES.map(s=><div key={s} className="chip" onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>)}
+                  {LETTER_SIZES.map(s=><div key={s} className="chip"
+                    onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>)}
                 </div>
-                <div style={{display:'flex',gap:8,marginTop:8,marginBottom:sizes.length?10:0}}>
+              )}
+              {sizeMode==='numeric'&&(<>
+                <div className="chip-group" style={{marginBottom:8,flexWrap:'wrap'}}>
+                  {EVEN_SIZES.map(s=><div key={s} className="chip"
+                    onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>)}
+                </div>
+                <div style={{display:'flex',gap:8,marginBottom:sizes.length?10:0}}>
                   <input type="text" inputMode="numeric" placeholder="Or type: 29,31,33"
                     value={numericInput} onChange={e=>setNumericInput(e.target.value)}
                     onKeyDown={e=>{if(e.key==='Enter'){
-                      numericInput.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>setSizes(prev=>addOrInc(prev,s)));
+                      numericInput.split(',').map(s=>s.trim()).filter(Boolean)
+                        .forEach(s=>setSizes(prev=>addOrInc(prev,s)));
                       setNumericInput('');
                     }}} style={{flex:1}}/>
                   <button className="btn btn-sm btn-primary" onClick={()=>{
-                    numericInput.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>setSizes(prev=>addOrInc(prev,s)));
+                    numericInput.split(',').map(s=>s.trim()).filter(Boolean)
+                      .forEach(s=>setSizes(prev=>addOrInc(prev,s)));
                     setNumericInput('');
                   }}>Add</button>
                 </div>
-              </>
-            )}
-            {sizes.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-              {sizes.map(sel=><SelTag key={sel.value} sel={sel} onAdd={()=>setSizes(prev=>addOrInc(prev,sel.value))} onRemove={()=>setSizes(prev=>dec(prev,sel.value))}/>)}
-            </div>}
-            {errors.sizes&&<div className="field-error" style={{marginTop:6}}>{errors.sizes}</div>}
-          </div>
+              </>)}
+              {sizes.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                {sizes.map(sel=><SelTag key={sel.value} sel={sel}
+                  onAdd={()=>setSizes(prev=>addOrInc(prev,sel.value))}
+                  onRemove={()=>setSizes(prev=>dec(prev,sel.value))}/>)}
+              </div>}
+              {errors.sizes&&<div className="field-error" style={{marginTop:6}}>{errors.sizes}</div>}
+            </div>
 
-          {/* 6. PRICE */}
-          <div className="card">
-            <div className="card-title">6 · Unit price (USD)</div>
-            <input type="number" inputMode="decimal" placeholder="0.00" step="0.5" min="0"
-              value={price} onChange={e=>setPrice(e.target.value)}/>
-            {errors.price&&<div className="field-error">{errors.price}</div>}
-          </div>
+            {/* 6. PRICE */}
+            <div className="card">
+              <div className="card-title">6 · Unit price (USD)</div>
+              <input type="number" inputMode="decimal" placeholder="0.00" step="0.5" min="0"
+                value={price} onChange={e=>setPrice(e.target.value)}/>
+              {errors.price&&<div className="field-error">{errors.price}</div>}
+            </div>
 
-          {/* QTY PREVIEW */}
-          {autoQty>0&&(
-            <div className="card" style={{background:'var(--green-bg)',border:'1px solid var(--green-border)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:14}}>
-                <div style={{fontSize:36,fontWeight:700,color:'var(--green)'}}>{autoQty}</div>
-                <div>
-                  <div style={{fontWeight:600,color:'var(--green)',fontSize:15}}>Total units in this pack</div>
-                  <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
-                    {totalColors} color unit{totalColors!==1?'s':''} × {totalSizes} size unit{totalSizes!==1?'s':''} = {autoQty} units
+            {/* QTY PREVIEW */}
+            {autoQty>0&&(
+              <div className="card" style={{background:'var(--green-bg)',border:'1px solid var(--green-border)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:14}}>
+                  <div style={{fontSize:36,fontWeight:700,color:'var(--green)'}}>{autoQty}</div>
+                  <div>
+                    <div style={{fontWeight:600,color:'var(--green)',fontSize:15}}>Total units in this pack</div>
+                    <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                      {total(colors)} color units × {total(sizes)} size units = {autoQty} units
+                    </div>
                   </div>
                 </div>
+                <div style={{marginTop:8,fontSize:12,color:'var(--text-muted)',display:'flex',gap:16,flexWrap:'wrap'}}>
+                  <span>Colors: {colors.map(c=>c.count>1?`${c.value}×${c.count}`:c.value).join(', ')}</span>
+                  <span>Sizes: {sizes.map(s=>s.count>1?`${s.value}×${s.count}`:s.value).join(', ')}</span>
+                </div>
               </div>
-              <div style={{marginTop:8,fontSize:12,color:'var(--text-muted)',display:'flex',gap:16,flexWrap:'wrap'}}>
-                <span>Colors: {colors.map(c=>c.count>1?`${c.value}×${c.count}`:c.value).join(', ')}</span>
-                <span>Sizes: {sizes.map(s=>s.count>1?`${s.value}×${s.count}`:s.value).join(', ')}</span>
-              </div>
+            )}
+
+            {/* NOTE */}
+            <div className="card">
+              <div className="card-title">Note to owner (optional)</div>
+              <input type="text" placeholder="Anything the owner should know..."
+                value={notes} onChange={e=>setNotes(e.target.value)}/>
             </div>
-          )}
 
-          {/* NOTE */}
-          <div className="card">
-            <div className="card-title">Note to owner (optional)</div>
-            <input type="text" placeholder="Anything the owner should know..."
-              value={notes} onChange={e=>setNotes(e.target.value)}/>
-          </div>
-
-          <div style={{display:'flex',gap:10,marginTop:14}}>
-            <button className="btn" onClick={resetItemForm}>Clear</button>
-            <button className="btn btn-primary" style={{flex:1,justifyContent:'center',padding:12}}
-              onClick={handleSaveItem} disabled={loading}>
-              {loading?'Saving...':'Save item →'}
-            </button>
-          </div>
-        </>)}
+            <div style={{display:'flex',gap:10,marginTop:14}}>
+              <button className="btn" onClick={()=>{resetItemForm();if(editingItem)setShowItemList(true);}}>
+                {editingItem?'Cancel':'Clear'}
+              </button>
+              <button className="btn btn-primary"
+                style={{flex:1,justifyContent:'center',padding:12}}
+                onClick={handleSaveItem} disabled={loading}>
+                {loading?'Saving...':editingItem?'Update item ✓':'Save item →'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
     </div>

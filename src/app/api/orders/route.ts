@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
         workerName: body.workerName,
         status: 'open',
         shippingCost: 0,
+        workerCommission: 0,
+        totalOrderCost: 0,
         createdAt: new Date().toISOString(),
         closedAt: '',
         itemCount: 0,
