@@ -88,7 +88,7 @@ export async function getOrdersByWorker(workerId: string): Promise<Order[]> {
 export async function createOrder(order: Order): Promise<void> {
   const sheets = await getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:J`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:M`,
     valueInputOption: 'RAW',
     requestBody: { values: [orderToRow(order)] },
   });
@@ -104,7 +104,7 @@ export async function updateOrder(order: Order): Promise<void> {
   if (rowIndex < 1) throw new Error('Order not found');
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ORDERS}!A${rowIndex + 1}:K${rowIndex + 1}`,
+    range: `${TAB_ORDERS}!A${rowIndex + 1}:M${rowIndex + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: [orderToRow(order)] },
   });
