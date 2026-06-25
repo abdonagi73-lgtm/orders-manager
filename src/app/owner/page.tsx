@@ -115,11 +115,17 @@ export default function OwnerPage() {
 
   async function addWorker() {
     if(!newWorkerName.trim()||!newWorkerPin.trim()){ showToast('Enter name and PIN'); return; }
-    const updated = [...workers, {id:crypto.randomUUID(), name:newWorkerName.trim(), pin:newWorkerPin.trim()}];
-    await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+    const newId = 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    const updated = [...workers, {id:newId, name:newWorkerName.trim(), pin:newWorkerPin.trim()}];
+    const res = await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'save-workers',workers:updated})});
-    setWorkers(updated); setNewWorkerName(''); setNewWorkerPin('');
-    showToast('Worker added');
+    const d = await res.json();
+    if(d.ok){
+      const fresh = await fetch('/api/session').then(r=>r.json());
+      if(fresh.workers) setWorkers(fresh.workers);
+      setNewWorkerName(''); setNewWorkerPin('');
+      showToast('✓ Worker saved');
+    } else { showToast('Error saving worker'); }
   }
 
   async function removeWorker(id: string) {
