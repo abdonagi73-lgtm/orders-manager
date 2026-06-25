@@ -255,11 +255,12 @@ export default function FieldPage() {
   const totalPurchaseValue = items.reduce((s,i)=>s+i.price*i.qty,0);
   const commission = parseFloat((totalPurchaseValue*0.03).toFixed(2));
   const vendorSummary = items.reduce((map,item)=>{
-    if(!map[item.vendor]) map[item.vendor]={items:0,value:0};
-    map[item.vendor].items++;
+    if(!map[item.vendor]) map[item.vendor]={packs:0,units:0,value:0};
+    map[item.vendor].packs++;
+    map[item.vendor].units+=item.qty;
     map[item.vendor].value+=item.price*item.qty;
     return map;
-  },{} as Record<string,{items:number;value:number}>);
+  },{} as Record<string,{packs:number;units:number;value:number}>);
 
   // ── LOGIN ──
   if(screen==='login') return (
@@ -401,11 +402,13 @@ export default function FieldPage() {
         <div className="card" style={{marginBottom:12}}>
           <div className="card-title">By vendor</div>
           {Object.entries(vendorSummary).sort((a,b)=>b[1].value-a[1].value).map(([v,d])=>(
-            <div key={v} style={{display:'flex',justifyContent:'space-between',
+            <div key={v} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',
               padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
               <div>
                 <strong>{v}</strong>
-                <span style={{marginLeft:8,color:'var(--text-muted)',fontSize:12}}>{d.items} item{d.items!==1?'s':''}</span>
+                <div style={{fontSize:11,color:'var(--text-muted)',marginTop:2}}>
+                  {d.packs} pack{d.packs!==1?'s':''} · {d.units} unit{d.units!==1?'s':''}
+                </div>
               </div>
               <span style={{fontWeight:500}}>${d.value.toFixed(2)}</span>
             </div>
@@ -486,35 +489,51 @@ export default function FieldPage() {
 
       <div className="container" style={{paddingTop:16,paddingBottom:80}}>
 
-        {/* ITEM LIST */}
+        {/* ITEM LIST — grouped by vendor */}
         {showItemList&&(
           items.length===0?(
             <div className="empty">
               <div className="empty-icon">📋</div>
               <div className="empty-text">No items yet — tap + Add</div>
             </div>
-          ):(
-            [...items].sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()).map(item=>(
-              <div key={item.id} className="item-card">
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace'}}>{item.code}</span></div>
-                    <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
-                      {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
-                    </div>
-                    <div style={{fontSize:12,color:'var(--text-muted)'}}>${item.price} · {item.qty} units</div>
-                    {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)',marginTop:3}}>Owner: {item.ownerNote}</div>}
-                  </div>
-                  <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
-                    <span className={`badge badge-${item.status}`}>{item.status}</span>
-                    <button className="btn btn-sm" onClick={()=>startEdit(item)}>Edit</button>
-                    <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
-                      onClick={()=>handleDeleteItem(item.id)}>✕</button>
-                  </div>
+          ):( ()=>{
+            // Group by vendor, preserve latest-first within each vendor
+            const sorted = [...items].sort((a,b)=>a.vendor.localeCompare(b.vendor)||new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime());
+            const vendorGroups = sorted.reduce((map,item)=>{
+              if(!map[item.vendor]) map[item.vendor]=[];
+              map[item.vendor].push(item);
+              return map;
+            },{} as Record<string,OrderItem[]>);
+            return Object.entries(vendorGroups).map(([v,vItems])=>(
+              <div key={v} style={{marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:600,textTransform:'uppercase',
+                  letterSpacing:'.06em',color:'var(--text-muted)',
+                  padding:'4px 2px',marginBottom:6,borderBottom:'1px solid var(--border)'}}>
+                  {v} · {vItems.length} pack{vItems.length!==1?'s':''}
                 </div>
+                {vItems.map(item=>(
+                  <div key={item.id} className="item-card" style={{marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:600,fontFamily:'monospace',fontSize:14}}>{item.code}</div>
+                        <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                          {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
+                        </div>
+                        <div style={{fontSize:12,color:'var(--text-muted)'}}>${item.price} · {item.qty} units</div>
+                        {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)',marginTop:3}}>Owner: {item.ownerNote}</div>}
+                      </div>
+                      <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+                        <span className={`badge badge-${item.status}`}>{item.status}</span>
+                        <button className="btn btn-sm" onClick={()=>startEdit(item)}>Edit</button>
+                        <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
+                          onClick={()=>handleDeleteItem(item.id)}>✕</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))
-          )
+            ));
+          })()
         )}
 
         {/* ADD / EDIT FORM */}
