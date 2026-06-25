@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import type { Worker, Order, OrderItem } from '@/lib/types';
 
 const EVEN_SIZES = Array.from({length:16},(_,i)=>String(28+i*2));
@@ -267,7 +268,9 @@ export default function FieldPage() {
     <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
       padding:'2rem',background:'var(--bg)'}}>
       <div style={{width:'100%',maxWidth:340}}>
-        <div style={{marginBottom:24}}>
+        <div style={{marginBottom:24,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center'}}>
+          <Image src="/logo.png" alt="logo" width={72} height={72}
+            style={{borderRadius:16,marginBottom:14,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}} />
           <div style={{fontSize:22,fontWeight:700}}>Orders Manager</div>
           <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Field worker</div>
         </div>
@@ -296,9 +299,12 @@ export default function FieldPage() {
       <div className="header">
         <div className="container">
           <div className="header-inner">
-            <div>
-              <div className="header-title">👋 {worker?.name}</div>
-              <div className="header-sub">Your orders</div>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <Image src="/logo.png" alt="logo" width={32} height={32} style={{borderRadius:7}} />
+              <div>
+                <div className="header-title">👋 {worker?.name}</div>
+                <div className="header-sub">Your orders</div>
+              </div>
             </div>
             <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
           </div>

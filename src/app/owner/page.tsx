@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
@@ -146,7 +147,9 @@ export default function OwnerPage() {
   if(!authed) return (
     <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem',background:'var(--bg)'}}>
       <div style={{width:'100%',maxWidth:340}}>
-        <div style={{marginBottom:24}}>
+        <div style={{marginBottom:24,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center'}}>
+          <Image src="/logo.png" alt="logo" width={72} height={72}
+            style={{borderRadius:16,marginBottom:14,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}} />
           <div style={{fontSize:22,fontWeight:700}}>Owner dashboard</div>
           <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Orders Manager</div>
         </div>
@@ -173,9 +176,12 @@ export default function OwnerPage() {
       <div className="header">
         <div className="container-wide">
           <div className="header-inner">
-            <div>
-              <div className="header-title">Orders Manager</div>
-              <div className="header-sub">Owner · Choices For You</div>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <Image src="/logo.png" alt="logo" width={32} height={32} style={{borderRadius:7}} />
+              <div>
+                <div className="header-title">Orders Manager</div>
+                <div className="header-sub">Owner · Choices For You</div>
+              </div>
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <span className="badge badge-info">{orders.length} orders</span>
