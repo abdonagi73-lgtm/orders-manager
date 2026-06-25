@@ -257,15 +257,17 @@ export async function initSheet(): Promise<void> {
   const seedVendors: [string, number][] = [
     ['SAW',1001],['ACTUAL',1002],['AirLife',1003],['Daynamo',1004],
     ['Punch',1005],['RCJ',1006],['Rugatchi',1007],['Crash',1008],
-    ['2Y',1009],['Plus eighteen',1010],['Marrakech',1011],['Rollie',1012],
+    ['2Y',1009],['Plus18',1010],['Marrakesh',1011],['Rollie',1012],
     ['Yadawiya',1014],['Juan Raul (JR)',1015],['NEGRO',1016],
-    ['King Brich',1017],['Mr.lii',1018],['The champ',1019],
-    ['LOOKMAN',1020],['BREEZY',1021],['JCJ',1022],['Polize',1023],
+    ['King Brich',1017],['Mr.lii',1018],['Champ',1019],
+    ['Look Man',1020],['BREEZY',1021],['JCJ',1022],['Polize',1023],
     ['Nomarc',1024],['Maxim',1025],['Deezy',1026],['LenaSo',1027],
     ['3 line',1029],['2512',1030],['oscar',1031],['Tarz',1032],
-    ['Lorben',1033],['doa',1034],['The Dad',1035],['Sparf',1036],
-    ['GUARESS',1037],['Vamos',1038],['Essens of life',1039],
-    ['Pullmark',1040],
+    ['2 Morrow',1033],['Lorben',1033],['Essens of life',1033],
+    ['Antioch',1034],['doa',1034],['Dezzy',1034],['Sparf',1034],
+    ['Daniel',1035],['Gabbia',1035],['Jacy jace',1035],['The Dad',1035],
+    ['Delart',1036],['GUARESS',1037],['Marrakesh',1037],
+    ['Breezify',1060],
   ];
 
   await sheets.spreadsheets.values.update({
