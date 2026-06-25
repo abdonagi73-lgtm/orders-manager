@@ -294,7 +294,7 @@ export default function OwnerPage() {
                       {exportableRows} rows · Shipping: ${selectedOrder.shippingCost} · Tax: {settings.tax}% · Markup: {settings.markup}×
                     </div>
                   </div>
-                  <div style={{display:'flex',gap:8'}}>
+                  <div style={{display:'flex',gap:8}}>
                     <button className="btn btn-success" style={{padding:'10px 20px'}}
                       onClick={doExport} disabled={exporting||exportableRows===0}>
                       {exporting?'Generating...':'⬇ Download CSV'}
