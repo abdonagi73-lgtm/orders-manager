@@ -1,30 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllOrders, getOrdersByWorker, createOrder, updateOrder } from '@/lib/sheets';
-import { google } from 'googleapis';
+import { getAllOrders, getOrdersByWorker, createOrder, updateOrder, addNotification } from '@/lib/sheets';
 import type { Order } from '@/lib/types';
-
-const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
-
-function getAuth() {
-  return new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-}
-
-async function addNotification(type: string, forWho: string, workerId: string, workerName: string, orderId: string, orderName: string, message: string) {
-  try {
-    const sheets = google.sheets({ version: 'v4', auth: getAuth() });
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID, range: 'Notifications!A:L',
-      valueInputOption: 'RAW',
-      requestBody: { values: [['n_'+Date.now(), type, forWho, workerId, workerName, orderId, orderName, '', '', message, 'false', new Date().toISOString()]] },
-    });
-  } catch(e) { console.error('Notification error:', e); }
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,7 +27,8 @@ export async function POST(req: NextRequest) {
         itemCount: 0, totalValue: 0,
       };
       await createOrder(order);
-      await addNotification('order_started', 'owner', order.workerId, order.workerName, order.id, order.name,
+      await addNotification('order_started', 'owner',
+        order.workerId, order.workerName, order.id, order.name, '', '',
         `${order.workerName} started a new order: "${order.name}"`);
       return NextResponse.json({ order }, { status: 201 });
     }
@@ -59,7 +36,9 @@ export async function POST(req: NextRequest) {
     if (body.action === 'update') {
       await updateOrder(body.order);
       if (body.order?.status === 'submitted') {
-        await addNotification('order_submitted', 'owner', body.order.workerId, body.order.workerName, body.order.id, body.order.name,
+        await addNotification('order_submitted', 'owner',
+          body.order.workerId, body.order.workerName,
+          body.order.id, body.order.name, '', '',
           `${body.order.workerName} submitted "${body.order.name}" — ready for review`);
       }
       return NextResponse.json({ ok: true });

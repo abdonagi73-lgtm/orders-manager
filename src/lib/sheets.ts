@@ -331,3 +331,30 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: vendors.map(([n,c]) => [n, String(c)]) },
   });
 }
+
+// ── NOTIFICATIONS ──────────────────────────────────────────────────────────
+
+export async function addNotification(
+  type: string, forWho: string, workerId: string,
+  workerName: string, orderId: string, orderName: string,
+  itemId: string, itemCode: string, message: string
+): Promise<void> {
+  try {
+    const sheets = await getSheets();
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: 'Notifications!A:L',
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[
+          'n_' + Date.now(), type, forWho,
+          workerId, workerName, orderId, orderName,
+          itemId, itemCode, message, 'false',
+          new Date().toISOString()
+        ]]
+      },
+    });
+  } catch(e) {
+    console.error('Notification write error:', e);
+  }
+}

@@ -1,30 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllItems, getItemsByOrder, appendItem, updateItem, deleteItem } from '@/lib/sheets';
-import { google } from 'googleapis';
+import { getAllItems, getItemsByOrder, appendItem, updateItem, deleteItem, addNotification } from '@/lib/sheets';
 import type { OrderItem } from '@/lib/types';
-
-const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
-
-function getAuth() {
-  return new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-}
-
-async function addNotification(type: string, forWho: string, workerId: string, itemId: string, itemCode: string, message: string) {
-  try {
-    const sheets = google.sheets({ version: 'v4', auth: getAuth() });
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID, range: 'Notifications!A:L',
-      valueInputOption: 'RAW',
-      requestBody: { values: [['n_'+Date.now(), type, forWho, workerId, '', '', '', itemId, itemCode, message, 'false', new Date().toISOString()]] },
-    });
-  } catch(e) { console.error('Notification error:', e); }
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,8 +40,8 @@ export async function PATCH(req: NextRequest) {
     const item: OrderItem = await req.json();
     await updateItem(item);
     if (item.status === 'flagged' && item.workerId) {
-      await addNotification('item_flagged', 'worker', item.workerId,
-        item.id, item.code,
+      await addNotification('item_flagged', 'worker',
+        item.workerId, '', item.orderId || '', '', item.id, item.code,
         `${item.vendor} · ${item.code} was flagged${item.ownerNote ? ': ' + item.ownerNote : ' — please review'}`);
     }
     return NextResponse.json({ ok: true });
