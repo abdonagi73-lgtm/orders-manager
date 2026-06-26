@@ -251,6 +251,7 @@ export default function OwnerPage() {
               <div className="empty"><div className="empty-icon">👆</div><div className="empty-text">Select an order from the Orders tab</div></div>
             ):(
               <>
+                {/* Status badges + filter */}
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
                   <span className="badge badge-approved">{approvedCount} approved</span>
                   <span className="badge badge-pending">{pendingCount} pending</span>
@@ -263,48 +264,158 @@ export default function OwnerPage() {
                   </select>
                 </div>
 
+                {/* Live pricing controls */}
+                <div className="card" style={{marginBottom:14,background:'var(--blue-bg)',border:'1px solid var(--blue-border)'}}>
+                  <div style={{fontSize:12,fontWeight:600,color:'var(--blue)',marginBottom:10}}>
+                    LIVE PRICING — adjust and watch all prices update instantly
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+                    <div>
+                      <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Tax (%)</label>
+                      <input type="number" step="0.5" value={settings.tax}
+                        onChange={e=>setSettings(s=>({...s,tax:Number(e.target.value)}))}
+                        style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Markup (×)</label>
+                      <input type="number" step="0.1" value={settings.markup}
+                        onChange={e=>setSettings(s=>({...s,markup:Number(e.target.value)}))}
+                        style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Shipping ($/kg)</label>
+                      <input type="number" step="0.1" value={settings.shipping}
+                        onChange={e=>setSettings(s=>({...s,shipping:Number(e.target.value)}))}
+                        style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:8,marginTop:10}}>
+                    <button className="btn btn-sm btn-primary" onClick={saveSettings} disabled={savingSettings}>
+                      {savingSettings?'Saving...':'Save as default'}
+                    </button>
+                    <span style={{fontSize:11,color:'var(--blue)',alignSelf:'center'}}>
+                      Changes apply live to the preview below
+                    </span>
+                  </div>
+                </div>
+
                 {filteredItems.length===0?(
                   <div className="empty"><div className="empty-text">No items match</div></div>
                 ):(
-                  filteredItems.map(item=>{
-                    const retail = calcRetailPrice(item.price, item.category, settings);
-                    const cost   = calcUnitCost(item.price, item.category, settings);
-                    return (
-                      <div key={item.id} className="item-card" style={{
-                        borderLeft:`3px solid ${item.status==='approved'?'var(--green)':item.status==='flagged'?'var(--red)':'var(--amber-border)'}`
-                      }}>
-                        <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
-                            <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
-                              {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')} · ${item.price} × {item.qty}
+                  <>
+                    {/* Approve all button */}
+                    {pendingCount>0&&(
+                      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+                        <button className="btn btn-sm btn-success" onClick={()=>{
+                          filteredItems.filter(i=>i.status==='pending').forEach(i=>updateItemStatus(i,'approved'));
+                        }}>✓ Approve all pending</button>
+                      </div>
+                    )}
+
+                    {/* Items cards */}
+                    {filteredItems.map(item=>{
+                      const retail = calcRetailPrice(item.price, item.category, settings);
+                      const cost   = calcUnitCost(item.price, item.category, settings);
+                      const variants = item.colors.length * item.sizes.length;
+                      return (
+                        <div key={item.id} className="item-card" style={{
+                          borderLeft:`3px solid ${item.status==='approved'?'var(--green)':item.status==='flagged'?'var(--red)':'var(--amber-border)'}`
+                        }}>
+                          <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
+                              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                                {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
+                              </div>
+                              <div style={{fontSize:12,color:'var(--text-muted)'}}>
+                                Purchase: ${item.price}/unit · Qty: {item.qty} units
+                              </div>
+                              {item.notes&&<div style={{fontSize:11,color:'var(--text-muted)'}}>Note: {item.notes}</div>}
+                              {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
+                              {/* Live price preview */}
+                              <div style={{marginTop:6,padding:'6px 10px',background:'var(--bg)',borderRadius:6,
+                                display:'flex',gap:16,flexWrap:'wrap',fontSize:12}}>
+                                <span>Unit cost: <strong>${cost.toFixed(2)}</strong></span>
+                                <span>Retail price: <strong style={{color:'var(--green)',fontSize:13}}>${retail.toFixed(2)}</strong></span>
+                                <span style={{color:'var(--text-faint)'}}>{variants} variant{variants!==1?'s':''} in Square</span>
+                              </div>
                             </div>
-                            {item.notes&&<div style={{fontSize:11,color:'var(--text-muted)'}}>Note: {item.notes}</div>}
-                            {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
-                            <div style={{fontSize:12,marginTop:4}}>
-                              Retail: <strong style={{color:'var(--green)'}}>${retail.toFixed(2)}</strong>
-                              &nbsp;&nbsp;Cost: ${cost.toFixed(2)}
-                              &nbsp;&nbsp;<span style={{color:'var(--text-faint)'}}>{item.colors.length*item.sizes.length} variants</span>
+                            <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center',flexDirection:'column'}}>
+                              <span className={`badge badge-${item.status}`}>{item.status}</span>
+                              <div style={{display:'flex',gap:4}}>
+                                <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
+                                <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
+                                  onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
+                                <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
+                              </div>
                             </div>
-                          </div>
-                          <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
-                            <span className={`badge badge-${item.status}`}>{item.status}</span>
-                            <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
-                            <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
-                              onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
-                            <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
                           </div>
                         </div>
+                      );
+                    })}
+
+                    {/* Square preview table */}
+                    <div style={{marginTop:20,marginBottom:14}}>
+                      <div style={{fontWeight:600,fontSize:14,marginBottom:10}}>
+                        Square CSV preview — {exportableRows} rows
                       </div>
-                    );
-                  })
+                      <div style={{overflowX:'auto',borderRadius:'var(--radius)',border:'1px solid var(--border)'}}>
+                        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,background:'var(--surface)'}}>
+                          <thead>
+                            <tr style={{background:'var(--bg)'}}>
+                              {['Item Name','Variation','SKU','Category','Price','Unit Cost','Color','Size','Vendor','Qty'].map(h=>(
+                                <th key={h} style={{padding:'8px 10px',textAlign:'left',fontWeight:600,
+                                  borderBottom:'1px solid var(--border)',whiteSpace:'nowrap',
+                                  color:'var(--text-muted)',fontSize:11}}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredItems.filter(i=>i.status!=='flagged').flatMap(item=>{
+                              const retail = calcRetailPrice(item.price, item.category, settings);
+                              const cost   = calcUnitCost(item.price, item.category, settings);
+                              const abbr   = item.vendor.trim().split(/\s+/).length===1
+                                ? item.vendor.substring(0,2).toUpperCase()
+                                : item.vendor.trim().split(/\s+/).map((w:string)=>w[0]).join('').toUpperCase();
+                              const itemName = `${abbr}-${item.code} ${item.category}`;
+                              return item.colors.flatMap((color,ci)=>
+                                item.sizes.map((size,si)=>{
+                                  const colorSlug=color.substring(0,3).toUpperCase().replace(/\s/g,'');
+                                  const sizeSlug=String(size).toUpperCase().replace(/\s/g,'');
+                                  const sku=`${abbr}-${item.code}-${colorSlug}-${sizeSlug}`;
+                                  return (
+                                    <tr key={`${item.id}-${ci}-${si}`}
+                                      style={{borderBottom:'1px solid var(--border)'}}>
+                                      <td style={{padding:'6px 10px',fontWeight:500}}>{itemName}</td>
+                                      <td style={{padding:'6px 10px'}}>{color}, {size}</td>
+                                      <td style={{padding:'6px 10px',fontFamily:'monospace',fontSize:11}}>{sku}</td>
+                                      <td style={{padding:'6px 10px'}}>{item.category}</td>
+                                      <td style={{padding:'6px 10px',color:'var(--green)',fontWeight:600}}>${retail.toFixed(2)}</td>
+                                      <td style={{padding:'6px 10px'}}>${cost.toFixed(2)}</td>
+                                      <td style={{padding:'6px 10px'}}>{color}</td>
+                                      <td style={{padding:'6px 10px'}}>{size}</td>
+                                      <td style={{padding:'6px 10px'}}>{item.vendor}</td>
+                                      <td style={{padding:'6px 10px'}}>{item.qty}</td>
+                                    </tr>
+                                  );
+                                })
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
                 )}
 
-                <div style={{marginTop:16,padding:14,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+                {/* Export bar */}
+                <div style={{padding:14,background:'var(--surface)',border:'1px solid var(--border)',
+                  borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',
+                  justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
                   <div>
                     <div style={{fontWeight:600}}>Export to Square</div>
                     <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
-                      {exportableRows} rows · Shipping: ${selectedOrder.shippingCost} · Tax: {settings.tax}% · Markup: {settings.markup}×
+                      {exportableRows} rows · Tax: {settings.tax}% · Markup: {settings.markup}× · Shipping: ${settings.shipping}/kg
                     </div>
                   </div>
                   <div style={{display:'flex',gap:8}}>
