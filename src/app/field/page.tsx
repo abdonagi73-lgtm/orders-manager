@@ -94,6 +94,10 @@ export default function FieldPage() {
   // Summary
   const [shippingCost, setShippingCost] = useState('');
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
+  const [photo, setPhoto] = useState<string>('');
+  const [showPhotoPreview, setShowPhotoPreview] = useState(false);
 
   function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2500); }
 
@@ -101,7 +105,44 @@ export default function FieldPage() {
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry).sort());
     });
+    // Online/offline detection
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Sync queued items
+      const queue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+      if(queue.length > 0) syncOfflineQueue(queue);
+    };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    // Load any existing queue
+    const savedQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+    setOfflineQueue(savedQueue);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   },[]);
+
+  async function syncOfflineQueue(queue: any[]) {
+    const remaining = [];
+    for(const item of queue) {
+      try {
+        const res = await fetch('/api/items',{method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(item)});
+        if(!res.ok) remaining.push(item);
+        else {
+          const d = await res.json();
+          if(d.item) setItems(prev=>[d.item,...prev]);
+        }
+      } catch { remaining.push(item); }
+    }
+    localStorage.setItem('offlineQueue', JSON.stringify(remaining));
+    setOfflineQueue(remaining);
+    if(remaining.length === 0) showToast(`✓ ${queue.length} queued items synced`);
+  }
 
   async function handleLogin() {
     setPinLoading(true); setPinError(false);
@@ -158,6 +199,7 @@ export default function FieldPage() {
     setColors([]); setColorInput('');
     setSizes([]); setNumericInput('');
     setPrice(''); setNotes(''); setErrors({});
+    setPhoto(''); setShowPhotoPreview(false);
   }
 
   function startEdit(item:OrderItem) {
@@ -167,11 +209,11 @@ export default function FieldPage() {
     setCategory(item.category);
     setColors(toSel(item.colors));
     setSizes(toSel(item.sizes));
-    // detect size mode
     const firstSize = item.sizes[0];
     setSizeMode(!isNaN(Number(firstSize))&&Number(firstSize)>=28?'numeric':'letter');
     setPrice(String(item.price));
     setNotes(item.notes);
+    setPhoto(item.photo || '');
     setErrors({});
     setShowItemList(false);
   }
@@ -191,6 +233,23 @@ export default function FieldPage() {
 
     const autoQty = total(colors)*total(sizes);
     setLoading(true);
+
+    // Handle offline
+    if(!isOnline && !editingItem) {
+      const queuedItem = {
+        orderId:currentOrder!.id, workerId:worker?.id||'', vendor:finalVendor,
+        code:code.trim(), category, colors:flat(colors), sizes:szArr,
+        price:Number(price), qty:autoQty||1, notes, photo,
+        _offline: true, _tempId: 'tmp_'+Date.now(),
+      };
+      const newQueue = [...offlineQueue, queuedItem];
+      setOfflineQueue(newQueue);
+      localStorage.setItem('offlineQueue', JSON.stringify(newQueue));
+      setLoading(false);
+      resetItemForm();
+      showToast('📴 Saved offline — will sync when connected');
+      return;
+    }
 
     if(editingItem) {
       // EDIT existing
@@ -214,7 +273,7 @@ export default function FieldPage() {
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({orderId:currentOrder!.id,workerId:worker?.id||'',vendor:finalVendor,
           code:code.trim(),category,colors:flat(colors),sizes:szArr,
-          price:Number(price),qty:autoQty||1,notes})});
+          price:Number(price),qty:autoQty||1,notes,photo})});
       const d = await res.json();
       setLoading(false);
       if(d.item){
@@ -501,7 +560,11 @@ export default function FieldPage() {
           <div className="header-inner">
             <div>
               <div className="header-title">{currentOrder?.name}</div>
-              <div className="header-sub">{items.length} items · {worker?.name}</div>
+              <div className="header-sub">
+                {items.length} items · {worker?.name}
+                {!isOnline&&<span style={{color:'var(--red)',marginLeft:8}}>📴 Offline</span>}
+                {offlineQueue.length>0&&<span style={{color:'var(--amber)',marginLeft:8}}>{offlineQueue.length} queued</span>}
+              </div>
             </div>
             <div style={{display:'flex',gap:6}}>
               <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
@@ -562,6 +625,32 @@ export default function FieldPage() {
               </div>
             ));
           })()
+        )}
+
+        {/* OFFLINE BANNER */}
+        {!isOnline&&(
+          <div style={{background:'var(--red-light)',border:'1px solid var(--red-border)',
+            borderRadius:'var(--r)',padding:'10px 14px',marginBottom:12,
+            display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:20}}>📴</span>
+            <div>
+              <div style={{fontWeight:600,color:'var(--red)',fontSize:13}}>You are offline</div>
+              <div style={{fontSize:12,color:'var(--text-2)'}}>Items will be saved locally and synced when you reconnect</div>
+            </div>
+          </div>
+        )}
+
+        {/* QUEUED ITEMS BANNER */}
+        {isOnline&&offlineQueue.length>0&&(
+          <div style={{background:'var(--amber-light)',border:'1px solid var(--amber-border)',
+            borderRadius:'var(--r)',padding:'10px 14px',marginBottom:12,
+            display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+            <div style={{fontSize:13,color:'var(--amber)',fontWeight:500}}>
+              {offlineQueue.length} item{offlineQueue.length!==1?'s':''} waiting to sync
+            </div>
+            <button className="btn btn-sm" style={{borderColor:'var(--amber-border)',color:'var(--amber)'}}
+              onClick={()=>syncOfflineQueue(offlineQueue)}>Sync now</button>
+          </div>
         )}
 
         {/* ADD / EDIT FORM */}
@@ -720,6 +809,36 @@ export default function FieldPage() {
                 </div>
               </div>
             )}
+
+            {/* PHOTO */}
+            <div className="card">
+              <div className="card-title">Photo (optional)</div>
+              {photo ? (
+                <div style={{position:'relative'}}>
+                  <img src={photo} alt="Item" style={{width:'100%',maxHeight:200,objectFit:'cover',borderRadius:'var(--r-sm)'}}/>
+                  <button className="btn btn-sm btn-danger" style={{position:'absolute',top:8,right:8}}
+                    onClick={()=>setPhoto('')}>Remove</button>
+                </div>
+              ) : (
+                <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',
+                  padding:'12px',border:'2px dashed var(--border-strong)',borderRadius:'var(--r-sm)',
+                  color:'var(--text-3)'}}>
+                  <span style={{fontSize:24}}>📷</span>
+                  <div>
+                    <div style={{fontWeight:500,fontSize:13}}>Take or upload a photo</div>
+                    <div style={{fontSize:11,marginTop:2}}>Tap to open camera</div>
+                  </div>
+                  <input type="file" accept="image/*" capture="environment" style={{display:'none'}}
+                    onChange={e=>{
+                      const file = e.target.files?.[0];
+                      if(!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => setPhoto(ev.target?.result as string);
+                      reader.readAsDataURL(file);
+                    }}/>
+                </label>
+              )}
+            </div>
 
             {/* NOTE */}
             <div className="card">

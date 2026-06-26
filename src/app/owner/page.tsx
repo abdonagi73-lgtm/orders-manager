@@ -4,7 +4,7 @@ import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
-type Tab = 'orders' | 'items' | 'workers' | 'settings';
+type Tab = 'orders' | 'items' | 'analytics' | 'commission' | 'workers' | 'settings';
 
 export default function OwnerPage() {
   const [authed, setAuthed] = useState(false);
@@ -111,6 +111,39 @@ export default function OwnerPage() {
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
     setEditModal(null);
     showToast('✓ Item updated');
+  }
+
+  async function markCommissionPaid(orderId: string, paid: boolean) {
+    const order = orders.find(o => o.id === orderId);
+    if(!order) return;
+    const updated = {...order, commissionPaid: paid};
+    setOrders(prev=>prev.map(o=>o.id===orderId?updated:o));
+    await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'update',order:updated})});
+    showToast(paid?'✓ Commission marked as paid':'Commission marked unpaid');
+  }
+
+  async function copyOrderItems(sourceOrderId: string, targetOrderId: string) {
+    const res = await fetch(`/api/items?orderId=${sourceOrderId}`);
+    const d = await res.json();
+    const sourceItems: OrderItem[] = d.items ?? [];
+    if(!sourceItems.length){ showToast('No items to copy'); return; }
+    let copied = 0;
+    for(const item of sourceItems) {
+      await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          orderId:targetOrderId, workerId:item.workerId||'',
+          vendor:item.vendor, code:item.code, category:item.category,
+          colors:item.colors, sizes:item.sizes,
+          price:item.price, qty:item.qty, notes:item.notes,
+        })});
+      copied++;
+    }
+    // Reload items for current order
+    const res2 = await fetch(`/api/items?orderId=${targetOrderId}`);
+    const d2 = await res2.json();
+    if(d2.items) setItems(d2.items);
+    showToast(`✓ Copied ${copied} items`);
   }
 
   async function closeOrder(orderId: string) {
@@ -236,10 +269,15 @@ export default function OwnerPage() {
 
       <div className="container-wide" style={{paddingTop:16,paddingBottom:40}}>
         <div className="tabs">
-          {(['orders','items','workers','settings'] as Tab[]).map(t=>(
+          {(['orders','items','analytics','commission','workers','settings'] as Tab[]).map(t=>(
             <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
-              {t.charAt(0).toUpperCase()+t.slice(1)}
+              {t==='commission'?'Commission':t==='analytics'?'Analytics':t.charAt(0).toUpperCase()+t.slice(1)}
               {t==='items'&&selectedOrder&&` — ${selectedOrder.name}`}
+              {t==='commission'&&orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length>0&&
+                <span style={{background:'var(--red)',color:'#fff',borderRadius:10,padding:'1px 6px',fontSize:10,marginLeft:4}}>
+                  {orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length}
+                </span>
+              }
             </button>
           ))}
         </div>
@@ -275,6 +313,15 @@ export default function OwnerPage() {
                       {order.status==='submitted'&&(
                         <button className="btn btn-sm btn-success" onClick={e=>{e.stopPropagation();closeOrder(order.id)}}>
                           Mark imported
+                        </button>
+                      )}
+                      {selectedOrder&&order.id!==selectedOrder.id&&order.status!=='open'&&(
+                        <button className="btn btn-sm" title="Copy items to current order"
+                          onClick={e=>{e.stopPropagation();
+                            if(confirm(`Copy all items from "${order.name}" to "${selectedOrder.name}"?`))
+                              copyOrderItems(order.id, selectedOrder.id);
+                          }}>
+                          ⎘ Copy items
                         </button>
                       )}
                     </div>
@@ -357,6 +404,8 @@ export default function OwnerPage() {
                     {filteredItems.map(item=>{
                       const retail = calcRetailPrice(item.price, item.category, settings);
                       const cost   = calcUnitCost(item.price, item.category, settings);
+                      // Duplicate: warn if this vendor+code combo appears in this same order more than once
+                      const dupeInOrder = filteredItems.filter(i=>i.vendor===item.vendor&&i.code===item.code).length>1;
                       const variants = item.colors.length * item.sizes.length;
                       return (
                         <div key={item.id} className="item-card" style={{
@@ -371,8 +420,10 @@ export default function OwnerPage() {
                               <div style={{fontSize:12,color:'var(--text-2)'}}>
                                 Purchase: ${item.price}/unit · Qty: {item.qty} units
                               </div>
+                              {dupeInOrder&&<div style={{fontSize:11,color:'var(--amber)',fontWeight:600}}>⚠ Duplicate code in this order</div>}
                               {item.notes&&<div style={{fontSize:11,color:'var(--text-2)'}}>Note: {item.notes}</div>}
                               {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
+                              {item.photo&&<img src={item.photo} alt="item" style={{width:60,height:60,objectFit:'cover',borderRadius:'var(--r-sm)',marginTop:6,cursor:'pointer'}} onClick={()=>window.open(item.photo)}/>}
                               {/* Live price preview */}
                               <div style={{marginTop:6,padding:'6px 10px',background:'var(--bg)',borderRadius:6,
                                 display:'flex',gap:16,flexWrap:'wrap',fontSize:12}}>
@@ -486,6 +537,118 @@ export default function OwnerPage() {
             )}
           </>
         )}
+
+        {/* ── ANALYTICS TAB ── */}
+        {tab==='analytics'&&(()=>{
+          const totalSpend    = orders.reduce((s,o)=>s+o.totalValue,0);
+          const totalShipping = orders.reduce((s,o)=>s+o.shippingCost,0);
+          const totalComm     = orders.reduce((s,o)=>s+o.workerCommission,0);
+          const catMap: Record<string,{count:number,spend:number}> = {};
+          items.forEach(i=>{
+            if(!catMap[i.category]) catMap[i.category]={count:0,spend:0};
+            catMap[i.category].count++;
+            catMap[i.category].spend+=i.price*i.qty;
+          });
+          return (
+            <>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
+                <div className="stat-card"><div className="stat-val">{orders.length}</div><div className="stat-lbl">Total orders</div></div>
+                <div className="stat-card"><div className="stat-val">${totalSpend.toFixed(0)}</div><div className="stat-lbl">Purchase value</div></div>
+                <div className="stat-card"><div className="stat-val">${totalShipping.toFixed(0)}</div><div className="stat-lbl">Shipping paid</div></div>
+              </div>
+              <div className="card" style={{marginBottom:12}}>
+                <div className="card-title">Orders history</div>
+                {orders.length===0?<div className="empty"><div className="empty-text">No orders yet</div></div>:(
+                  <>
+                    {orders.map(o=>(
+                      <div key={o.id} className="vendor-row">
+                        <div>
+                          <strong>{o.name}</strong>
+                          <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} · {o.startDate} · {o.itemCount} items</div>
+                        </div>
+                        <div style={{textAlign:'right'}}>
+                          <div style={{fontWeight:600}}>${o.totalValue.toFixed(0)}</div>
+                          <div style={{fontSize:11,color:'var(--text-3)'}}>+${o.shippingCost} ship · +${o.workerCommission} comm</div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,paddingTop:10,marginTop:4,borderTop:'2px solid var(--border)'}}>
+                      <span>Grand total</span>
+                      <span>${(totalSpend+totalShipping+totalComm).toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              {selectedOrder&&items.length>0&&(
+                <div className="card">
+                  <div className="card-title">Current order — by category</div>
+                  {Object.entries(catMap).sort((a,b)=>b[1].spend-a[1].spend).map(([cat,d])=>(
+                    <div key={cat} className="vendor-row">
+                      <span>{cat} <span style={{fontSize:11,color:'var(--text-3)'}}>({d.count} items)</span></span>
+                      <span style={{fontWeight:600}}>${d.spend.toFixed(0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {/* ── COMMISSION TAB ── */}
+        {tab==='commission'&&(()=>{
+          const unpaid = orders.filter(o=>o.workerCommission>0&&!o.commissionPaid);
+          const paid   = orders.filter(o=>o.workerCommission>0&&o.commissionPaid);
+          const totalUnpaid = unpaid.reduce((s,o)=>s+o.workerCommission,0);
+          const totalPaid   = paid.reduce((s,o)=>s+o.workerCommission,0);
+          return (
+            <>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
+                <div className="stat-card"><div className="stat-val" style={{color:'var(--red)'}}>${totalUnpaid.toFixed(2)}</div><div className="stat-lbl">Unpaid</div></div>
+                <div className="stat-card"><div className="stat-val" style={{color:'var(--green)'}}>${totalPaid.toFixed(2)}</div><div className="stat-lbl">Paid</div></div>
+                <div className="stat-card"><div className="stat-val">${(totalUnpaid+totalPaid).toFixed(2)}</div><div className="stat-lbl">Total earned</div></div>
+              </div>
+              {unpaid.length>0&&(
+                <div className="card" style={{marginBottom:12,borderColor:'var(--red-border)'}}>
+                  <div className="card-title" style={{color:'var(--red)'}}>Unpaid — {unpaid.length} order{unpaid.length!==1?'s':''}</div>
+                  {unpaid.map(o=>(
+                    <div key={o.id} className="vendor-row">
+                      <div>
+                        <strong>{o.name}</strong>
+                        <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} · {o.startDate}</div>
+                        <div style={{fontSize:11,color:'var(--text-3)'}}>3% of ${o.totalValue.toFixed(2)}</div>
+                      </div>
+                      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                        <span style={{fontWeight:700,color:'var(--red)',fontSize:16}}>${o.workerCommission.toFixed(2)}</span>
+                        <button className="btn btn-sm btn-success" onClick={()=>markCommissionPaid(o.id,true)}>Mark paid</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {paid.length>0&&(
+                <div className="card">
+                  <div className="card-title">Paid history</div>
+                  {paid.map(o=>(
+                    <div key={o.id} className="vendor-row">
+                      <div>
+                        <strong>{o.name}</strong>
+                        <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} · {o.startDate}</div>
+                      </div>
+                      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                        <span style={{fontWeight:600,color:'var(--green)'}}>${o.workerCommission.toFixed(2)}</span>
+                        <span className="badge badge-approved">paid ✓</span>
+                        <button className="btn btn-sm btn-ghost" style={{fontSize:11}} onClick={()=>markCommissionPaid(o.id,false)}>Undo</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {unpaid.length===0&&paid.length===0&&(
+                <div className="empty"><div className="empty-icon">💰</div><div className="empty-text">No commission records yet</div></div>
+              )}
+            </>
+          );
+        })()}
 
         {/* ── WORKERS TAB ── */}
         {tab==='workers'&&(

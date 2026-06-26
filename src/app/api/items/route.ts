@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       qty: Number(body.qty) || 1,
       notes: body.notes || '',
       ownerNote: '', status: 'pending',
+      photo: body.photo || '',
       createdAt: new Date().toISOString(),
     };
     await appendItem(item);

@@ -74,9 +74,10 @@ export async function getAllOrders(): Promise<Order[]> {
     shippingCost: parseFloat(r[6]) || 0,
     workerCommission: parseFloat(r[7]) || 0,
     totalOrderCost: parseFloat(r[8]) || 0,
-    createdAt: r[9] ?? '', closedAt: r[10] ?? '',
-    itemCount: parseInt(r[11]) || 0,
-    totalValue: parseFloat(r[12]) || 0,
+    commissionPaid: r[9] === 'true',
+    createdAt: r[10] ?? '', closedAt: r[11] ?? '',
+    itemCount: parseInt(r[12]) || 0,
+    totalValue: parseFloat(r[13]) || 0,
   }));
 }
 
@@ -104,7 +105,7 @@ export async function updateOrder(order: Order): Promise<void> {
   if (rowIndex < 1) throw new Error('Order not found');
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ORDERS}!A${rowIndex + 1}:M${rowIndex + 1}`,
+    range: `${TAB_ORDERS}!A${rowIndex + 1}:N${rowIndex + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: [orderToRow(order)] },
   });
@@ -114,7 +115,8 @@ function orderToRow(o: Order): string[] {
   return [
     o.id, o.name, o.startDate, o.workerId, o.workerName,
     o.status, String(o.shippingCost), String(o.workerCommission || 0),
-    String(o.totalOrderCost || 0), o.createdAt, o.closedAt,
+    String(o.totalOrderCost || 0), String(o.commissionPaid || false),
+    o.createdAt, o.closedAt,
     String(o.itemCount), String(o.totalValue),
   ];
 }
@@ -139,13 +141,14 @@ export async function getAllItems(): Promise<OrderItem[]> {
     notes: r[9] ?? '', ownerNote: r[10] ?? '',
     status: (r[11] ?? 'pending') as OrderItem['status'],
     createdAt: r[12] ?? new Date().toISOString(),
+    photo: r[13] ?? '',
   }));
 }
 
 export async function appendItem(item: OrderItem): Promise<void> {
   const sheets = await getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:M`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:N`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -163,7 +166,7 @@ export async function updateItem(item: OrderItem): Promise<void> {
   if (rowIndex < 1) throw new Error('Item not found');
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:N${rowIndex + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -180,7 +183,7 @@ export async function deleteItem(id: string): Promise<void> {
   const item = (await getAllItems()).find(i => i.id === id);
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:N${rowIndex + 1}`,
   });
   if (item) await refreshOrderStats(item.orderId);
 }
@@ -200,7 +203,7 @@ function itemToRow(i: OrderItem): string[] {
     i.id, i.orderId, i.vendor, i.code, i.category,
     JSON.stringify(i.colors), JSON.stringify(i.sizes),
     String(i.price), String(i.qty), i.notes, i.ownerNote,
-    i.status, i.createdAt,
+    i.status, i.createdAt, i.photo || '',
   ];
 }
 
@@ -290,14 +293,14 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: [['id','name','pin']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:M1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:N1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','createdAt','closedAt','itemCount','totalValue']] },
+    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','commissionPaid','createdAt','closedAt','itemCount','totalValue']] },
   });
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:M1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt']] },
+    requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt','photo']] },
   });
 
   // Seed workers: Morad + Abdo

@@ -23,6 +23,7 @@ export interface OrderItem {
   notes: string;
   ownerNote: string;
   status: ItemStatus;
+  photo?: string;      // base64 image
   createdAt: string;
 }
 
@@ -34,8 +35,9 @@ export interface Order {
   workerName: string;
   status: OrderStatus;
   shippingCost: number;
-  workerCommission: number;  // 3% of totalValue (excluding shipping)
-  totalOrderCost: number;    // totalValue + shippingCost + workerCommission
+  workerCommission: number;
+  commissionPaid: boolean;
+  totalOrderCost: number;
   createdAt: string;
   closedAt: string;
   itemCount: number;
@@ -47,4 +49,21 @@ export interface SessionSettings {
   markup: number;
   shipping: number;
   ownerPin: string;
+}
+
+// For offline queue
+export interface QueuedItem {
+  tempId: string;
+  orderId: string;
+  workerId: string;
+  vendor: string;
+  code: string;
+  category: string;
+  colors: string[];
+  sizes: string[];
+  price: number;
+  qty: number;
+  notes: string;
+  photo?: string;
+  queuedAt: string;
 }
