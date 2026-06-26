@@ -298,7 +298,7 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','commissionPaid','createdAt','closedAt','itemCount','totalValue']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:M1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:N1`,
     valueInputOption: 'RAW',
     requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt','photo']] },
   });
