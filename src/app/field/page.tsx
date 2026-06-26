@@ -275,6 +275,14 @@ export default function FieldPage() {
           code:code.trim(),category,colors:flat(colors),sizes:szArr,
           price:Number(price),qty:autoQty||1,notes,photo})});
       const d = await res.json();
+      if(d.item && photo) {
+        // Save photo separately to avoid Sheets cell size limit
+        fetch('/api/photos',{method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({itemId:d.item.id, photo})
+        }).catch(()=>{});
+        d.item.photo = photo;
+      }
       setLoading(false);
       if(d.item){
         setItems(prev=>[d.item,...prev]);
@@ -832,8 +840,25 @@ export default function FieldPage() {
                     onChange={e=>{
                       const file = e.target.files?.[0];
                       if(!file) return;
+                      // Compress image before storing as base64
                       const reader = new FileReader();
-                      reader.onload = ev => setPhoto(ev.target?.result as string);
+                      reader.onload = ev => {
+                        const img = new window.Image();
+                        img.onload = () => {
+                          const canvas = document.createElement('canvas');
+                          // Max 400px wide, maintain aspect ratio
+                          const maxW = 400;
+                          const scale = Math.min(1, maxW / img.width);
+                          canvas.width  = Math.round(img.width  * scale);
+                          canvas.height = Math.round(img.height * scale);
+                          const ctx = canvas.getContext('2d')!;
+                          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                          // Quality 0.6 keeps it small enough for Sheets
+                          const compressed = canvas.toDataURL('image/jpeg', 0.6);
+                          setPhoto(compressed);
+                        };
+                        img.src = ev.target?.result as string;
+                      };
                       reader.readAsDataURL(file);
                     }}/>
                 </label>

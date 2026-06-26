@@ -148,7 +148,7 @@ export async function getAllItems(): Promise<OrderItem[]> {
 export async function appendItem(item: OrderItem): Promise<void> {
   const sheets = await getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:N`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:M`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -166,7 +166,7 @@ export async function updateItem(item: OrderItem): Promise<void> {
   if (rowIndex < 1) throw new Error('Item not found');
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:N${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -183,7 +183,7 @@ export async function deleteItem(id: string): Promise<void> {
   const item = (await getAllItems()).find(i => i.id === id);
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:N${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
   });
   if (item) await refreshOrderStats(item.orderId);
 }
@@ -203,7 +203,8 @@ function itemToRow(i: OrderItem): string[] {
     i.id, i.orderId, i.vendor, i.code, i.category,
     JSON.stringify(i.colors), JSON.stringify(i.sizes),
     String(i.price), String(i.qty), i.notes, i.ownerNote,
-    i.status, i.createdAt, i.photo || '',
+    i.status, i.createdAt,
+    // photo stored separately in Photos tab due to Sheets 50K cell limit
   ];
 }
 
@@ -276,7 +277,7 @@ export async function initSheet(): Promise<void> {
   const sheets = await getSheets();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const existing = meta.data.sheets?.map(s => s.properties?.title) ?? [];
-  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY]
+  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY, 'Photos']
     .filter(t => !existing.includes(t));
 
   if (toCreate.length) {
@@ -298,7 +299,7 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','commissionPaid','createdAt','closedAt','itemCount','totalValue']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:N1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:M1`,
     valueInputOption: 'RAW',
     requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt','photo']] },
   });
@@ -333,6 +334,53 @@ export async function initSheet(): Promise<void> {
     valueInputOption: 'RAW',
     requestBody: { values: vendors.map(([n,c]) => [n, String(c)]) },
   });
+}
+
+// ── PHOTOS ─────────────────────────────────────────────────────────────────
+// Stored in separate tab due to Sheets 50K character cell limit
+
+const TAB_PHOTOS = 'Photos';
+
+export async function savePhoto(itemId: string, photoBase64: string): Promise<void> {
+  const sheets = await getSheets();
+  // Check if photo already exists for this item
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_PHOTOS}!A:A`,
+  });
+  const ids = (res.data.values ?? []).map(r => r[0]);
+  const rowIndex = ids.findIndex(id => id === itemId);
+  
+  if (rowIndex > 0) {
+    // Update existing
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${TAB_PHOTOS}!A${rowIndex + 1}:B${rowIndex + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[itemId, photoBase64]] },
+    });
+  } else {
+    // Append new
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID, range: `${TAB_PHOTOS}!A:B`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[itemId, photoBase64]] },
+    });
+  }
+}
+
+export async function getPhotos(itemIds: string[]): Promise<Record<string, string>> {
+  if (!itemIds.length) return {};
+  try {
+    const sheets = await getSheets();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_PHOTOS}!A:B`,
+    });
+    const photos: Record<string, string> = {};
+    (res.data.values ?? []).forEach(r => {
+      if (r[0] && itemIds.includes(r[0])) photos[r[0]] = r[1] ?? '';
+    });
+    return photos;
+  } catch { return {}; }
 }
 
 // ── NOTIFICATIONS ──────────────────────────────────────────────────────────

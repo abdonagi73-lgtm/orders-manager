@@ -81,7 +81,20 @@ export default function OwnerPage() {
     setSelectedOrder(order);
     const res = await fetch(`/api/items?orderId=${order.id}`);
     const d = await res.json();
-    setItems(d.items ?? []);
+    const loadedItems = d.items ?? [];
+    // Load photos separately
+    if(loadedItems.length > 0) {
+      const ids = loadedItems.map((i: OrderItem) => i.id).join(',');
+      fetch(`/api/photos?ids=${ids}`).then(r=>r.json()).then(pd=>{
+        if(pd.photos) {
+          setItems(loadedItems.map((i: OrderItem) => ({
+            ...i, photo: pd.photos[i.id] || ''
+          })));
+        }
+      }).catch(()=>setItems(loadedItems));
+    } else {
+      setItems(loadedItems);
+    }
     setTab('items');
   }
 
