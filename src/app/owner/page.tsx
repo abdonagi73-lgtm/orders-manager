@@ -398,15 +398,21 @@ export default function OwnerPage() {
                             {filteredItems.filter(i=>i.status!=='flagged').flatMap(item=>{
                               const retail = calcRetailPrice(item.price, item.category, settings);
                               const cost   = calcUnitCost(item.price, item.category, settings);
-                              const abbr   = item.vendor.trim().split(/\s+/).length===1
-                                ? item.vendor.substring(0,2).toUpperCase()
-                                : item.vendor.trim().split(/\s+/).map((w:string)=>w[0]).join('').toUpperCase();
+                              const words  = item.vendor.trim().split(/\s+/);
+                              const abbr   = words.length===1 ? item.vendor.substring(0,2).toUpperCase() : words.map((w:string)=>w[0]).join('').toUpperCase();
                               const itemName = `${abbr}-${item.code} ${item.category}`;
-                              return item.colors.flatMap((color,ci)=>
-                                item.sizes.map((size,si)=>{
+                              const colorCounts: Record<string,number> = {};
+                              const sizeCounts:  Record<string,number> = {};
+                              item.colors.forEach((c:string)=>{ colorCounts[c]=(colorCounts[c]||0)+1; });
+                              item.sizes.forEach((s:string)=>{ sizeCounts[s]=(sizeCounts[s]||0)+1; });
+                              const uColors = item.colors.filter((c:string,i:number)=>item.colors.indexOf(c)===i);
+                              const uSizes  = item.sizes.filter((s:string,i:number)=>item.sizes.indexOf(s)===i);
+                              return uColors.flatMap((color:string,ci:number)=>
+                                uSizes.map((size:string,si:number)=>{
                                   const colorSlug=color.substring(0,3).toUpperCase().replace(/\s/g,'');
                                   const sizeSlug=String(size).toUpperCase().replace(/\s/g,'');
                                   const sku=`${abbr}-${item.code}-${colorSlug}-${sizeSlug}`;
+                                  const variantQty=(colorCounts[color]||1)*(sizeCounts[size]||1);
                                   return (
                                     <tr key={`${item.id}-${ci}-${si}`}
                                       style={{borderBottom:'1px solid var(--border)'}}>
@@ -419,7 +425,7 @@ export default function OwnerPage() {
                                       <td style={{padding:'6px 10px'}}>{color}</td>
                                       <td style={{padding:'6px 10px'}}>{size}</td>
                                       <td style={{padding:'6px 10px'}}>{item.vendor}</td>
-                                      <td style={{padding:'6px 10px'}}>{item.qty}</td>
+                                      <td style={{padding:'6px 10px',fontWeight:600}}>{variantQty}</td>
                                     </tr>
                                   );
                                 })

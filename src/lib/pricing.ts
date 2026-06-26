@@ -73,11 +73,23 @@ export function itemToSquareRows(
 
   const rows: SquareRow[] = [];
 
-  for (const color of item.colors) {
-    for (const size of item.sizes) {
+  // Count occurrences of each color and size (arrays may have duplicates for multi-packs)
+  const colorCounts: Record<string, number> = {};
+  const sizeCounts:  Record<string, number> = {};
+  item.colors.forEach(c => { colorCounts[c] = (colorCounts[c] || 0) + 1; });
+  item.sizes.forEach(s  => { sizeCounts[s]  = (sizeCounts[s]  || 0) + 1; });
+
+  // Get unique colors and sizes preserving order of first appearance
+  const uniqueColors = item.colors.filter((c, i) => item.colors.indexOf(c) === i);
+  const uniqueSizes  = item.sizes.filter((s, i)  => item.sizes.indexOf(s)  === i);
+
+  for (const color of uniqueColors) {
+    for (const size of uniqueSizes) {
       const colorSlug = color.substring(0, 3).toUpperCase().replace(/\s/g, '');
       const sizeSlug  = String(size).toUpperCase().replace(/\s/g, '');
       const sku       = `${abbr}-${item.code}-${colorSlug}-${sizeSlug}`;
+      // Variant qty = count of this color × count of this size
+      const variantQty = (colorCounts[color] || 1) * (sizeCounts[size] || 1);
 
       rows.push({
         'Item Name':                          itemName,
@@ -97,7 +109,7 @@ export function itemToSquareRows(
         'Option Value 2':                     size,
         'Default Vendor Name':                item.vendor,
         'Default Vendor Code':                String(vendorCode),
-        'New Quantity Choices For You':       String(item.qty),
+        'New Quantity Choices For You':       String(variantQty),
         'Stock Alert Enabled Choices For You':'N',
       });
     }
