@@ -150,8 +150,8 @@ export default function OwnerPage() {
         <div style={{marginBottom:24,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center'}}>
           <Image src="/logo.png" alt="logo" width={72} height={72}
             style={{borderRadius:16,marginBottom:14,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}} />
-          <div style={{fontSize:22,fontWeight:700}}>Owner dashboard</div>
-          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Orders Manager</div>
+          <div style={{fontSize:22,fontWeight:700}}>Management</div>
+          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Management</div>
         </div>
         <div className="card">
           <div className="field">
@@ -180,12 +180,13 @@ export default function OwnerPage() {
               <Image src="/logo.png" alt="logo" width={32} height={32} style={{borderRadius:7}} />
               <div>
                 <div className="header-title">Orders Manager</div>
-                <div className="header-sub">Owner · Choices For You</div>
+                <div className="header-sub">Management · Choices For You</div>
               </div>
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <span className="badge badge-info">{orders.length} orders</span>
               <button className="btn btn-sm" onClick={loadAll}>↻</button>
+              <a href="/" className="btn btn-sm">🏠 Home</a>
               <button className="btn btn-sm" onClick={()=>setAuthed(false)}>Exit</button>
             </div>
           </div>

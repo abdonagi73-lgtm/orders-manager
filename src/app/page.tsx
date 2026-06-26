@@ -17,20 +17,20 @@ export default function Home() {
         {/* Role buttons */}
         <Link href="/field" style={{textDecoration:'none',width:'100%'}}>
           <div className="card" style={{marginBottom:10,cursor:'pointer',display:'flex',gap:14,alignItems:'center'}}>
-            <div style={{fontSize:28}}>✈️</div>
+            <div style={{fontSize:28}}>🧾</div>
             <div>
-              <div style={{fontWeight:600}}>Field worker</div>
-              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>Enter items from vendors in Turkey</div>
+              <div style={{fontWeight:600}}>Order Entry</div>
+              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>Enter vendor items and order details</div>
             </div>
           </div>
         </Link>
 
         <Link href="/owner" style={{textDecoration:'none',width:'100%'}}>
           <div className="card" style={{cursor:'pointer',display:'flex',gap:14,alignItems:'center'}}>
-            <div style={{fontSize:28}}>🏪</div>
+            <div style={{fontSize:28}}>🖥️</div>
             <div>
-              <div style={{fontWeight:600}}>Store owner</div>
-              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>Dashboard, review & Square export</div>
+              <div style={{fontWeight:600}}>Management</div>
+              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>Review orders, approve items & export</div>
             </div>
           </div>
         </Link>

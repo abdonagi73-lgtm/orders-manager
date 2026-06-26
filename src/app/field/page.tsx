@@ -272,7 +272,7 @@ export default function FieldPage() {
           <Image src="/logo.png" alt="logo" width={72} height={72}
             style={{borderRadius:16,marginBottom:14,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}} />
           <div style={{fontSize:22,fontWeight:700}}>Orders Manager</div>
-          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Field worker</div>
+          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Order Entry</div>
         </div>
         <div className="card">
           <div className="field">
@@ -306,7 +306,10 @@ export default function FieldPage() {
                 <div className="header-sub">Your orders</div>
               </div>
             </div>
-            <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
+            <div style={{display:'flex',gap:6}}>
+              <a href="/" className="btn btn-sm">🏠 Home</a>
+              <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
+            </div>
           </div>
         </div>
       </div>
