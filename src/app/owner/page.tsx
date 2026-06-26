@@ -25,6 +25,10 @@ export default function OwnerPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [flagModal, setFlagModal] = useState<{item:OrderItem}|null>(null);
   const [flagNote, setFlagNote] = useState('');
+  const [editModal, setEditModal] = useState<{item:OrderItem}|null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editOwnerNote, setEditOwnerNote] = useState('');
   // Worker form
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerPin, setNewWorkerPin] = useState('');
@@ -81,6 +85,20 @@ export default function OwnerPage() {
     setItems(prev=>prev.filter(i=>i.id!==id));
     await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
     showToast('Item removed');
+  }
+
+  async function saveEditItem() {
+    if(!editModal) return;
+    const updated = {
+      ...editModal.item,
+      price: Number(editPrice) || editModal.item.price,
+      notes: editNotes,
+      ownerNote: editOwnerNote,
+    };
+    setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
+    await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
+    setEditModal(null);
+    showToast('✓ Item updated');
   }
 
   async function closeOrder(orderId: string) {
@@ -346,6 +364,12 @@ export default function OwnerPage() {
                                 <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
                                 <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
                                   onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
+                                <button className="btn btn-sm" onClick={()=>{
+                                  setEditModal({item});
+                                  setEditPrice(String(item.price));
+                                  setEditNotes(item.notes);
+                                  setEditOwnerNote(item.ownerNote);
+                                }} title="Edit">✎</button>
                                 <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
                               </div>
                             </div>
@@ -504,6 +528,49 @@ export default function OwnerPage() {
           </div>
         )}
       </div>
+
+      {/* Edit modal */}
+      {editModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',display:'flex',
+          alignItems:'center',justifyContent:'center',padding:'1rem',zIndex:200}}>
+          <div className="card" style={{width:'100%',maxWidth:480}}>
+            <div style={{fontWeight:600,marginBottom:4,fontSize:16}}>Edit item</div>
+            <div style={{fontSize:13,color:'var(--text-muted)',marginBottom:16}}>
+              {editModal.item.vendor} · {editModal.item.code} · {editModal.item.category}
+            </div>
+
+            <div style={{background:'var(--bg)',borderRadius:8,padding:'10px 12px',marginBottom:14,fontSize:12,color:'var(--text-muted)'}}>
+              <strong>Colors:</strong> {editModal.item.colors.join(', ')}<br/>
+              <strong>Sizes:</strong> {editModal.item.sizes.join(', ')}<br/>
+              <strong>Qty:</strong> {editModal.item.qty} units
+            </div>
+
+            <div className="field">
+              <label className="label">Purchase price (USD)</label>
+              <input type="number" step="0.5" value={editPrice}
+                onChange={e=>setEditPrice(e.target.value)}
+                style={{fontSize:16}}/>
+              {editPrice&&(
+                <div style={{fontSize:12,color:'var(--green)',marginTop:4}}>
+                  → Retail: <strong>${(Math.floor(((Number(editPrice)*(1+settings.tax/100))+(0.5*settings.shipping))*settings.markup)+0.99).toFixed(2)}</strong>
+                </div>
+              )}
+            </div>
+            <div className="field">
+              <label className="label">Worker note</label>
+              <input type="text" value={editNotes} onChange={e=>setEditNotes(e.target.value)} placeholder="Worker note"/>
+            </div>
+            <div className="field" style={{marginBottom:16}}>
+              <label className="label">Owner note (visible to worker)</label>
+              <input type="text" value={editOwnerNote} onChange={e=>setEditOwnerNote(e.target.value)} placeholder="Note for worker..."/>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn" style={{flex:1}} onClick={()=>setEditModal(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={saveEditItem}>Save changes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Flag modal */}
       {flagModal&&(
