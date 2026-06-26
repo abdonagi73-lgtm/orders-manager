@@ -265,28 +265,31 @@ export default function FieldPage() {
 
   // ── LOGIN ──
   if(screen==='login') return (
-    <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
-      padding:'2rem',background:'var(--bg)'}}>
-      <div style={{width:'100%',maxWidth:340}}>
-        <div style={{marginBottom:24,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center'}}>
-          <Image src="/logo.png" alt="logo" width={72} height={72}
-            style={{borderRadius:16,marginBottom:14,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}} />
-          <div style={{fontSize:22,fontWeight:700}}>Orders Manager</div>
-          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Order Entry</div>
+    <main className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <Image src="/logo.png" alt="Choices For You" width={72} height={72}
+            style={{borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16}} />
+          <div className="login-brand">Orders Manager</div>
+          <div className="login-sub">Order Entry · Choices For You</div>
         </div>
-        <div className="card">
+        <div className="login-form">
           <div className="field">
-            <label className="label">Enter your PIN</label>
+            <label className="label">Your PIN</label>
             <input type="password" inputMode="numeric" placeholder="••••"
               value={pin} onChange={e=>setPin(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoFocus
-              style={{fontSize:22,letterSpacing:8,textAlign:'center'}}/>
-            {pinError&&<div className="field-error">Incorrect PIN</div>}
+              className="login-pin-input"/>
+            {pinError&&<div className="field-error">Incorrect PIN — try again</div>}
           </div>
-          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',padding:12}}
+          <button className="btn btn-primary btn-lg btn-full"
             onClick={handleLogin} disabled={pinLoading}>
-            {pinLoading?'Checking...':'Sign in →'}
+            {pinLoading?'Verifying...':'Sign in'}
           </button>
+          <div className="login-switch">
+            Are you the manager?&nbsp;
+            <a onClick={()=>window.location.href='/owner'}>Sign in to Management instead</a>
+          </div>
         </div>
       </div>
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
@@ -329,10 +332,10 @@ export default function FieldPage() {
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                 <div>
                   <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-                  <div style={{fontSize:12,color:'var(--text-muted)',marginTop:3}}>
+                  <div style={{fontSize:12,color:'var(--text-2)',marginTop:3}}>
                     Started {order.startDate} · {order.itemCount} items
                   </div>
-                  <div style={{fontSize:12,color:'var(--text-muted)'}}>
+                  <div style={{fontSize:12,color:'var(--text-2)'}}>
                     Purchase value: ${order.totalValue.toFixed(2)}
                     {order.shippingCost>0&&` · Shipping: $${order.shippingCost.toFixed(2)}`}
                     {order.workerCommission>0&&` · Your commission: $${order.workerCommission.toFixed(2)}`}
@@ -347,7 +350,7 @@ export default function FieldPage() {
                   {order.status}
                 </span>
               </div>
-              {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-muted)',marginTop:6}}>Closed — imported to POS</div>}
+              {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-2)',marginTop:6}}>Closed — imported to POS</div>}
             </div>
           ))
         )}
@@ -415,7 +418,7 @@ export default function FieldPage() {
               padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
               <div>
                 <strong>{v}</strong>
-                <div style={{fontSize:11,color:'var(--text-muted)',marginTop:2}}>
+                <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>
                   {d.packs} pack{d.packs!==1?'s':''} · {d.units} unit{d.units!==1?'s':''}
                 </div>
               </div>
@@ -433,7 +436,7 @@ export default function FieldPage() {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
               <div style={{fontWeight:600,color:'var(--blue)'}}>Your commission (3%)</div>
-              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>3% of ${totalPurchaseValue.toFixed(2)} purchase value</div>
+              <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>3% of ${totalPurchaseValue.toFixed(2)} purchase value</div>
             </div>
             <div style={{fontSize:24,fontWeight:700,color:'var(--blue)'}}>${commission.toFixed(2)}</div>
           </div>
@@ -445,7 +448,7 @@ export default function FieldPage() {
           <input type="number" inputMode="decimal" placeholder="0.00" step="0.01" min="0"
             value={shippingCost} onChange={e=>setShippingCost(e.target.value)}
             style={{fontSize:18}} autoFocus/>
-          <div style={{fontSize:12,color:'var(--text-muted)',marginTop:6}}>Total shipping cost paid for this order</div>
+          <div style={{fontSize:12,color:'var(--text-2)',marginTop:6}}>Total shipping cost paid for this order</div>
         </div>
 
         {/* Total order cost preview */}
@@ -454,7 +457,7 @@ export default function FieldPage() {
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
                 <div style={{fontWeight:600,color:'var(--green)',fontSize:15}}>Total order cost</div>
-                <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
                   ${totalPurchaseValue.toFixed(2)} + ${Number(shippingCost||0).toFixed(2)} shipping + ${commission.toFixed(2)} commission
                 </div>
               </div>
@@ -517,7 +520,7 @@ export default function FieldPage() {
             return Object.entries(vendorGroups).map(([v,vItems])=>(
               <div key={v} style={{marginBottom:16}}>
                 <div style={{fontSize:11,fontWeight:600,textTransform:'uppercase',
-                  letterSpacing:'.06em',color:'var(--text-muted)',
+                  letterSpacing:'.06em',color:'var(--text-2)',
                   padding:'4px 2px',marginBottom:6,borderBottom:'1px solid var(--border)'}}>
                   {v} · {vItems.length} pack{vItems.length!==1?'s':''}
                 </div>
@@ -526,10 +529,10 @@ export default function FieldPage() {
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontWeight:600,fontFamily:'monospace',fontSize:14}}>{item.code}</div>
-                        <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                        <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
                           {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
                         </div>
-                        <div style={{fontSize:12,color:'var(--text-muted)'}}>${item.price} · {item.qty} units</div>
+                        <div style={{fontSize:12,color:'var(--text-2)'}}>${item.price} · {item.qty} units</div>
                         {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)',marginTop:3}}>Owner: {item.ownerNote}</div>}
                       </div>
                       <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
@@ -691,12 +694,12 @@ export default function FieldPage() {
                   <div style={{fontSize:36,fontWeight:700,color:'var(--green)'}}>{autoQty}</div>
                   <div>
                     <div style={{fontWeight:600,color:'var(--green)',fontSize:15}}>Total units in this pack</div>
-                    <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                    <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
                       {total(colors)} color units × {total(sizes)} size units = {autoQty} units
                     </div>
                   </div>
                 </div>
-                <div style={{marginTop:8,fontSize:12,color:'var(--text-muted)',display:'flex',gap:16,flexWrap:'wrap'}}>
+                <div style={{marginTop:8,fontSize:12,color:'var(--text-2)',display:'flex',gap:16,flexWrap:'wrap'}}>
                   <span>Colors: {colors.map(c=>c.count>1?`${c.value}×${c.count}`:c.value).join(', ')}</span>
                   <span>Sizes: {sizes.map(s=>s.count>1?`${s.value}×${s.count}`:s.value).join(', ')}</span>
                 </div>

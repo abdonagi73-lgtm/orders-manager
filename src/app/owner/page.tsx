@@ -163,28 +163,31 @@ export default function OwnerPage() {
   const exportableRows = items.filter(i=>i.status!=='flagged').reduce((s,i)=>s+i.colors.length*i.sizes.length,0);
 
   if(!authed) return (
-    <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem',background:'var(--bg)'}}>
-      <div style={{width:'100%',maxWidth:340}}>
-        <div style={{marginBottom:24,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center'}}>
-          <Image src="/logo.png" alt="logo" width={72} height={72}
-            style={{borderRadius:16,marginBottom:14,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}} />
-          <div style={{fontSize:22,fontWeight:700}}>Management</div>
-          <div style={{fontSize:13,color:'var(--text-muted)',marginTop:4}}>Choices For You · Management</div>
+    <main className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <Image src="/logo.png" alt="Choices For You" width={72} height={72}
+            style={{borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16}} />
+          <div className="login-brand">Orders Manager</div>
+          <div className="login-sub">Management · Choices For You</div>
         </div>
-        <div className="card">
+        <div className="login-form">
           <div className="field">
-            <label className="label">Owner PIN</label>
-            <input type="password" inputMode="numeric" placeholder="PIN"
+            <label className="label">Management PIN</label>
+            <input type="password" inputMode="numeric" placeholder="••••"
               value={pin} onChange={e=>setPin(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&verifyPin()}
-              style={{fontSize:20,letterSpacing:6,textAlign:'center'}} autoFocus/>
-            {pinError&&<div className="field-error">Incorrect PIN</div>}
+              className="login-pin-input" autoFocus/>
+            {pinError&&<div className="field-error">Incorrect PIN — try again</div>}
           </div>
-          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}
+          <button className="btn btn-primary btn-lg btn-full"
             onClick={verifyPin} disabled={pinLoading}>
-            {pinLoading?'Checking...':'Enter →'}
+            {pinLoading?'Verifying...':'Sign in'}
           </button>
-        </div>
+          <div className="login-switch">
+            Field worker?&nbsp;
+            <a onClick={()=>window.location.href='/field'}>Sign in to Order Entry instead</a>
+          </div>
       </div>
     </main>
   );
@@ -240,10 +243,10 @@ export default function OwnerPage() {
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-                      <div style={{fontSize:12,color:'var(--text-muted)',marginTop:3}}>
+                      <div style={{fontSize:12,color:'var(--text-2)',marginTop:3}}>
                         {order.workerName} · Started {order.startDate} · {order.itemCount} items · ${order.totalValue.toFixed(0)} purchase value
                       </div>
-                      {order.shippingCost>0&&<div style={{fontSize:12,color:'var(--text-muted)'}}>Shipping: ${order.shippingCost}</div>}
+                      {order.shippingCost>0&&<div style={{fontSize:12,color:'var(--text-2)'}}>Shipping: ${order.shippingCost}</div>}
                     </div>
                     <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0,marginLeft:10}}>
                       <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
@@ -289,19 +292,19 @@ export default function OwnerPage() {
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
                     <div>
-                      <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Tax (%)</label>
+                      <label style={{fontSize:11,color:'var(--text-2)',display:'block',marginBottom:4}}>Tax (%)</label>
                       <input type="number" step="0.5" value={settings.tax}
                         onChange={e=>setSettings(s=>({...s,tax:Number(e.target.value)}))}
                         style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Markup (×)</label>
+                      <label style={{fontSize:11,color:'var(--text-2)',display:'block',marginBottom:4}}>Markup (×)</label>
                       <input type="number" step="0.1" value={settings.markup}
                         onChange={e=>setSettings(s=>({...s,markup:Number(e.target.value)}))}
                         style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Shipping ($/kg)</label>
+                      <label style={{fontSize:11,color:'var(--text-2)',display:'block',marginBottom:4}}>Shipping ($/kg)</label>
                       <input type="number" step="0.1" value={settings.shipping}
                         onChange={e=>setSettings(s=>({...s,shipping:Number(e.target.value)}))}
                         style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
@@ -342,20 +345,20 @@ export default function OwnerPage() {
                           <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
                             <div style={{flex:1,minWidth:0}}>
                               <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
-                              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                              <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
                                 {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
                               </div>
-                              <div style={{fontSize:12,color:'var(--text-muted)'}}>
+                              <div style={{fontSize:12,color:'var(--text-2)'}}>
                                 Purchase: ${item.price}/unit · Qty: {item.qty} units
                               </div>
-                              {item.notes&&<div style={{fontSize:11,color:'var(--text-muted)'}}>Note: {item.notes}</div>}
+                              {item.notes&&<div style={{fontSize:11,color:'var(--text-2)'}}>Note: {item.notes}</div>}
                               {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
                               {/* Live price preview */}
                               <div style={{marginTop:6,padding:'6px 10px',background:'var(--bg)',borderRadius:6,
                                 display:'flex',gap:16,flexWrap:'wrap',fontSize:12}}>
                                 <span>Unit cost: <strong>${cost.toFixed(2)}</strong></span>
                                 <span>Retail price: <strong style={{color:'var(--green)',fontSize:13}}>${retail.toFixed(2)}</strong></span>
-                                <span style={{color:'var(--text-faint)'}}>{variants} variant{variants!==1?'s':''} in Square</span>
+                                <span style={{color:'var(--text-4)'}}>{variants} variant{variants!==1?'s':''} in Square</span>
                               </div>
                             </div>
                             <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center',flexDirection:'column'}}>
@@ -390,7 +393,7 @@ export default function OwnerPage() {
                               {['Item Name','Variation','SKU','Category','Price','Unit Cost','Color','Size','Vendor','Qty'].map(h=>(
                                 <th key={h} style={{padding:'8px 10px',textAlign:'left',fontWeight:600,
                                   borderBottom:'1px solid var(--border)',whiteSpace:'nowrap',
-                                  color:'var(--text-muted)',fontSize:11}}>{h}</th>
+                                  color:'var(--text-2)',fontSize:11}}>{h}</th>
                               ))}
                             </tr>
                           </thead>
@@ -440,11 +443,11 @@ export default function OwnerPage() {
 
                 {/* Export bar */}
                 <div style={{padding:14,background:'var(--surface)',border:'1px solid var(--border)',
-                  borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',
+                  borderRadius:'var(--r-lg)',display:'flex',alignItems:'center',
                   justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
                   <div>
                     <div style={{fontWeight:600}}>Export to Square</div>
-                    <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>
+                    <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
                       {exportableRows} rows · Tax: {settings.tax}% · Markup: {settings.markup}× · Shipping: ${settings.shipping}/kg
                     </div>
                   </div>
@@ -490,7 +493,7 @@ export default function OwnerPage() {
                   <div key={w.id} className="vendor-row">
                     <div>
                       <strong>{w.name}</strong>
-                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-muted)'}}>PIN: {w.pin}</span>
+                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-2)'}}>PIN: {w.pin}</span>
                     </div>
                     <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
                       onClick={()=>removeWorker(w.id)}>Remove</button>
@@ -541,11 +544,11 @@ export default function OwnerPage() {
           alignItems:'center',justifyContent:'center',padding:'1rem',zIndex:200}}>
           <div className="card" style={{width:'100%',maxWidth:480}}>
             <div style={{fontWeight:600,marginBottom:4,fontSize:16}}>Edit item</div>
-            <div style={{fontSize:13,color:'var(--text-muted)',marginBottom:16}}>
+            <div style={{fontSize:13,color:'var(--text-2)',marginBottom:16}}>
               {editModal.item.vendor} · {editModal.item.code} · {editModal.item.category}
             </div>
 
-            <div style={{background:'var(--bg)',borderRadius:8,padding:'10px 12px',marginBottom:14,fontSize:12,color:'var(--text-muted)'}}>
+            <div style={{background:'var(--bg)',borderRadius:8,padding:'10px 12px',marginBottom:14,fontSize:12,color:'var(--text-2)'}}>
               <strong>Colors:</strong> {editModal.item.colors.join(', ')}<br/>
               <strong>Sizes:</strong> {editModal.item.sizes.join(', ')}<br/>
               <strong>Qty:</strong> {editModal.item.qty} units
@@ -584,7 +587,7 @@ export default function OwnerPage() {
           alignItems:'center',justifyContent:'center',padding:'1rem',zIndex:200}}>
           <div className="card" style={{width:'100%',maxWidth:380}}>
             <div style={{fontWeight:600,marginBottom:10}}>Flag item</div>
-            <div style={{fontSize:13,color:'var(--text-muted)',marginBottom:12}}>
+            <div style={{fontSize:13,color:'var(--text-2)',marginBottom:12}}>
               {flagModal.item.vendor} · {flagModal.item.code}
             </div>
             <div className="field">
