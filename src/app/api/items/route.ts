@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     const item: OrderItem = {
       id: crypto.randomUUID(),
       orderId: body.orderId,
+      workerId: body.workerId || '',
       vendor: body.vendor,
       code: body.code,
       category: body.category,
@@ -41,6 +42,19 @@ export async function PATCH(req: NextRequest) {
   try {
     const item: OrderItem = await req.json();
     await updateItem(item);
+    // If item was flagged, notify the worker
+    if (item.status === 'flagged' && item.workerId) {
+      await fetch(new URL('/api/notifications', req.url), {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'create', type: 'item_flagged', for: 'worker',
+          workerId: item.workerId,
+          orderId: item.orderId, orderName: '',
+          itemId: item.id, itemCode: item.code,
+          message: `Item ${item.vendor} · ${item.code} was flagged${item.ownerNote ? ': ' + item.ownerNote : ' — please review'}`,
+        }),
+      }).catch(()=>{});
+    }
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

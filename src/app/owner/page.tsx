@@ -32,6 +32,7 @@ export default function OwnerPage() {
   // Worker form
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerPin, setNewWorkerPin] = useState('');
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
 
   function showToast(msg: string) { setToast(msg); setTimeout(()=>setToast(''),2500); }
 
@@ -41,8 +42,14 @@ export default function OwnerPage() {
       body:JSON.stringify({action:'verify-owner',pin})});
     const d = await res.json();
     setPinLoading(false);
-    if(d.ok){ setAuthed(true); loadAll(); }
+    if(d.ok){ setAuthed(true); loadAll(); loadNotifs(); }
     else setPinError(true);
+  }
+
+  async function loadNotifs() {
+    const res = await fetch('/api/notifications?for=owner');
+    const d = await res.json();
+    if(typeof d.unread==='number') setUnreadNotifs(d.unread);
   }
 
   const loadAll = useCallback(async()=>{
@@ -58,10 +65,15 @@ export default function OwnerPage() {
   },[]);
 
   useEffect(()=>{ if(!authed) return;
-    const iv = setInterval(()=>fetch('/api/orders').then(r=>r.json()).then(d=>{
-      if(d.orders) setOrders(d.orders.sort((a:Order,b:Order)=>
-        new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()));
-    }),15000);
+    const iv = setInterval(()=>{
+      fetch('/api/orders').then(r=>r.json()).then(d=>{
+        if(d.orders) setOrders(d.orders.sort((a:Order,b:Order)=>
+          new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()));
+      });
+      fetch('/api/notifications?for=owner').then(r=>r.json()).then(d=>{
+        if(typeof d.unread==='number') setUnreadNotifs(d.unread);
+      });
+    },30000);
     return ()=>clearInterval(iv);
   },[authed]);
 
@@ -198,17 +210,24 @@ export default function OwnerPage() {
       <div className="header">
         <div className="container-wide">
           <div className="header-inner">
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <Image src="/logo.png" alt="logo" width={32} height={32} style={{borderRadius:7}} />
-              <div>
-                <div className="header-title">Orders Manager</div>
-                <div className="header-sub">Management · Choices For You</div>
-              </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} />
+              <div className="header-title">Management</div>
             </div>
-            <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              <span className="badge badge-info">{orders.length} orders</span>
-              <button className="btn btn-sm" onClick={loadAll}>↻</button>
-              <a href="/" className="btn btn-sm">🏠 Home</a>
+            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+              <span className="badge badge-info">{orders.length}</span>
+              <button className="btn btn-sm" onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}} title="Refresh">↻</button>
+              {unreadNotifs>0&&(
+                <button className="btn btn-sm" style={{background:'var(--red-light)',borderColor:'var(--red-border)',color:'var(--red)'}}
+                  onClick={async()=>{
+                    await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
+                      body:JSON.stringify({action:'mark-read',for:'owner'})});
+                    setUnreadNotifs(0);
+                  }}>
+                  🔔 {unreadNotifs} new
+                </button>
+              )}
+              <a href="/" className="btn btn-sm" title="Home">🏠</a>
               <button className="btn btn-sm" onClick={()=>setAuthed(false)}>Exit</button>
             </div>
           </div>

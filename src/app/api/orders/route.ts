@@ -32,10 +32,32 @@ export async function POST(req: NextRequest) {
         totalValue: 0,
       };
       await createOrder(order);
+      // Notify owner: order started
+      await fetch(new URL('/api/notifications', req.url), {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'create', type: 'order_started', for: 'owner',
+          workerId: order.workerId, workerName: order.workerName,
+          orderId: order.id, orderName: order.name,
+          message: `${order.workerName} started a new order: "${order.name}"`,
+        }),
+      }).catch(()=>{});
       return NextResponse.json({ order }, { status: 201 });
     }
     if (body.action === 'update') {
       await updateOrder(body.order);
+      // If status changed to submitted, notify owner
+      if (body.order?.status === 'submitted') {
+        await fetch(new URL('/api/notifications', req.url), {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            action: 'create', type: 'order_submitted', for: 'owner',
+            workerId: body.order.workerId, workerName: body.order.workerName,
+            orderId: body.order.id, orderName: body.order.name,
+            message: `${body.order.workerName} submitted order "${body.order.name}" — ready for review`,
+          }),
+        }).catch(()=>{});
+      }
       return NextResponse.json({ ok: true });
     }
     if (body.action === 'close') {

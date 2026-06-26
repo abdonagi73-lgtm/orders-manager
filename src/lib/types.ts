@@ -12,6 +12,7 @@ export interface Worker {
 export interface OrderItem {
   id: string;
   orderId: string;
+  workerId?: string;
   vendor: string;
   code: string;
   category: string;
