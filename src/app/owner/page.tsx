@@ -33,6 +33,7 @@ export default function OwnerPage() {
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerPin, setNewWorkerPin] = useState('');
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [loggedInName, setLoggedInName] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [editOrderModal, setEditOrderModal] = useState<Order|null>(null);
   const [newManagerName, setNewManagerName] = useState('');
@@ -43,12 +44,23 @@ export default function OwnerPage() {
 
   async function verifyPin() {
     setPinLoading(true); setPinError(false);
-    const res = await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'verify-owner',pin})});
-    const d = await res.json();
+    const [verifyRes, sessionRes] = await Promise.all([
+      fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'verify-owner',pin})}).then(r=>r.json()),
+      fetch('/api/session').then(r=>r.json()),
+    ]);
     setPinLoading(false);
-    if(d.ok){ setAuthed(true); loadAll(); loadNotifs(); }
-    else setPinError(true);
+    if(verifyRes.ok){
+      // Find who logged in
+      const settings = sessionRes.settings;
+      const managers = sessionRes.managers || [];
+      if(pin === settings?.ownerPin) setLoggedInName('Owner');
+      else {
+        const mgr = managers.find((m:any)=>m.pin===pin);
+        setLoggedInName(mgr?.name || 'Manager');
+      }
+      setAuthed(true); loadAll(); loadNotifs();
+    } else setPinError(true);
   }
 
   async function loadNotifs() {
@@ -284,7 +296,10 @@ export default function OwnerPage() {
           <div className="header-inner">
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} />
-              <div className="header-title">Management</div>
+              <div>
+                <div className="header-title">👋 {loggedInName || 'Management'}</div>
+                <div className="header-sub">Orders Manager · Choices For You</div>
+              </div>
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               <span className="badge badge-info">{orders.length}</span>
