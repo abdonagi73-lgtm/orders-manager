@@ -140,7 +140,7 @@ export async function getItemsByOrder(orderId: string): Promise<OrderItem[]> {
 export async function getAllItems(): Promise<OrderItem[]> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A2:M`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A2:N`,
   });
   return (res.data.values ?? []).filter(r => r[0]).map(r => ({
     id: r[0], orderId: r[1] ?? '', vendor: r[2] ?? '',
@@ -157,7 +157,7 @@ export async function getAllItems(): Promise<OrderItem[]> {
 export async function appendItem(item: OrderItem): Promise<void> {
   const sheets = await getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:M`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:N`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
