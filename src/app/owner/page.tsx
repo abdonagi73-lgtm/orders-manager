@@ -71,6 +71,7 @@ export default function OwnerPage() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [tab, setTab] = useState<Tab>('orders');
   const [filterStatus, setFilterStatus] = useState('');
+  const [itemFilterStatus, setItemFilterStatus] = useState('');
   const [toast, setToast] = useState('');
   const [exporting, setExporting] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -161,6 +162,7 @@ export default function OwnerPage() {
 
   async function selectOrder(order: Order) {
     setSelectedOrder(order);
+    setItemFilterStatus('');
     const res = await fetch(`/api/items?orderId=${order.id}`);
     const d = await res.json();
     const loadedItems = d.items ?? [];
@@ -316,7 +318,7 @@ export default function OwnerPage() {
     setWorkers(updated); showToast('Worker removed');
   }
 
-  const filteredItems = items.filter(i=>!filterStatus||i.status===filterStatus)
+  const filteredItems = items.filter(i=>!itemFilterStatus||i.status===itemFilterStatus)
     .sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime());
   const approvedCount = items.filter(i=>i.status==='approved').length;
   const pendingCount  = items.filter(i=>i.status==='pending').length;
@@ -508,7 +510,7 @@ export default function OwnerPage() {
                   <span className="badge badge-approved">{approvedCount} approved</span>
                   <span className="badge badge-pending">{pendingCount} pending</span>
                   {flaggedCount>0&&<span className="badge badge-flagged">{flaggedCount} flagged</span>}
-                  <select style={{width:140,marginLeft:'auto'}} value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
+                  <select style={{width:140,marginLeft:'auto'}} value={itemFilterStatus} onChange={e=>setItemFilterStatus(e.target.value)}>
                     <option value="">All</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
