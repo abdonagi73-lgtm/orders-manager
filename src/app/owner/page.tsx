@@ -67,6 +67,7 @@ export default function OwnerPage() {
     if(sessionRes.settings) setSettings(sessionRes.settings);
     if(sessionRes.registry) setRegistry(sessionRes.registry);
     if(sessionRes.workers) setWorkers(sessionRes.workers);
+    if(sessionRes.managers) setManagers(sessionRes.managers);
   },[]);
 
   useEffect(()=>{ if(!authed) return;
@@ -117,9 +118,9 @@ export default function OwnerPage() {
     showToast('Item removed');
   }
 
-  async function saveEditItem() {
+  async function saveEditItem(updatedItem?: OrderItem) {
     if(!editModal) return;
-    const updated = {
+    const updated = updatedItem || {
       ...editModal.item,
       price: Number(editPrice) || editModal.item.price,
       notes: editNotes,
@@ -706,8 +707,48 @@ export default function OwnerPage() {
         {/* ── WORKERS TAB ── */}
         {tab==='workers'&&(
           <>
+            {/* Management users */}
+            <div className="card" style={{marginBottom:14,borderColor:'var(--blue-border)'}}>
+              <div className="card-title" style={{color:'var(--blue)'}}>Add management user</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:10,alignItems:'end'}}>
+                <div><label className="label">Name</label>
+                  <input type="text" placeholder="Manager name" value={newManagerName} onChange={e=>setNewManagerName(e.target.value)}/></div>
+                <div><label className="label">PIN</label>
+                  <input type="text" inputMode="numeric" placeholder="PIN" value={newManagerPin} onChange={e=>setNewManagerPin(e.target.value)}/></div>
+                <button className="btn btn-primary" onClick={async()=>{
+                  if(!newManagerName.trim()||!newManagerPin.trim()){showToast('Enter name and PIN');return;}
+                  const newMgr=[...managers,{id:'m_'+Date.now(),name:newManagerName.trim(),pin:newManagerPin.trim()}];
+                  await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({action:'save-managers',managers:newMgr})});
+                  setManagers(newMgr); setNewManagerName(''); setNewManagerPin('');
+                  showToast('✓ Manager added');
+                }}>Add</button>
+              </div>
+            </div>
+            {managers.length>0&&(
+              <div className="card" style={{marginBottom:14}}>
+                <div className="card-title">Management users ({managers.length})</div>
+                {managers.map((m:any)=>(
+                  <div key={m.id} className="vendor-row">
+                    <div><strong>{m.name}</strong>
+                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-3)'}}>PIN: {m.pin}</span>
+                      <span className="badge badge-info" style={{marginLeft:8}}>Manager</span>
+                    </div>
+                    <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
+                      onClick={async()=>{
+                        const updated=managers.filter((x:any)=>x.id!==m.id);
+                        await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                          body:JSON.stringify({action:'save-managers',managers:updated})});
+                        setManagers(updated); showToast('Manager removed');
+                      }}>Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Order Entry workers */}
             <div className="card" style={{marginBottom:14}}>
-              <div className="card-title">Add worker</div>
+              <div className="card-title">Add Order Entry worker</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:10,alignItems:'end'}}>
                 <div>
                   <label className="label">Name</label>
@@ -721,7 +762,7 @@ export default function OwnerPage() {
               </div>
             </div>
             <div className="card">
-              <div className="card-title">Workers ({workers.length})</div>
+              <div className="card-title">Order Entry workers ({workers.length})</div>
               {workers.length===0?(
                 <div className="empty"><div className="empty-text">No workers yet</div></div>
               ):(
@@ -824,48 +865,137 @@ export default function OwnerPage() {
         </div>
       )}
 
-      {/* Edit modal */}
-      {editModal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',display:'flex',
-          alignItems:'center',justifyContent:'center',padding:'1rem',zIndex:200}}>
-          <div className="card" style={{width:'100%',maxWidth:480}}>
-            <div style={{fontWeight:600,marginBottom:4,fontSize:16}}>Edit item</div>
-            <div style={{fontSize:13,color:'var(--text-2)',marginBottom:16}}>
-              {editModal.item.vendor} · {editModal.item.code} · {editModal.item.category}
-            </div>
+      {/* Full Edit Item Modal */}
+      {editModal&&(()=>{
+        const item = editModal.item;
+        const colorCounts: Record<string,number> = {};
+        const sizeCounts: Record<string,number> = {};
+        item.colors.forEach((c:string)=>{colorCounts[c]=(colorCounts[c]||0)+1;});
+        item.sizes.forEach((s:string)=>{sizeCounts[s]=(sizeCounts[s]||0)+1;});
+        const uColors = item.colors.filter((c:string,i:number)=>item.colors.indexOf(c)===i);
+        const uSizes  = item.sizes.filter((s:string,i:number)=>item.sizes.indexOf(s)===i);
+        const totalC  = item.colors.length;
+        const totalS  = item.sizes.length;
+        return (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',backdropFilter:'blur(2px)',
+            display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem',zIndex:200}}>
+            <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r-lg)',
+              padding:24,width:'100%',maxWidth:560,maxHeight:'92vh',overflowY:'auto',boxShadow:'var(--shadow-lg)'}}>
 
-            <div style={{background:'var(--bg)',borderRadius:8,padding:'10px 12px',marginBottom:14,fontSize:12,color:'var(--text-2)'}}>
-              <strong>Colors:</strong> {editModal.item.colors.join(', ')}<br/>
-              <strong>Sizes:</strong> {editModal.item.sizes.join(', ')}<br/>
-              <strong>Qty:</strong> {editModal.item.qty} units
-            </div>
+              <div style={{fontWeight:700,fontSize:16,marginBottom:2}}>Edit item</div>
+              <div style={{fontSize:12,color:'var(--text-3)',marginBottom:20}}>{item.vendor} · <span style={{fontFamily:'monospace'}}>{item.code}</span> · {item.category}</div>
 
-            <div className="field">
-              <label className="label">Purchase price (USD)</label>
-              <input type="number" step="0.5" value={editPrice}
-                onChange={e=>setEditPrice(e.target.value)}
-                style={{fontSize:16}}/>
-              {editPrice&&(
-                <div style={{fontSize:12,color:'var(--green)',marginTop:4}}>
-                  → Retail: <strong>${(Math.floor(((Number(editPrice)*(1+settings.tax/100))+(0.5*settings.shipping))*settings.markup)+0.99).toFixed(2)}</strong>
+              {/* Price */}
+              <div className="field">
+                <label className="label">Purchase price (USD)</label>
+                <input type="number" step="0.5" value={editPrice}
+                  onChange={e=>setEditPrice(e.target.value)} style={{fontSize:16}}/>
+                {editPrice&&<div style={{fontSize:12,color:'var(--green)',marginTop:4}}>
+                  → Retail: <strong>${(Math.floor(calcUnitCost(Number(editPrice),item.category,settings)*settings.markup)+0.99).toFixed(2)}</strong>
+                </div>}
+              </div>
+
+              {/* Colors */}
+              <div className="field">
+                <label className="label">Colors</label>
+                <div style={{display:'flex',gap:8,marginBottom:8}}>
+                  <input type="text" id="oe-color" placeholder="Type color and Add"
+                    style={{flex:1}} onKeyDown={e=>{if(e.key==='Enter'){
+                      const el=document.getElementById('oe-color') as HTMLInputElement;
+                      if(el.value.trim()) { setEditModal({item:{...item,colors:[...item.colors,el.value.trim()]}}); el.value=''; }
+                    }}}/>
+                  <button className="btn btn-sm btn-primary" onClick={()=>{
+                    const el=document.getElementById('oe-color') as HTMLInputElement;
+                    if(el.value.trim()) { setEditModal({item:{...item,colors:[...item.colors,el.value.trim()]}}); el.value=''; }
+                  }}>Add</button>
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+                  {['Black','White','Gray','Navy','Beige','Brown','Green','Blue','Red','Khaki','Burgundy','Cream','Olive','Camel'].map(c=>(
+                    <div key={c} className="chip" style={{fontSize:11}} onClick={()=>setEditModal({item:{...item,colors:[...item.colors,c]}})}>{c}</div>
+                  ))}
+                </div>
+                {uColors.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {uColors.map((color:string)=>(
+                    <span key={color} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'4px 6px 4px 10px',
+                      borderRadius:100,fontSize:12,fontWeight:500,background:'var(--blue-light)',
+                      border:'1px solid var(--blue-border)',color:'var(--blue)'}}>
+                      {color}
+                      {colorCounts[color]>1&&<span style={{background:'var(--blue)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10,margin:'0 2px'}}>×{colorCounts[color]}</span>}
+                      <span title="Add one more" style={{cursor:'pointer',background:'var(--blue)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}}
+                        onClick={()=>setEditModal({item:{...item,colors:[...item.colors,color]}})}>+</span>
+                      <span title="Remove one" style={{cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1,marginLeft:1}}
+                        onClick={()=>{const idx=item.colors.lastIndexOf(color);const nc=[...item.colors];nc.splice(idx,1);setEditModal({item:{...item,colors:nc}});}}>×</span>
+                    </span>
+                  ))}
+                </div>}
+              </div>
+
+              {/* Sizes */}
+              <div className="field">
+                <label className="label">Sizes</label>
+                <div style={{display:'flex',gap:8,marginBottom:8}}>
+                  <input type="text" id="oe-size" placeholder="Type size and Add"
+                    style={{flex:1}} onKeyDown={e=>{if(e.key==='Enter'){
+                      const el=document.getElementById('oe-size') as HTMLInputElement;
+                      if(el.value.trim()) { setEditModal({item:{...item,sizes:[...item.sizes,el.value.trim()]}}); el.value=''; }
+                    }}}/>
+                  <button className="btn btn-sm btn-primary" onClick={()=>{
+                    const el=document.getElementById('oe-size') as HTMLInputElement;
+                    if(el.value.trim()) { setEditModal({item:{...item,sizes:[...item.sizes,el.value.trim()]}}); el.value=''; }
+                  }}>Add</button>
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+                  {['XS','S','M','L','XL','2XL','3XL','28','30','32','34','36','38','40','42','44'].map(s=>(
+                    <div key={s} className="chip" style={{fontSize:11}} onClick={()=>setEditModal({item:{...item,sizes:[...item.sizes,s]}})}>{s}</div>
+                  ))}
+                </div>
+                {uSizes.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {uSizes.map((size:string)=>(
+                    <span key={size} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'4px 6px 4px 10px',
+                      borderRadius:100,fontSize:12,fontWeight:500,background:'var(--green-light)',
+                      border:'1px solid var(--green-border)',color:'var(--green)'}}>
+                      {size}
+                      {sizeCounts[size]>1&&<span style={{background:'var(--green)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10,margin:'0 2px'}}>×{sizeCounts[size]}</span>}
+                      <span title="Add one more" style={{cursor:'pointer',background:'var(--green)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}}
+                        onClick={()=>setEditModal({item:{...item,sizes:[...item.sizes,size]}})}>+</span>
+                      <span title="Remove one" style={{cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1,marginLeft:1}}
+                        onClick={()=>{const idx=item.sizes.lastIndexOf(size);const ns=[...item.sizes];ns.splice(idx,1);setEditModal({item:{...item,sizes:ns}});}}>×</span>
+                    </span>
+                  ))}
+                </div>}
+              </div>
+
+              {/* Qty preview */}
+              {totalC>0&&totalS>0&&(
+                <div style={{background:'var(--green-light)',border:'1px solid var(--green-border)',
+                  borderRadius:'var(--r)',padding:'10px 14px',marginBottom:16,fontSize:13}}>
+                  <strong style={{color:'var(--green)',fontSize:22}}>{totalC*totalS}</strong>
+                  <span style={{color:'var(--text-3)',marginLeft:8}}>total units · {totalC} colors × {totalS} sizes</span>
                 </div>
               )}
-            </div>
-            <div className="field">
-              <label className="label">Worker note</label>
-              <input type="text" value={editNotes} onChange={e=>setEditNotes(e.target.value)} placeholder="Worker note"/>
-            </div>
-            <div className="field" style={{marginBottom:16}}>
-              <label className="label">Owner note (visible to worker)</label>
-              <input type="text" value={editOwnerNote} onChange={e=>setEditOwnerNote(e.target.value)} placeholder="Note for worker..."/>
-            </div>
-            <div style={{display:'flex',gap:8}}>
-              <button className="btn" style={{flex:1}} onClick={()=>setEditModal(null)}>Cancel</button>
-              <button className="btn btn-primary" style={{flex:1}} onClick={saveEditItem}>Save changes</button>
+
+              {/* Notes */}
+              <div className="field">
+                <label className="label">Worker note</label>
+                <input type="text" value={editNotes} onChange={e=>setEditNotes(e.target.value)} placeholder="Worker note"/>
+              </div>
+              <div className="field" style={{marginBottom:20}}>
+                <label className="label">Owner note (visible to worker)</label>
+                <input type="text" value={editOwnerNote} onChange={e=>setEditOwnerNote(e.target.value)} placeholder="Note for worker..."/>
+              </div>
+
+              <div style={{display:'flex',gap:8}}>
+                <button className="btn" style={{flex:1}} onClick={()=>setEditModal(null)}>Cancel</button>
+                <button className="btn btn-primary" style={{flex:2}} onClick={()=>{
+                  const updated={...item,price:Number(editPrice)||item.price,notes:editNotes,ownerNote:editOwnerNote,qty:item.colors.length*item.sizes.length};
+                  saveEditItem(updated);
+                }}>Save all changes</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
 
       {/* Flag modal */}
       {flagModal&&(
