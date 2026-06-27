@@ -100,6 +100,23 @@ export default function FieldPage() {
   const [photo, setPhoto] = useState<string>('');
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
 
+  // Confirmation/success modal
+  const [modal, setModal] = useState<{
+    type: 'confirm'|'success'|'error';
+    icon: string;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: ()=>void;
+  }|null>(null);
+
+  function showSuccess(icon:string, title:string, message:string) {
+    setModal({type:'success', icon, title, message});
+  }
+  function showConfirm(icon:string, title:string, message:string, confirmLabel:string, onConfirm:()=>void, cancelLabel='Cancel') {
+    setModal({type:'confirm', icon, title, message, confirmLabel, cancelLabel, onConfirm});
+  }
   function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2500); }
 
   useEffect(()=>{
@@ -267,7 +284,7 @@ export default function FieldPage() {
       if(res.ok){
         setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
         resetItemForm(); setShowItemList(true);
-        showToast('✓ Item updated');
+        showSuccess('✏️', 'Item updated!', `${updated.vendor} · ${updated.code} has been updated.`);
       } else showToast('Error updating item');
     } else {
       // NEW item
@@ -289,22 +306,31 @@ export default function FieldPage() {
       if(d.item){
         setItems(prev=>[d.item,...prev]);
         resetItemForm();
-        showToast('✓ Item saved — add next');
+        showSuccess('✅', 'Item saved!', `${d.item.vendor} · ${d.item.code} has been added to your order.`);
       } else showToast('Error: '+d.error);
     }
   }
 
   async function handleDeleteItem(id:string) {
-    if(!confirm('Remove this item?')) return;
-    await fetch('/api/items',{method:'DELETE',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-    setItems(prev=>prev.filter(i=>i.id!==id));
-    showToast('Item removed');
+    showConfirm('🗑️', 'Remove item?', 'This item will be permanently removed from the order.',
+      'Yes, remove', async()=>{
+        await fetch('/api/items',{method:'DELETE',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+        setItems(prev=>prev.filter(i=>i.id!==id));
+        showSuccess('🗑️', 'Item removed', 'The item has been removed from your order.');
+      });
   }
 
   async function handleSubmitOrder() {
     if(!shippingCost||Number(shippingCost)<0){ showToast('Enter shipping cost (0 if none)'); return; }
-    setLoading(true);
+    showConfirm('📦', 'Submit order to owner?',
+      `Your order with ${items.length} items will be sent to the owner for review. You can still add items after submission.`,
+      'Submit order', async()=>{
+        setLoading(true);
+        await doSubmitOrder();
+      });
+  }
+  async function doSubmitOrder() {
     const totalValue = items.reduce((s,i)=>s+i.price*i.qty,0);
     const shipping = Number(shippingCost);
     const commission = parseFloat((totalValue*0.03).toFixed(2));
@@ -322,8 +348,10 @@ export default function FieldPage() {
     setLoading(false);
     setCurrentOrder(updated);
     if(worker) loadOrders(worker.id);
-    showToast('✓ Order submitted!');
-    setTimeout(()=>setScreen('orders'),1500);
+    setLoading(false);
+    showSuccess('🎉', 'Order submitted!',
+      `Your order "${updated.name}" has been sent to the owner for review.`);
+    setTimeout(()=>setScreen('orders'),2500);
   }
 
   const autoQty = total(colors)*total(sizes);
@@ -922,7 +950,30 @@ export default function FieldPage() {
           </>
         )}
       </div>
-      {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+            {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+
+      {/* Confirmation / Success Modal */}
+      {modal&&(
+        <div className="confirm-overlay" onClick={modal.type!=='confirm'?()=>setModal(null):undefined}>
+          <div className="confirm-box" onClick={e=>e.stopPropagation()}>
+            <div className="confirm-icon">{modal.icon}</div>
+            <div className="confirm-title">{modal.title}</div>
+            <div className="confirm-msg">{modal.message}</div>
+            {modal.type==='success'&&(
+              <button className="btn btn-primary" style={{width:'100%',height:42,fontSize:14}}
+                onClick={()=>setModal(null)}>Got it</button>
+            )}
+            {modal.type==='confirm'&&(
+              <div className="confirm-actions">
+                <button className="btn" onClick={()=>setModal(null)}>{modal.cancelLabel||'Cancel'}</button>
+                <button className="btn btn-primary" onClick={()=>{setModal(null);modal.onConfirm?.();}}>
+                  {modal.confirmLabel||'Confirm'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

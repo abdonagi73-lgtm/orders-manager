@@ -40,6 +40,19 @@ export default function OwnerPage() {
   const [newManagerPin, setNewManagerPin] = useState('');
   const [managers, setManagers] = useState<{id:string;name:string;pin:string}[]>([]);
 
+  const [modal, setModal] = useState<{
+    type: 'confirm'|'success'|'error';
+    icon: string; title: string; message: string;
+    confirmLabel?: string; cancelLabel?: string;
+    onConfirm?: ()=>void;
+  }|null>(null);
+
+  function showSuccess(icon:string, title:string, message:string) {
+    setModal({type:'success', icon, title, message});
+  }
+  function showConfirmModal(icon:string, title:string, message:string, confirmLabel:string, onConfirm:()=>void, cancelLabel='Cancel') {
+    setModal({type:'confirm', icon, title, message, confirmLabel, cancelLabel, onConfirm});
+  }
   function showToast(msg: string) { setToast(msg); setTimeout(()=>setToast(''),2500); }
 
   async function verifyPin() {
@@ -120,14 +133,17 @@ export default function OwnerPage() {
     const updated = {...item, status, ownerNote};
     setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
-    showToast(status==='approved'?'✓ Approved':'⚑ Flagged');
+    if(status==='approved') showSuccess('✅', 'Item approved!', `${item.vendor} · ${item.code} has been approved.`);
+    else showToast('⚑ Flagged');
   }
 
   async function deleteItem(id: string) {
-    if(!confirm('Remove this item?')) return;
-    setItems(prev=>prev.filter(i=>i.id!==id));
-    await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-    showToast('Item removed');
+    showConfirmModal('🗑️', 'Remove item?', 'This item will be permanently deleted from the order.',
+      'Yes, remove', async()=>{
+        setItems(prev=>prev.filter(i=>i.id!==id));
+        await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+        showSuccess('🗑️', 'Item removed', 'The item has been deleted.');
+      });
   }
 
   async function saveEditItem(updatedItem?: OrderItem) {
@@ -141,7 +157,7 @@ export default function OwnerPage() {
     setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
     setEditModal(null);
-    showToast('✓ Item updated');
+    showSuccess('✏️', 'Item updated!', `${updated.vendor} · ${updated.code} has been updated successfully.`);
   }
 
   async function saveOrderEdit(order: Order) {
@@ -150,7 +166,7 @@ export default function OwnerPage() {
     setOrders(prev=>prev.map(o=>o.id===order.id?order:o));
     if(selectedOrder?.id===order.id) setSelectedOrder(order);
     setEditOrderModal(null);
-    showToast('✓ Order updated');
+    showSuccess('📋', 'Order updated!', `"${order.name}" has been saved successfully.`);
   }
 
   async function markCommissionPaid(orderId: string, paid: boolean) {
@@ -160,7 +176,8 @@ export default function OwnerPage() {
     setOrders(prev=>prev.map(o=>o.id===orderId?updated:o));
     await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'update',order:updated})});
-    showToast(paid?'✓ Commission marked as paid':'Commission marked unpaid');
+    if(paid) showSuccess('💰', 'Commission paid!', `Commission of $${updated.workerCommission.toFixed(2)} marked as paid for "${updated.name}".`);
+    else showToast('Commission marked unpaid');
   }
 
   async function copyOrderItems(sourceOrderId: string, targetOrderId: string) {
@@ -187,27 +204,35 @@ export default function OwnerPage() {
   }
 
   async function closeOrder(orderId: string) {
-    if(!confirm('Mark this order as Imported and close it?')) return;
-    await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'close',orderId})});
-    showToast('Order closed and marked Imported');
-    loadAll();
+    const order = orders.find(o=>o.id===orderId);
+    showConfirmModal('✓', 'Mark as imported?',
+      `"${order?.name}" will be marked as imported and closed. The worker will see it as read-only.`,
+      'Mark imported', async()=>{
+        await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'close',orderId})});
+        loadAll();
+        showSuccess('✅', 'Order imported!', `"${order?.name}" has been marked as imported and is now closed.`);
+      });
   }
 
   async function doExport() {
     if(!selectedOrder) return;
-    setExporting(true);
-    try {
-      const res = await fetch(`/api/export?orderId=${selectedOrder.id}`);
-      if(!res.ok){ const d=await res.json(); throw new Error(d.error); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url;
-      a.download=`SQUARE_${selectedOrder.name.replace(/\s+/g,'_')}.csv`;
-      a.click(); URL.revokeObjectURL(url);
-      showToast('✓ CSV downloaded');
-    } catch(e:any){ showToast('Export failed: '+e.message); }
-    finally{ setExporting(false); }
+    showConfirmModal('⬇️', 'Download Square CSV?',
+      `This will export ${exportableRows} rows for "${selectedOrder.name}" using Tax: ${settings.tax}%, Markup: ${settings.markup}×, Shipping: $${settings.shipping}/kg.`,
+      'Download CSV', async()=>{
+        setExporting(true);
+        try {
+          const res = await fetch(`/api/export?orderId=${selectedOrder.id}`);
+          if(!res.ok){ const d=await res.json(); throw new Error(d.error); }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href=url;
+          a.download=`SQUARE_${selectedOrder.name.replace(/\s+/g,'_')}.csv`;
+          a.click(); URL.revokeObjectURL(url);
+          showSuccess('✅', 'CSV downloaded!', `${exportableRows} rows exported for "${selectedOrder.name}". Import it to Square POS now.`);
+        } catch(e:any){ showToast('Export failed: '+e.message); }
+        finally{ setExporting(false); }
+      });
   }
 
   async function saveSettings() {
@@ -1062,6 +1087,29 @@ export default function OwnerPage() {
       )}
 
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+
+      {/* Confirmation / Success Modal */}
+      {modal&&(
+        <div className="confirm-overlay" onClick={modal.type!=='confirm'?()=>setModal(null):undefined}>
+          <div className="confirm-box" onClick={e=>e.stopPropagation()}>
+            <div className="confirm-icon">{modal.icon}</div>
+            <div className="confirm-title">{modal.title}</div>
+            <div className="confirm-msg">{modal.message}</div>
+            {modal.type==='success'&&(
+              <button className="btn btn-primary" style={{width:'100%',height:42,fontSize:14}}
+                onClick={()=>setModal(null)}>Got it</button>
+            )}
+            {modal.type==='confirm'&&(
+              <div className="confirm-actions">
+                <button className="btn" onClick={()=>setModal(null)}>{modal.cancelLabel||'Cancel'}</button>
+                <button className="btn btn-primary" onClick={()=>{setModal(null);modal.onConfirm?.();}}>
+                  {modal.confirmLabel||'Confirm'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -597,3 +597,32 @@ input[type=number]::-webkit-inner-spin-button { opacity: .5; }
 
 /* ── Monospace for codes ── */
 .mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Confirm / Success Modal ── */
+.confirm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem; z-index: 500;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+.confirm-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 24px;
+  width: 100%; max-width: 380px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  animation: slideUp .18s ease;
+}
+@keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+
+.confirm-icon { font-size: 44px; margin-bottom: 12px; line-height: 1; }
+.confirm-title { font-size: 18px; font-weight: 700; letter-spacing:-.02em; margin-bottom: 6px; }
+.confirm-msg { font-size: 13px; color: var(--text-3); line-height: 1.5; margin-bottom: 22px; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-actions .btn { flex: 1; height: 42px; font-size: 14px; }
