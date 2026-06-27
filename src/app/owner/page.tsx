@@ -33,6 +33,11 @@ export default function OwnerPage() {
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerPin, setNewWorkerPin] = useState('');
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [editOrderModal, setEditOrderModal] = useState<Order|null>(null);
+  const [newManagerName, setNewManagerName] = useState('');
+  const [newManagerPin, setNewManagerPin] = useState('');
+  const [managers, setManagers] = useState<{id:string;name:string;pin:string}[]>([]);
 
   function showToast(msg: string) { setToast(msg); setTimeout(()=>setToast(''),2500); }
 
@@ -57,7 +62,7 @@ export default function OwnerPage() {
       fetch('/api/orders').then(r=>r.json()),
       fetch('/api/session').then(r=>r.json()),
     ]);
-    if(ordersRes.orders) setOrders(ordersRes.orders.sort((a:Order,b:Order)=>
+    if(ordersRes.orders) setOrders([...ordersRes.orders].sort((a:Order,b:Order)=>
       new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()));
     if(sessionRes.settings) setSettings(sessionRes.settings);
     if(sessionRes.registry) setRegistry(sessionRes.registry);
@@ -124,6 +129,15 @@ export default function OwnerPage() {
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
     setEditModal(null);
     showToast('✓ Item updated');
+  }
+
+  async function saveOrderEdit(order: Order) {
+    await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'update',order})});
+    setOrders(prev=>prev.map(o=>o.id===order.id?order:o));
+    if(selectedOrder?.id===order.id) setSelectedOrder(order);
+    setEditOrderModal(null);
+    showToast('✓ Order updated');
   }
 
   async function markCommissionPaid(orderId: string, paid: boolean) {
@@ -242,9 +256,20 @@ export default function OwnerPage() {
             onClick={verifyPin} disabled={pinLoading}>
             {pinLoading?'Verifying...':'Sign in'}
           </button>
-          <div className="login-switch">
-            Field worker?&nbsp;
-            <a onClick={()=>window.location.href='/field'}>Sign in to Order Entry instead</a>
+          <div style={{marginTop:20}}>
+            <div style={{fontSize:11,color:'var(--text-3)',textAlign:'center',marginBottom:10,textTransform:'uppercase',letterSpacing:'.06em',fontWeight:600}}>Switch role</div>
+            <a href="/field" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',
+              background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--r)',
+              textDecoration:'none',color:'var(--text-2)',transition:'all .12s'}}
+              onMouseOver={e=>(e.currentTarget.style.borderColor='var(--green)')}
+              onMouseOut={e=>(e.currentTarget.style.borderColor='var(--border)')}>
+              <span style={{fontSize:20}}>🧾</span>
+              <div>
+                <div style={{fontWeight:600,fontSize:13,color:'var(--text)'}}>Order Entry</div>
+                <div style={{fontSize:11,color:'var(--text-3)'}}>Field worker login</div>
+              </div>
+              <span style={{marginLeft:'auto',color:'var(--text-4)'}}>›</span>
+            </a>
           </div>
         </div>
       </div>
@@ -299,6 +324,9 @@ export default function OwnerPage() {
         {tab==='orders'&&(
           <>
             <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+              <input type="text" placeholder="Search orders..." value={orderSearch}
+                onChange={e=>setOrderSearch(e.target.value)}
+                style={{flex:1,minWidth:160}}/>
               {(['','open','submitted','imported'] as const).map(s=>(
                 <button key={s} className={`btn btn-sm ${filterStatus===s?'btn-primary':''}`}
                   onClick={()=>setFilterStatus(s)}>
@@ -306,37 +334,49 @@ export default function OwnerPage() {
                 </button>
               ))}
             </div>
-            {orders.filter(o=>!filterStatus||o.status===filterStatus).length===0?(
+            {orders.filter(o=>(!filterStatus||o.status===filterStatus)&&
+              (!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
+              o.workerName.toLowerCase().includes(orderSearch.toLowerCase()))).length===0?(
               <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
             ):(
-              orders.filter(o=>!filterStatus||o.status===filterStatus).map(order=>(
+              orders
+                .filter(o=>(!filterStatus||o.status===filterStatus)&&
+                  (!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
+                  o.workerName.toLowerCase().includes(orderSearch.toLowerCase())))
+                .map(order=>(
                 <div key={order.id} className="item-card" style={{cursor:'pointer'}} onClick={()=>selectOrder(order)}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-                      <div style={{fontSize:12,color:'var(--text-2)',marginTop:3}}>
-                        {order.workerName} · Started {order.startDate} · {order.itemCount} items · ${order.totalValue.toFixed(0)} purchase value
+                      <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
+                        {order.workerName} · {order.startDate} · {order.itemCount} items
                       </div>
-                      {order.shippingCost>0&&<div style={{fontSize:12,color:'var(--text-2)'}}>Shipping: ${order.shippingCost}</div>}
+                      <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>
+                        Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
+                        {order.shippingCost>0&&<> · Ship: ${order.shippingCost.toFixed(2)}</>}
+                        {order.workerCommission>0&&<> · Comm: ${order.workerCommission.toFixed(2)}</>}
+                        {order.totalOrderCost>0&&<> · <strong style={{color:'var(--green)'}}>Total: ${order.totalOrderCost.toFixed(2)}</strong></>}
+                      </div>
                     </div>
-                    <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0,marginLeft:10}}>
+                    <div style={{display:'flex',gap:6,alignItems:'flex-start',flexShrink:0,flexDirection:'column'}}>
                       <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
                         {order.status}
                       </span>
-                      {order.status==='submitted'&&(
-                        <button className="btn btn-sm btn-success" onClick={e=>{e.stopPropagation();closeOrder(order.id)}}>
-                          Mark imported
-                        </button>
-                      )}
-                      {selectedOrder&&order.id!==selectedOrder.id&&order.status!=='open'&&(
-                        <button className="btn btn-sm" title="Copy items to current order"
-                          onClick={e=>{e.stopPropagation();
-                            if(confirm(`Copy all items from "${order.name}" to "${selectedOrder.name}"?`))
-                              copyOrderItems(order.id, selectedOrder.id);
-                          }}>
-                          ⎘ Copy items
-                        </button>
-                      )}
+                      <div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
+                        <button className="btn btn-sm" onClick={e=>{e.stopPropagation();setEditOrderModal({...order});}}>✎ Edit</button>
+                        {order.status==='submitted'&&(
+                          <button className="btn btn-sm btn-success" onClick={e=>{e.stopPropagation();closeOrder(order.id)}}>
+                            ✓ Import
+                          </button>
+                        )}
+                        {selectedOrder&&order.id!==selectedOrder.id&&(
+                          <button className="btn btn-sm" title="Copy items to current order"
+                            onClick={e=>{e.stopPropagation();
+                              if(confirm(`Copy items from "${order.name}" to "${selectedOrder.name}"?`))
+                                copyOrderItems(order.id, selectedOrder.id);
+                            }}>⎘ Copy</button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -733,6 +773,56 @@ export default function OwnerPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Order Modal */}
+      {editOrderModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',backdropFilter:'blur(2px)',
+          display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem',zIndex:200}}>
+          <div className="card" style={{width:'100%',maxWidth:480,maxHeight:'90vh',overflowY:'auto'}}>
+            <div style={{fontWeight:700,fontSize:16,marginBottom:16}}>Edit order</div>
+            <div className="field">
+              <label className="label">Order name</label>
+              <input type="text" value={editOrderModal.name}
+                onChange={e=>setEditOrderModal({...editOrderModal,name:e.target.value})}/>
+            </div>
+            <div className="field">
+              <label className="label">Start date</label>
+              <input type="date" value={editOrderModal.startDate}
+                onChange={e=>setEditOrderModal({...editOrderModal,startDate:e.target.value})}/>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div className="field">
+                <label className="label">Shipping cost ($)</label>
+                <input type="number" step="0.01" value={editOrderModal.shippingCost}
+                  onChange={e=>setEditOrderModal({...editOrderModal,shippingCost:Number(e.target.value)})}/>
+              </div>
+              <div className="field">
+                <label className="label">Worker commission ($)</label>
+                <input type="number" step="0.01" value={editOrderModal.workerCommission}
+                  onChange={e=>setEditOrderModal({...editOrderModal,workerCommission:Number(e.target.value)})}/>
+              </div>
+              <div className="field">
+                <label className="label">Total order cost ($)</label>
+                <input type="number" step="0.01" value={editOrderModal.totalOrderCost}
+                  onChange={e=>setEditOrderModal({...editOrderModal,totalOrderCost:Number(e.target.value)})}/>
+              </div>
+              <div className="field">
+                <label className="label">Status</label>
+                <select value={editOrderModal.status}
+                  onChange={e=>setEditOrderModal({...editOrderModal,status:e.target.value as Order['status']})}>
+                  <option value="open">Open</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="imported">Imported</option>
+                </select>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8,marginTop:8}}>
+              <button className="btn" style={{flex:1}} onClick={()=>setEditOrderModal(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={()=>saveOrderEdit(editOrderModal)}>Save changes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit modal */}
       {editModal&&(

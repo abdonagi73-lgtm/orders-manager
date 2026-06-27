@@ -360,9 +360,18 @@ export default function FieldPage() {
             onClick={handleLogin} disabled={pinLoading}>
             {pinLoading?'Verifying...':'Sign in'}
           </button>
-          <div className="login-switch">
-            Are you the manager?&nbsp;
-            <a onClick={()=>window.location.href='/owner'}>Sign in to Management instead</a>
+          <div style={{marginTop:20}}>
+            <div style={{fontSize:11,color:'var(--text-3)',textAlign:'center',marginBottom:10,textTransform:'uppercase',letterSpacing:'.06em',fontWeight:600}}>Switch role</div>
+            <a href="/owner" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',
+              background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--r)',
+              textDecoration:'none',color:'var(--text-2)',transition:'all .12s'}}>
+              <span style={{fontSize:20}}>🖥️</span>
+              <div>
+                <div style={{fontWeight:600,fontSize:13,color:'var(--text)'}}>Management</div>
+                <div style={{fontSize:11,color:'var(--text-3)'}}>Owner dashboard</div>
+              </div>
+              <span style={{marginLeft:'auto',color:'var(--text-4)'}}>›</span>
+            </a>
           </div>
         </div>
       </div>

@@ -67,18 +67,26 @@ export async function getAllOrders(): Promise<Order[]> {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:J`,
   });
-  return (res.data.values ?? []).filter(r => r[0]).map(r => ({
-    id: r[0], name: r[1] ?? '', startDate: r[2] ?? '',
-    workerId: r[3] ?? '', workerName: r[4] ?? '',
-    status: (r[5] ?? 'open') as Order['status'],
-    shippingCost: parseFloat(r[6]) || 0,
-    workerCommission: parseFloat(r[7]) || 0,
-    totalOrderCost: parseFloat(r[8]) || 0,
-    commissionPaid: r[9] === 'true',
-    createdAt: r[10] ?? '', closedAt: r[11] ?? '',
-    itemCount: parseInt(r[12]) || 0,
-    totalValue: parseFloat(r[13]) || 0,
-  }));
+  return (res.data.values ?? []).filter(r => r[0]).map(r => {
+    // Detect old format (no commissionPaid column) vs new format
+    // Old: ...totalOrderCost, createdAt, closedAt, itemCount, totalValue (13 cols)
+    // New: ...totalOrderCost, commissionPaid, createdAt, closedAt, itemCount, totalValue (14 cols)
+    const hasCommissionPaid = r[9] === 'true' || r[9] === 'false';
+    const offset = hasCommissionPaid ? 1 : 0;
+    return {
+      id: r[0], name: r[1] ?? '', startDate: r[2] ?? '',
+      workerId: r[3] ?? '', workerName: r[4] ?? '',
+      status: (r[5] ?? 'open') as Order['status'],
+      shippingCost: parseFloat(r[6]) || 0,
+      workerCommission: parseFloat(r[7]) || 0,
+      totalOrderCost: parseFloat(r[8]) || 0,
+      commissionPaid: hasCommissionPaid ? r[9] === 'true' : false,
+      createdAt: r[9 + offset] ?? '',
+      closedAt: r[10 + offset] ?? '',
+      itemCount: parseInt(r[11 + offset]) || 0,
+      totalValue: parseFloat(r[12 + offset]) || 0,
+    };
+  });
 }
 
 export async function getOrdersByWorker(workerId: string): Promise<Order[]> {
