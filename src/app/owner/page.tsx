@@ -1,10 +1,61 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
-type Tab = 'orders' | 'items' | 'analytics' | 'commission' | 'workers' | 'settings';
+type Tab = 'orders' | 'items' | 'analytics' | 'commission' | 'workers' | 'settings' | 'prices';
+
+// Price review row component
+function PriceRow({item, settings, onSave}: {
+  item: any; settings: any; onSave: (price:number)=>void;
+}) {
+  const [price, setPrice] = React.useState(String(item.price));
+  const [saving, setSaving] = React.useState(false);
+  const numPrice = parseFloat(price) || item.price;
+  const taxCost  = numPrice * (settings.tax/100);
+  const weight   = ({'t-shirt':0.25,'t-shirts':0.25,'shirt':0.33,'shirts':0.33,'pants':0.55,'shorts':0.45,'jeans':0.8,'jacket':0.6,'hoodie':1.2,'sweater':0.8,'knitwear':0.95} as any)[item.category?.toLowerCase()] || 0.5;
+  const shipCost = weight * settings.shipping;
+  const unitCost = numPrice + taxCost + shipCost;
+  const retail   = Math.floor(unitCost * settings.markup) + 0.99;
+  const changed  = numPrice !== item.price;
+
+  return (
+    <div style={{background:'var(--surface)',border:`1px solid ${changed?'var(--amber-border)':'var(--border)'}`,
+      borderRadius:'var(--r)',padding:'12px 14px',marginBottom:8,
+      borderLeft:`3px solid ${changed?'var(--amber)':'var(--border)'}`}}>
+      <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
+          <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>{item.category} · {item.colors?.join(', ')} · {item.sizes?.join('/')}</div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+          <div>
+            <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Purchase $</div>
+            <input type="number" value={price} step="0.5" min="0"
+              onChange={e=>setPrice(e.target.value)}
+              style={{width:90,padding:'6px 8px',border:'1px solid var(--border-strong)',
+                borderRadius:'var(--r-sm)',fontSize:15,fontWeight:600,textAlign:'center'}}/>
+          </div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Unit cost</div>
+            <div style={{fontSize:14,fontWeight:500,color:'var(--text-2)',padding:'6px 8px'}}>${unitCost.toFixed(2)}</div>
+          </div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Retail</div>
+            <div style={{fontSize:16,fontWeight:700,color:'var(--green)',padding:'6px 8px'}}>${retail.toFixed(2)}</div>
+          </div>
+          {changed&&(
+            <button className="btn btn-sm btn-primary" disabled={saving}
+              onClick={async()=>{setSaving(true);await onSave(numPrice);setSaving(false);}}>
+              {saving?'Saving...':'Save'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function OwnerPage() {
   const [authed, setAuthed] = useState(false);
@@ -348,9 +399,9 @@ export default function OwnerPage() {
 
       <div className="container-wide" style={{paddingTop:16,paddingBottom:40}}>
         <div className="tabs">
-          {(['orders','items','analytics','commission','workers','settings'] as Tab[]).map(t=>(
+          {(['orders','items','prices','analytics','commission','workers','settings'] as Tab[]).map(t=>(
             <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
-              {t==='commission'?'Commission':t==='analytics'?'Analytics':t.charAt(0).toUpperCase()+t.slice(1)}
+              {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t.charAt(0).toUpperCase()+t.slice(1)}
               {t==='items'&&selectedOrder&&` — ${selectedOrder.name}`}
               {t==='commission'&&orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length>0&&
                 <span style={{background:'var(--red)',color:'#fff',borderRadius:10,padding:'1px 6px',fontSize:10,marginLeft:4}}>
@@ -451,6 +502,9 @@ export default function OwnerPage() {
               <>
                 {/* Status badges + filter */}
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
+                  {selectedOrder.orderType==='online'
+                    ? <span className="badge badge-info">🌐 Online</span>
+                    : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)'}}>🏪 Store</span>}
                   <span className="badge badge-approved">{approvedCount} approved</span>
                   <span className="badge badge-pending">{pendingCount} pending</span>
                   {flaggedCount>0&&<span className="badge badge-flagged">{flaggedCount} flagged</span>}
@@ -544,7 +598,7 @@ export default function OwnerPage() {
                             </div>
                             <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center',flexDirection:'column'}}>
                               <span className={`badge badge-${item.status}`}>{item.status}</span>
-                              <div style={{display:'flex',gap:4}}>
+                              <div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
                                 <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
                                 <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
                                   onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
@@ -553,7 +607,7 @@ export default function OwnerPage() {
                                   setEditPrice(String(item.price));
                                   setEditNotes(item.notes);
                                   setEditOwnerNote(item.ownerNote);
-                                }} title="Edit">✎</button>
+                                }} title="Edit item">✎ Edit</button>
                                 <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
                               </div>
                             </div>
@@ -643,6 +697,38 @@ export default function OwnerPage() {
                     </button>
                   </div>
                 </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── PRICES TAB ── */}
+        {tab==='prices'&&(
+          <>
+            {!selectedOrder?(
+              <div className="empty"><div className="empty-icon">👆</div><div className="empty-text">Select an order from the Orders tab first</div></div>
+            ):(
+              <>
+                <div style={{fontSize:13,color:'var(--text-3)',marginBottom:14}}>
+                  Review and adjust purchase prices for each item. Retail prices update live based on your pricing settings.
+                </div>
+                {items.filter(i=>i.status!=='flagged').map(item=>{
+                  const [localPrice, setLocalPrice] = [item.price, (v:number)=>{}]; // read-only ref
+                  const retail = calcRetailPrice(item.price, item.category, settings);
+                  const cost   = calcUnitCost(item.price, item.category, settings);
+                  return (
+                    <PriceRow key={item.id} item={item} settings={settings}
+                      onSave={async(newPrice:number)=>{
+                        const updated = {...item, price:newPrice};
+                        setItems(prev=>prev.map(i=>i.id===item.id?updated:i));
+                        await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
+                        showToast(`✓ Price updated for ${item.vendor} · ${item.code}`);
+                      }}/>
+                  );
+                })}
+                {items.filter(i=>i.status!=='flagged').length===0&&(
+                  <div className="empty"><div className="empty-text">No items to review</div></div>
+                )}
               </>
             )}
           </>

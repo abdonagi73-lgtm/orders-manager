@@ -331,27 +331,28 @@ export default function FieldPage() {
       });
   }
   async function doSubmitOrder() {
-    const totalValue = items.reduce((s,i)=>s+i.price*i.qty,0);
-    const shipping = Number(shippingCost);
-    const commission = parseFloat((totalValue*0.03).toFixed(2));
-    const totalOrderCost = parseFloat((totalValue+shipping+commission).toFixed(2));
-    const updated:Order = {
-      ...currentOrder!,
-      shippingCost:shipping,
-      workerCommission:commission,
-      totalOrderCost,
-      status:'submitted',
-    };
-    await fetch('/api/orders',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'update',order:updated})});
-    setLoading(false);
-    setCurrentOrder(updated);
-    if(worker) loadOrders(worker.id);
-    setLoading(false);
-    showSuccess('🎉', 'Order submitted!',
-      `Your order "${updated.name}" has been sent to the owner for review.`);
-    setTimeout(()=>setScreen('orders'),2500);
+    setLoading(true);
+    try {
+      const totalValue = items.reduce((s,i)=>s+i.price*i.qty,0);
+      const shipping = Number(shippingCost);
+      const commission = parseFloat((totalValue*0.03).toFixed(2));
+      const totalOrderCost = parseFloat((totalValue+shipping+commission).toFixed(2));
+      const updated:Order = {
+        ...currentOrder!,
+        shippingCost:shipping,
+        workerCommission:commission,
+        totalOrderCost,
+        status:'submitted',
+      };
+      await fetch('/api/orders',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'update',order:updated})});
+      setCurrentOrder(updated);
+      if(worker) loadOrders(worker.id);
+      showSuccess('🎉', 'Order submitted!',
+        `Your order "${updated.name}" has been sent to the owner for review.`);
+      setTimeout(()=>setScreen('orders'),2500);
+    } finally { setLoading(false); }
   }
 
   const autoQty = total(colors)*total(sizes);
@@ -477,6 +478,13 @@ export default function FieldPage() {
         )}
       </div>
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+      {modal&&(<div className="confirm-overlay"><div className="confirm-box" onClick={e=>e.stopPropagation()}>
+        <div className="confirm-icon">{modal.icon}</div><div className="confirm-title">{modal.title}</div>
+        <div className="confirm-msg">{modal.message}</div>
+        {modal.type==='success'&&<button className="btn btn-primary" style={{width:'100%',height:42}} onClick={()=>setModal(null)}>Got it</button>}
+        {modal.type==='confirm'&&<div className="confirm-actions"><button className="btn" onClick={()=>setModal(null)}>{modal.cancelLabel}</button>
+          <button className="btn btn-primary" onClick={()=>{setModal(null);modal.onConfirm?.();}}>{modal.confirmLabel}</button></div>}
+      </div></div>)}
     </div>
   );
 
@@ -620,6 +628,20 @@ export default function FieldPage() {
         </button>
       </div>
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+      {modal&&(
+        <div className="confirm-overlay" onClick={modal.type!=='confirm'?()=>setModal(null):undefined}>
+          <div className="confirm-box" onClick={e=>e.stopPropagation()}>
+            <div className="confirm-icon">{modal.icon}</div>
+            <div className="confirm-title">{modal.title}</div>
+            <div className="confirm-msg">{modal.message}</div>
+            {modal.type==='success'&&<button className="btn btn-primary" style={{width:'100%',height:42}} onClick={()=>setModal(null)}>Got it</button>}
+            {modal.type==='confirm'&&<div className="confirm-actions">
+              <button className="btn" onClick={()=>setModal(null)}>{modal.cancelLabel||'Cancel'}</button>
+              <button className="btn btn-primary" onClick={()=>{setModal(null);modal.onConfirm?.();}}>{modal.confirmLabel||'Confirm'}</button>
+            </div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 
