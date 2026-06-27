@@ -27,6 +27,8 @@ export interface OrderItem {
   createdAt: string;
 }
 
+export type OrderType = 'store' | 'online';
+
 export interface Order {
   id: string;
   name: string;
@@ -37,6 +39,7 @@ export interface Order {
   shippingCost: number;
   workerCommission: number;
   commissionPaid: boolean;
+  orderType: OrderType;
   totalOrderCost: number;
   createdAt: string;
   closedAt: string;

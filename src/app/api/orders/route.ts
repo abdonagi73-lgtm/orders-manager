@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
         workerId: body.workerId, workerName: body.workerName,
         status: 'open', shippingCost: 0,
         workerCommission: 0, totalOrderCost: 0, commissionPaid: false,
+        orderType: body.orderType || 'store',
         createdAt: new Date().toISOString(), closedAt: '',
         itemCount: 0, totalValue: 0,
       };

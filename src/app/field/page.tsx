@@ -73,6 +73,7 @@ export default function FieldPage() {
   // New order
   const [orderName, setOrderName] = useState('');
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  const [orderType, setOrderType] = useState<'store'|'online'>('store');
 
   // Item form
   const [editingItem, setEditingItem] = useState<OrderItem|null>(null);
@@ -174,12 +175,12 @@ export default function FieldPage() {
     const res = await fetch('/api/orders',{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'create',name:orderName.trim(),
-        startDate:orderDate,workerId:worker!.id,workerName:worker!.name})});
+        startDate:orderDate,workerId:worker!.id,workerName:worker!.name,orderType})});
     const d = await res.json();
     setLoading(false);
     if(d.order){
       setCurrentOrder(d.order); setItems([]);
-      setOrderName(''); setScreen('items'); setShowItemList(false);
+      setOrderName(''); setOrderType('store'); setScreen('items'); setShowItemList(false);
       resetItemForm();
     }
   }
@@ -228,6 +229,7 @@ export default function FieldPage() {
     if(colors.length===0) errs.colors='Add at least one color';
     if(szArr.length===0) errs.sizes='Select at least one size';
     if(!price||Number(price)<=0) errs.price='Enter valid price';
+    if(currentOrder?.orderType==='online'&&!photo) errs.photo='Photo is required for online store orders';
     setErrors(errs);
     if(Object.keys(errs).length>0) return;
 
@@ -464,6 +466,30 @@ export default function FieldPage() {
       <div className="container" style={{paddingTop:16}}>
         <div className="card">
           <div className="card-title">Order details</div>
+          {/* Order Type */}
+          <div className="field">
+            <label className="label">Order type</label>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
+              <div onClick={()=>setOrderType('store')} style={{
+                padding:'14px',borderRadius:'var(--r)',cursor:'pointer',textAlign:'center',
+                border:`2px solid ${orderType==='store'?'var(--green)':'var(--border)'}`,
+                background:orderType==='store'?'var(--green-light)':'var(--surface)',
+                transition:'all .12s'}}>
+                <div style={{fontSize:22,marginBottom:4}}>🏪</div>
+                <div style={{fontWeight:600,fontSize:13,color:orderType==='store'?'var(--green)':'var(--text)'}}>For Store</div>
+                <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>Physical retail</div>
+              </div>
+              <div onClick={()=>setOrderType('online')} style={{
+                padding:'14px',borderRadius:'var(--r)',cursor:'pointer',textAlign:'center',
+                border:`2px solid ${orderType==='online'?'var(--blue)':'var(--border)'}`,
+                background:orderType==='online'?'var(--blue-light)':'var(--surface)',
+                transition:'all .12s'}}>
+                <div style={{fontSize:22,marginBottom:4}}>🌐</div>
+                <div style={{fontWeight:600,fontSize:13,color:orderType==='online'?'var(--blue)':'var(--text)'}}>Online Store</div>
+                <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>Photo required</div>
+              </div>
+            </div>
+          </div>
           <div className="field">
             <label className="label">Order name</label>
             <input type="text" placeholder="e.g. Punch Summer 2025"
@@ -828,8 +854,10 @@ export default function FieldPage() {
             )}
 
             {/* PHOTO */}
-            <div className="card">
-              <div className="card-title">Photo (optional)</div>
+            <div className="card" style={{borderColor:currentOrder?.orderType==='online'?'var(--blue-border)':undefined}}>
+              <div className="card-title">
+                Photo {currentOrder?.orderType==='online'?<span style={{color:'var(--red)'}}>*required for online</span>:'(optional)'}
+              </div>
               {photo ? (
                 <div style={{position:'relative'}}>
                   <img src={photo} alt="Item" style={{width:'100%',maxHeight:200,objectFit:'cover',borderRadius:'var(--r-sm)'}}/>

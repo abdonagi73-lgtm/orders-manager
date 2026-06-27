@@ -349,21 +349,37 @@ export default function OwnerPage() {
                   {s===''?'All':s.charAt(0).toUpperCase()+s.slice(1)}
                 </button>
               ))}
+              <button className={`btn btn-sm ${filterStatus==='__store'?'btn-primary':''}`}
+                onClick={()=>setFilterStatus(filterStatus==='__store'?'':'__store')}>🏪 Store</button>
+              <button className={`btn btn-sm ${filterStatus==='__online'?'btn-primary':''}`}
+                onClick={()=>setFilterStatus(filterStatus==='__online'?'':'__online')}>🌐 Online</button>
             </div>
-            {orders.filter(o=>(!filterStatus||o.status===filterStatus)&&
-              (!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
-              o.workerName.toLowerCase().includes(orderSearch.toLowerCase()))).length===0?(
+            {orders.filter(o=>{
+              if(filterStatus==='__store') return o.orderType!=='online';
+              if(filterStatus==='__online') return o.orderType==='online';
+              return (!filterStatus||o.status===filterStatus);
+            }).filter(o=>!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
+              o.workerName.toLowerCase().includes(orderSearch.toLowerCase())).length===0?(
               <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
             ):(
               orders
-                .filter(o=>(!filterStatus||o.status===filterStatus)&&
-                  (!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
-                  o.workerName.toLowerCase().includes(orderSearch.toLowerCase())))
+                .filter(o=>{
+                  if(filterStatus==='__store') return o.orderType!=='online';
+                  if(filterStatus==='__online') return o.orderType==='online';
+                  return (!filterStatus||o.status===filterStatus);
+                })
+                .filter(o=>!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
+                  o.workerName.toLowerCase().includes(orderSearch.toLowerCase()))
                 .map(order=>(
                 <div key={order.id} className="item-card" style={{cursor:'pointer'}} onClick={()=>selectOrder(order)}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
+                        {order.orderType==='online'
+                          ? <span className="badge badge-info">🌐 Online</span>
+                          : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)'}}>🏪 Store</span>}
+                      </div>
                       <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
                         {order.workerName} · {order.startDate} · {order.itemCount} items
                       </div>
@@ -869,6 +885,14 @@ export default function OwnerPage() {
                   <option value="open">Open</option>
                   <option value="submitted">Submitted</option>
                   <option value="imported">Imported</option>
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Order type</label>
+                <select value={editOrderModal.orderType||'store'}
+                  onChange={e=>setEditOrderModal({...editOrderModal,orderType:e.target.value as any})}>
+                  <option value="store">🏪 For Store</option>
+                  <option value="online">🌐 Online Store</option>
                 </select>
               </div>
             </div>
