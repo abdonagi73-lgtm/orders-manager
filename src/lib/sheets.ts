@@ -391,6 +391,29 @@ export async function getPhotos(itemIds: string[]): Promise<Record<string, strin
   } catch { return {}; }
 }
 
+// ── MANAGERS ──────────────────────────────────────────────────────────────
+
+export async function getManagers(): Promise<{id:string;name:string;pin:string}[]> {
+  try {
+    const sheets = await getSheets();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_SETTINGS}!A5:B5`,
+    });
+    const row = (res.data.values ?? [])[0];
+    if (row && row[0] === 'managers') return JSON.parse(row[1] || '[]');
+    return [];
+  } catch { return []; }
+}
+
+export async function saveManagers(managers: {id:string;name:string;pin:string}[]): Promise<void> {
+  const sheets = await getSheets();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID, range: `${TAB_SETTINGS}!A5:B5`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [['managers', JSON.stringify(managers)]] },
+  });
+}
+
 // ── NOTIFICATIONS ──────────────────────────────────────────────────────────
 
 export async function addNotification(
