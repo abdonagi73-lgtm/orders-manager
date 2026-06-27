@@ -295,7 +295,7 @@ export default function OwnerPage() {
         <div className="container-wide">
           <div className="header-inner">
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} />
+              <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
               <div>
                 <div className="header-title">👋 {loggedInName || 'Management'}</div>
                 <div className="header-sub">Orders Manager · Choices For You</div>
