@@ -68,11 +68,23 @@ export async function getAllOrders(): Promise<Order[]> {
     spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:J`,
   });
   return (res.data.values ?? []).filter(r => r[0]).map(r => {
-    // Detect old format (no commissionPaid column) vs new format
-    // Old: ...totalOrderCost, createdAt, closedAt, itemCount, totalValue (13 cols)
-    // New: ...totalOrderCost, commissionPaid, createdAt, closedAt, itemCount, totalValue (14 cols)
-    const hasCommissionPaid = r[9] === 'true' || r[9] === 'false';
-    const offset = hasCommissionPaid ? 1 : 0;
+    // Column layout detection based on what's in each position:
+    // v1 (original): id,name,startDate,workerId,workerName,status,ship,comm,total,createdAt,closedAt,itemCount,totalValue
+    //   r[9]=createdAt (ISO date), cols=13
+    // v2 (+commissionPaid): ...,total,commissionPaid,createdAt,...  r[9]=true/false
+    //   r[9]=bool, r[10]=createdAt, cols=14
+    // v3 (+orderType): ...,commissionPaid,orderType,createdAt,...  r[10]=store/online
+    //   r[9]=bool, r[10]=store|online, r[11]=createdAt, cols=15
+
+    const r9 = r[9] ?? '';
+    const r10 = r[10] ?? '';
+    const hasCommissionPaid = r9 === 'true' || r9 === 'false';
+    const hasOrderType = hasCommissionPaid && (r10 === 'store' || r10 === 'online');
+
+    let base = 9; // index of createdAt in v1
+    if (hasCommissionPaid && !hasOrderType) base = 10; // v2
+    if (hasCommissionPaid && hasOrderType) base = 11;  // v3
+
     return {
       id: r[0], name: r[1] ?? '', startDate: r[2] ?? '',
       workerId: r[3] ?? '', workerName: r[4] ?? '',
@@ -80,12 +92,12 @@ export async function getAllOrders(): Promise<Order[]> {
       shippingCost: parseFloat(r[6]) || 0,
       workerCommission: parseFloat(r[7]) || 0,
       totalOrderCost: parseFloat(r[8]) || 0,
-      commissionPaid: hasCommissionPaid ? r[9] === 'true' : false,
-      orderType: (hasCommissionPaid ? (r[10] === 'online' ? 'online' : 'store') : 'store') as import('./types').OrderType,
-      createdAt: r[hasCommissionPaid ? 11 : 9] ?? '',
-      closedAt: r[hasCommissionPaid ? 12 : 10] ?? '',
-      itemCount: parseInt(r[hasCommissionPaid ? 13 : 11]) || 0,
-      totalValue: parseFloat(r[hasCommissionPaid ? 14 : 12]) || 0,
+      commissionPaid: hasCommissionPaid ? r9 === 'true' : false,
+      orderType: (hasOrderType ? r10 : 'store') as import('./types').OrderType,
+      createdAt: r[base] ?? '',
+      closedAt: r[base + 1] ?? '',
+      itemCount: parseInt(r[base + 2]) || 0,
+      totalValue: parseFloat(r[base + 3]) || 0,
     };
   });
 }
