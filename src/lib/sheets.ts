@@ -65,7 +65,7 @@ export async function saveWorkers(workers: Worker[]): Promise<void> {
 export async function getAllOrders(): Promise<Order[]> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:J`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:O`,
   });
   return (res.data.values ?? []).filter(r => r[0]).map(r => {
     // Detect column layout by inspecting key positions:
