@@ -94,6 +94,9 @@ export default function FieldPage() {
 
   // Summary
   const [shippingCost, setShippingCost] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<{orderId:string;matches:string[]}[]>([]);
+  const [searching, setSearching] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
@@ -143,6 +146,37 @@ export default function FieldPage() {
     };
   },[]);
 
+  async function doSearch(query: string) {
+    if(!query.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    const q = query.toLowerCase().trim();
+    // Search across all orders' items
+    const results: {orderId:string;matches:string[]}[] = [];
+    for(const order of orders) {
+      const matches: string[] = [];
+      // Match order name
+      if(order.name.toLowerCase().includes(q)) matches.push(`Order name: ${order.name}`);
+      // Load items for this order and search inside them
+      try {
+        const res = await fetch(`/api/items?orderId=${order.id}`);
+        const d = await res.json();
+        const items: any[] = d.items || [];
+        items.forEach(item => {
+          if(item.vendor?.toLowerCase().includes(q)) matches.push(`Vendor: ${item.vendor}`);
+          if(item.code?.toLowerCase().includes(q)) matches.push(`Code: ${item.code}`);
+          if(item.category?.toLowerCase().includes(q)) matches.push(`Category: ${item.category}`);
+          if(String(item.price).includes(q)) matches.push(`Price: $${item.price}`);
+          if(item.colors?.some((c:string)=>c.toLowerCase().includes(q))) matches.push(`Color: ${item.colors.filter((c:string)=>c.toLowerCase().includes(q)).join(', ')}`);
+          if(item.sizes?.some((s:string)=>String(s).toLowerCase().includes(q))) matches.push(`Size: ${item.sizes.filter((s:string)=>String(s).toLowerCase().includes(q)).join(', ')}`);
+          if(item.notes?.toLowerCase().includes(q)) matches.push(`Note: ${item.notes}`);
+        });
+      } catch {}
+      if(matches.length > 0) results.push({orderId: order.id, matches: [...new Set(matches)]});
+    }
+    setSearchResults(results);
+    setSearching(false);
+  }
+
   async function syncOfflineQueue(queue: any[]) {
     const remaining = [];
     for(const item of queue) {
@@ -176,8 +210,11 @@ export default function FieldPage() {
   async function loadOrders(workerId:string) {
     const res = await fetch(`/api/orders?workerId=${workerId}`);
     const d = await res.json();
-    if(d.orders) setOrders([...d.orders].sort((a:Order,b:Order)=>
-      new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()));
+    if(d.orders) setOrders([...d.orders].sort((a:Order,b:Order)=>{
+      const dateA = a.createdAt || a.startDate || '';
+      const dateB = b.createdAt || b.startDate || '';
+      return new Date(dateB).getTime()-new Date(dateA).getTime();
+    }));
   }
 
   async function loadNotifs(workerId:string) {
@@ -440,14 +477,33 @@ export default function FieldPage() {
       </div>
       <div className="container" style={{paddingTop:16,paddingBottom:80}}>
         <button className="btn btn-primary"
-          style={{width:'100%',justifyContent:'center',padding:14,fontSize:15,marginBottom:20}}
+          style={{width:'100%',justifyContent:'center',padding:14,fontSize:15,marginBottom:12}}
           onClick={()=>setScreen('new-order')}>
           + Start new order
         </button>
+        <div style={{position:'relative',marginBottom:16}}>
+          <input type="text" placeholder="Search orders, items, codes, colors, prices..."
+            value={orderSearch}
+            onChange={e=>{setOrderSearch(e.target.value);if(!e.target.value.trim()){setSearchResults([]);}}}
+            onKeyDown={e=>e.key==='Enter'&&doSearch(orderSearch)}
+            style={{width:'100%',paddingRight:80}}/>
+          <button className="btn btn-sm btn-primary"
+            style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)'}}
+            onClick={()=>doSearch(orderSearch)} disabled={searching}>
+            {searching?'..':'Search'}
+          </button>
+        </div>
+        {orderSearch&&searchResults.length===0&&!searching&&(
+          <div style={{fontSize:13,color:'var(--text-3)',textAlign:'center',padding:'8px 0',marginBottom:8}}>
+            No matches found
+          </div>
+        )}
         {orders.length===0?(
           <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
         ):(
-          orders.map(order=>(
+          orders
+          .filter(order=>!orderSearch.trim()||searchResults.some(r=>r.orderId===order.id))
+          .map(order=>(
             <div key={order.id} className="item-card"
               style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1}}
               onClick={()=>order.status!=='imported'&&openOrder(order)}>
@@ -475,6 +531,12 @@ export default function FieldPage() {
                 </div>
               </div>
               {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-3)',marginTop:6}}>Closed — imported to POS</div>}
+              {orderSearch&&searchResults.find(r=>r.orderId===order.id)?.matches.map((m,i)=>(
+                <div key={i} style={{fontSize:11,color:'var(--blue)',marginTop:4,
+                  background:'var(--blue-light)',borderRadius:4,padding:'2px 8px',display:'inline-block',marginRight:4}}>
+                  {m}
+                </div>
+              ))}
             </div>
           ))
         )}
