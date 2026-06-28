@@ -87,6 +87,9 @@ export default function OwnerPage() {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loggedInName, setLoggedInName] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
+  const [mgmtSearch, setMgmtSearch] = useState('');
+  const [mgmtResults, setMgmtResults] = useState<{orderId:string;matches:string[]}[]>([]);
+  const [mgmtSearching, setMgmtSearching] = useState(false);
   const [editOrderModal, setEditOrderModal] = useState<Order|null>(null);
   const [newManagerName, setNewManagerName] = useState('');
   const [newManagerPin, setNewManagerPin] = useState('');
@@ -126,6 +129,36 @@ export default function OwnerPage() {
       }
       setAuthed(true); loadAll(); loadNotifs();
     } else setPinError(true);
+  }
+
+  async function doMgmtSearch(q: string) {
+    if(!q.trim()) { setMgmtResults([]); return; }
+    setMgmtSearching(true);
+    const ql = q.toLowerCase().trim();
+    const res = await fetch('/api/items');
+    const d = await res.json();
+    const allItems: OrderItem[] = d.items || [];
+    const results: {orderId:string;matches:string[]}[] = [];
+    for(const order of orders) {
+      const ms: string[] = [];
+      if(order.name.toLowerCase().includes(ql)) ms.push('Name: '+order.name);
+      if(order.workerName?.toLowerCase().includes(ql)) ms.push('Worker: '+order.workerName);
+      if(order.startDate?.includes(ql)) ms.push('Date: '+order.startDate);
+      allItems.filter(i=>i.orderId===order.id).forEach(item=>{
+        if(item.vendor?.toLowerCase().includes(ql)) ms.push('Vendor: '+item.vendor);
+        if(item.code?.toLowerCase().includes(ql)) ms.push('Code: '+item.code);
+        if(item.category?.toLowerCase().includes(ql)) ms.push('Category: '+item.category);
+        if(String(item.price).includes(ql)) ms.push('Price: $'+item.price);
+        const mc=(item.colors||[]).filter((c:string)=>c.toLowerCase().includes(ql));
+        if(mc.length) ms.push('Color: '+mc.join(', '));
+        const msz=(item.sizes||[]).filter((s:string)=>String(s).toLowerCase().includes(ql));
+        if(msz.length) ms.push('Size: '+msz.join(', '));
+        if(item.notes?.toLowerCase().includes(ql)) ms.push('Note: '+item.notes);
+      });
+      if(ms.length) results.push({orderId:order.id,matches:[...new Set(ms)]});
+    }
+    setMgmtResults(results);
+    setMgmtSearching(false);
   }
 
   async function loadNotifs() {
@@ -418,7 +451,18 @@ export default function OwnerPage() {
         {tab==='orders'&&(
           <>
             <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-              <input type="text" placeholder="Search orders..." value={orderSearch}
+              <div style={{display:'flex',gap:6,width:'100%',marginBottom:6}}>
+                <input type="text" placeholder="Deep search: vendor, code, color, price..."
+                  value={mgmtSearch}
+                  onChange={e=>{setMgmtSearch(e.target.value);if(!e.target.value.trim())setMgmtResults([]);}}
+                  onKeyDown={e=>e.key==='Enter'&&doMgmtSearch(mgmtSearch)}
+                  style={{flex:1}}/>
+                <button className="btn btn-sm btn-primary" onClick={()=>doMgmtSearch(mgmtSearch)} disabled={mgmtSearching}>
+                  {mgmtSearching?'...':'Search'}
+                </button>
+                {mgmtSearch&&<button className="btn btn-sm" onClick={()=>{setMgmtSearch('');setMgmtResults([]);}}>✕</button>}
+              </div>
+              <input type="text" placeholder="Filter by name..." value={orderSearch}
                 onChange={e=>setOrderSearch(e.target.value)}
                 style={{flex:1,minWidth:160}}/>
               {(['','open','submitted','imported'] as const).map(s=>(
@@ -448,6 +492,7 @@ export default function OwnerPage() {
                 })
                 .filter(o=>!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
                   o.workerName.toLowerCase().includes(orderSearch.toLowerCase()))
+                .filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id))
                 .map(order=>(
                 <div key={order.id} className="item-card" style={{cursor:'pointer'}} onClick={()=>selectOrder(order)}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>

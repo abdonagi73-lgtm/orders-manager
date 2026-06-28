@@ -150,27 +150,31 @@ export default function FieldPage() {
     if(!query.trim()) { setSearchResults([]); return; }
     setSearching(true);
     const q = query.toLowerCase().trim();
-    // Search across all orders' items
     const results: {orderId:string;matches:string[]}[] = [];
+
+    // Load ALL items for this worker at once
+    const allItemsRes = await fetch(`/api/items?workerId=${worker?.id}`);
+    const allItemsData = await allItemsRes.json();
+    const allItems: any[] = allItemsData.items || [];
+
     for(const order of orders) {
       const matches: string[] = [];
-      // Match order name
-      if(order.name.toLowerCase().includes(q)) matches.push(`Order name: ${order.name}`);
-      // Load items for this order and search inside them
-      try {
-        const res = await fetch(`/api/items?orderId=${order.id}`);
-        const d = await res.json();
-        const items: any[] = d.items || [];
-        items.forEach(item => {
-          if(item.vendor?.toLowerCase().includes(q)) matches.push(`Vendor: ${item.vendor}`);
-          if(item.code?.toLowerCase().includes(q)) matches.push(`Code: ${item.code}`);
-          if(item.category?.toLowerCase().includes(q)) matches.push(`Category: ${item.category}`);
-          if(String(item.price).includes(q)) matches.push(`Price: $${item.price}`);
-          if(item.colors?.some((c:string)=>c.toLowerCase().includes(q))) matches.push(`Color: ${item.colors.filter((c:string)=>c.toLowerCase().includes(q)).join(', ')}`);
-          if(item.sizes?.some((s:string)=>String(s).toLowerCase().includes(q))) matches.push(`Size: ${item.sizes.filter((s:string)=>String(s).toLowerCase().includes(q)).join(', ')}`);
-          if(item.notes?.toLowerCase().includes(q)) matches.push(`Note: ${item.notes}`);
-        });
-      } catch {}
+      if(order.name.toLowerCase().includes(q)) matches.push(`Name: ${order.name}`);
+      if(order.startDate?.includes(q)) matches.push(`Date: ${order.startDate}`);
+
+      const orderItems = allItems.filter((i:any) => i.orderId === order.id);
+      orderItems.forEach((item:any) => {
+        if(item.vendor?.toLowerCase().includes(q)) matches.push(`Vendor: ${item.vendor}`);
+        if(item.code?.toLowerCase().includes(q)) matches.push(`Code: ${item.code}`);
+        if(item.category?.toLowerCase().includes(q)) matches.push(`Category: ${item.category}`);
+        if(String(item.price).includes(q)) matches.push(`Price: $${item.price}`);
+        const matchColors = (item.colors||[]).filter((c:string)=>c.toLowerCase().includes(q));
+        if(matchColors.length) matches.push(`Color: ${matchColors.join(', ')}`);
+        const matchSizes = (item.sizes||[]).filter((s:string)=>String(s).toLowerCase().includes(q));
+        if(matchSizes.length) matches.push(`Size: ${matchSizes.join(', ')}`);
+        if(item.notes?.toLowerCase().includes(q)) matches.push(`Note: ${item.notes}`);
+      });
+
       if(matches.length > 0) results.push({orderId: order.id, matches: [...new Set(matches)]});
     }
     setSearchResults(results);

@@ -5,7 +5,9 @@ import type { OrderItem } from '@/lib/types';
 export async function GET(req: NextRequest) {
   try {
     const orderId = req.nextUrl.searchParams.get('orderId');
-    const items = orderId ? await getItemsByOrder(orderId) : await getAllItems();
+    const workerId = req.nextUrl.searchParams.get('workerId');
+    let items = orderId ? await getItemsByOrder(orderId) : await getAllItems();
+    if(workerId) items = items.filter(i => i.workerId === workerId);
     return NextResponse.json({ items });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
