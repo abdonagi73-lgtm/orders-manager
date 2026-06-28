@@ -78,7 +78,7 @@ export async function getAllOrders(): Promise<Order[]> {
     const r11 = String(r[11] ?? '');
 
     // Is col 9 a boolean? (commissionPaid)
-    const hasCommPaid = r9 === 'true' || r9 === 'false';
+    const hasCommPaid = r9 === 'true' || r9 === 'false' || r9 === '0' || r9 === '1';
     // Is col 10 an orderType? (store/online)
     const hasOrderType = hasCommPaid && (r10 === 'store' || r10 === 'online');
 
@@ -100,7 +100,7 @@ export async function getAllOrders(): Promise<Order[]> {
       shippingCost: parseFloat(r[6]) || 0,
       workerCommission: parseFloat(r[7]) || 0,
       totalOrderCost: parseFloat(r[8]) || 0,
-      commissionPaid: hasCommPaid ? r9 === 'true' : false,
+      commissionPaid: hasCommPaid ? (r9 === 'true' || r9 === '1') : false,
       orderType,
       createdAt: r[base] ?? '',
       closedAt: r[base + 1] ?? '',

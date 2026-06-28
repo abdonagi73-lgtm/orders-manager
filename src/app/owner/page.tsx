@@ -738,7 +738,7 @@ export default function OwnerPage() {
 
         {/* ── ANALYTICS TAB ── */}
         {tab==='analytics'&&(()=>{
-          const totalSpend    = orders.reduce((s,o)=>s+o.totalValue,0);
+          const totalSpend    = orders.reduce((s,o)=>s+(o.totalValue||0),0);
           const totalShipping = orders.reduce((s,o)=>s+o.shippingCost,0);
           const totalComm     = orders.reduce((s,o)=>s+o.workerCommission,0);
           const catMap: Record<string,{count:number,spend:number}> = {};
