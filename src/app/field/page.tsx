@@ -176,7 +176,7 @@ export default function FieldPage() {
   async function loadOrders(workerId:string) {
     const res = await fetch(`/api/orders?workerId=${workerId}`);
     const d = await res.json();
-    if(d.orders) setOrders(d.orders.sort((a:Order,b:Order)=>
+    if(d.orders) setOrders([...d.orders].sort((a:Order,b:Order)=>
       new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()));
   }
 
@@ -451,28 +451,30 @@ export default function FieldPage() {
             <div key={order.id} className="item-card"
               style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1}}
               onClick={()=>order.status!=='imported'&&openOrder(order)}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                <div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
+                <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-                  <div style={{fontSize:12,color:'var(--text-2)',marginTop:3}}>
-                    Started {order.startDate} · {order.itemCount} items
+                  <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
+                    {order.itemCount} item{order.itemCount!==1?'s':''} · Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
                   </div>
-                  <div style={{fontSize:12,color:'var(--text-2)'}}>
-                    Purchase value: ${order.totalValue.toFixed(2)}
-                    {order.shippingCost>0&&` · Shipping: $${order.shippingCost.toFixed(2)}`}
-                    {order.workerCommission>0&&` · Your commission: $${order.workerCommission.toFixed(2)}`}
-                  </div>
-                  {order.totalOrderCost>0&&(
-                    <div style={{fontSize:12,fontWeight:600,marginTop:2}}>
-                      Total order cost: ${order.totalOrderCost.toFixed(2)}
-                    </div>
-                  )}
+                  {order.shippingCost>0&&<div style={{fontSize:12,color:'var(--text-3)'}}>
+                    Ship: ${order.shippingCost.toFixed(2)} · Commission: ${order.workerCommission.toFixed(2)}
+                  </div>}
+                  {order.totalOrderCost>0&&<div style={{fontSize:12,fontWeight:600,color:'var(--green)',marginTop:2}}>
+                    Total: ${order.totalOrderCost.toFixed(2)}
+                  </div>}
                 </div>
-                <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
-                  {order.status}
-                </span>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
+                  <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
+                    {order.status}
+                  </span>
+                  <div style={{fontSize:11,color:'var(--text-3)',textAlign:'right'}}>{order.startDate}</div>
+                  {order.createdAt&&<div style={{fontSize:10,color:'var(--text-4)',textAlign:'right'}}>
+                    {new Date(order.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                  </div>}
+                </div>
               </div>
-              {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-2)',marginTop:6}}>Closed — imported to POS</div>}
+              {order.status==='imported'&&<div style={{fontSize:11,color:'var(--text-3)',marginTop:6}}>Closed — imported to POS</div>}
             </div>
           ))
         )}
