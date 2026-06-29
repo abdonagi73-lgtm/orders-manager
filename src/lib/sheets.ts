@@ -412,6 +412,34 @@ export async function getPhotos(itemIds: string[]): Promise<Record<string, strin
   } catch { return {}; }
 }
 
+// ── DELETE ORDER ──────────────────────────────────────────────────────────
+
+export async function deleteOrder(orderId: string): Promise<void> {
+  const sheets = await getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+  });
+  const rows = res.data.values ?? [];
+  const rowIndex = rows.findIndex(r => r[0] === orderId);
+  if (rowIndex < 1) throw new Error('Order not found');
+
+  // Get sheet ID for Orders tab
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const sheet = meta.data.sheets?.find(s => s.properties?.title === TAB_ORDERS);
+  const sheetId = sheet?.properties?.sheetId ?? 0;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    requestBody: {
+      requests: [{
+        deleteDimension: {
+          range: { sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 }
+        }
+      }]
+    }
+  });
+}
+
 // ── MANAGERS ──────────────────────────────────────────────────────────────
 
 export async function getManagers(): Promise<{id:string;name:string;pin:string}[]> {

@@ -283,6 +283,18 @@ function OwnerPageInner() {
     showSuccess('✏️', 'Item updated!', `${updated.vendor} · ${updated.code} has been updated successfully.`);
   }
 
+  async function deleteOrderHandler(order: Order) {
+    showConfirmModal('🗑️', 'Delete order?',
+      `"${order.name}" and all its items will be permanently deleted. This cannot be undone.`,
+      'Yes, delete', async () => {
+        await fetch('/api/orders', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({action:'delete', orderId: order.id})});
+        setOrders(prev => prev.filter(o => o.id !== order.id));
+        if(selectedOrder?.id === order.id) { setSelectedOrder(null); setItems([]); }
+        showSuccess('🗑️', 'Order deleted', `"${order.name}" has been permanently deleted.`);
+      });
+  }
+
   async function saveOrderEdit(order: Order) {
     await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'update',order})});
@@ -582,6 +594,9 @@ function OwnerPageInner() {
                               copyOrderItems(order.id, selectedOrder.id);
                           }}>Copy</button>
                       )}
+                      <button className="btn btn-sm"
+                        style={{color:'var(--red)',borderColor:'var(--red-border)'}}
+                        onClick={e=>{e.stopPropagation();deleteOrderHandler(order);}}>Delete</button>
                     </div>
                   </div>
                 </div>

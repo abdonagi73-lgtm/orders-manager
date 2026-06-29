@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllOrders, getOrdersByWorker, createOrder, updateOrder, addNotification } from '@/lib/sheets';
+import { getAllOrders, getOrdersByWorker, createOrder, updateOrder, deleteOrder, addNotification } from '@/lib/sheets';
 import type { Order } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
       order.status = 'imported';
       order.closedAt = new Date().toISOString();
       await updateOrder(order);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === 'delete') {
+      await deleteOrder(body.orderId);
       return NextResponse.json({ ok: true });
     }
 
