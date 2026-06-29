@@ -525,7 +525,7 @@ export default function FieldPage() {
           </button>
         </div>
         {orderSearch&&!searching&&(
-          <div style={{fontSize:12,color:'var(--text-3)',padding:'8px 0',marginBottom:8,
+          <div style={{fontSize:12,color:'var(--text-3)',marginBottom:8,
             background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>
             {searchResults.length===0
               ? `No matches found. Orders loaded: ${orders.length}. Try searching again.`
