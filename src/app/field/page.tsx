@@ -147,41 +147,50 @@ export default function FieldPage() {
   },[]);
 
   async function doSearch(query: string) {
-    if(!query.trim()) { setSearchResults([]); return; }
-    setSearching(true);
     const q = query.toLowerCase().trim();
-    const results: {orderId:string;matches:string[]}[] = [];
+    if(!q) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      // Fetch all items then match locally
+      const res = await fetch('/api/items');
+      const d = await res.json();
+      const allItems: any[] = d.items || [];
 
-    // Load ALL items at once (filter by orderId client-side)
-    const allItemsRes = await fetch('/api/items');
-    const allItemsData = await allItemsRes.json();
-    const allItems: any[] = allItemsData.items || [];
-
-    for(const order of orders) {
-      const matches: string[] = [];
-      if(order.name.toLowerCase().includes(q)) matches.push(`Name: ${order.name}`);
-      if(order.startDate?.includes(q)) matches.push(`Date: ${order.startDate}`);
-
-      const orderItems = allItems.filter((i:any) => i.orderId === order.id);
-      orderItems.forEach((item:any) => {
-        const colors = Array.isArray(item.colors) ? item.colors : (()=>{try{return JSON.parse(item.colors||'[]')}catch{return []}})();
-        const sizes  = Array.isArray(item.sizes)  ? item.sizes  : (()=>{try{return JSON.parse(item.sizes||'[]') }catch{return []}})();
-        if(item.vendor?.toLowerCase().includes(q)) matches.push(`Vendor: ${item.vendor}`);
-        if(item.code?.toLowerCase().includes(q)) matches.push(`Code: ${item.code}`);
-        if(item.category?.toLowerCase().includes(q)) matches.push(`Category: ${item.category}`);
-        if(String(item.price).includes(q)) matches.push(`Price: $${item.price}`);
-        const mc = colors.filter((c:string)=>c.toLowerCase().includes(q));
-        if(mc.length) matches.push(`Color: ${mc.join(', ')}`);
-        const ms = sizes.filter((s:string)=>String(s).toLowerCase().includes(q));
-        if(ms.length) matches.push(`Size: ${ms.join(', ')}`);
-        if(item.notes?.toLowerCase().includes(q)) matches.push(`Note: ${item.notes}`);
-      });
-
-      if(matches.length > 0) results.push({orderId: order.id, matches: [...new Set(matches)]});
+      const results: {orderId:string;matches:string[]}[] = [];
+      for(const order of orders) {
+        const ms: string[] = [];
+        // Search order fields
+        if(order.name.toLowerCase().includes(q)) ms.push('Order: '+order.name);
+        if(order.startDate?.includes(q)) ms.push('Date: '+order.startDate);
+        // Search items in this order
+        allItems
+          .filter(i => i.orderId === order.id)
+          .forEach(item => {
+            const safeArr = (v:any):string[] => {
+              if(Array.isArray(v)) return v;
+              try { return JSON.parse(v||'[]'); } catch { return String(v||'').split(','); }
+            };
+            const colors = safeArr(item.colors);
+            const sizes  = safeArr(item.sizes);
+            const fields: [string,any][] = [
+              ['Vendor', item.vendor],['Code', item.code],
+              ['Category', item.category],['Price', item.price],
+              ['Note', item.notes],
+            ];
+            fields.forEach(([label,val])=>{
+              if(String(val||'').toLowerCase().includes(q)) ms.push(`${label}: ${val}`);
+            });
+            const mc = colors.filter(c=>c.toLowerCase().includes(q));
+            if(mc.length) ms.push('Color: '+mc.join(', '));
+            const msz = sizes.filter(s=>String(s).toLowerCase().includes(q));
+            if(msz.length) ms.push('Size: '+msz.join(', '));
+          });
+        if(ms.length) results.push({orderId:order.id, matches:[...new Set(ms)]});
+      }
+      setSearchResults(results);
+    } finally {
+      setSearching(false);
     }
-    console.log('Search results:', results.length, 'items total:', allItems.length, 'orders:', orders.length);
-    setSearchResults(results);
-    setSearching(false);
   }
 
   async function syncOfflineQueue(queue: any[]) {

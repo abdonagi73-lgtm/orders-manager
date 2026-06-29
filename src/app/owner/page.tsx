@@ -131,34 +131,41 @@ export default function OwnerPage() {
     } else setPinError(true);
   }
 
-  async function doMgmtSearch(q: string) {
-    if(!q.trim()) { setMgmtResults([]); return; }
+  async function doMgmtSearch(query: string) {
+    const ql = query.toLowerCase().trim();
+    if(!ql) { setMgmtResults([]); return; }
     setMgmtSearching(true);
-    const ql = q.toLowerCase().trim();
-    const res = await fetch('/api/items');
-    const d = await res.json();
-    const allItems: OrderItem[] = d.items || [];
-    const results: {orderId:string;matches:string[]}[] = [];
-    for(const order of orders) {
-      const ms: string[] = [];
-      if(order.name.toLowerCase().includes(ql)) ms.push('Name: '+order.name);
-      if(order.workerName?.toLowerCase().includes(ql)) ms.push('Worker: '+order.workerName);
-      if(order.startDate?.includes(ql)) ms.push('Date: '+order.startDate);
-      allItems.filter(i=>i.orderId===order.id).forEach(item=>{
-        if(item.vendor?.toLowerCase().includes(ql)) ms.push('Vendor: '+item.vendor);
-        if(item.code?.toLowerCase().includes(ql)) ms.push('Code: '+item.code);
-        if(item.category?.toLowerCase().includes(ql)) ms.push('Category: '+item.category);
-        if(String(item.price).includes(ql)) ms.push('Price: $'+item.price);
-        const mc=(item.colors||[]).filter((c:string)=>c.toLowerCase().includes(ql));
-        if(mc.length) ms.push('Color: '+mc.join(', '));
-        const msz=(item.sizes||[]).filter((s:string)=>String(s).toLowerCase().includes(ql));
-        if(msz.length) ms.push('Size: '+msz.join(', '));
-        if(item.notes?.toLowerCase().includes(ql)) ms.push('Note: '+item.notes);
-      });
-      if(ms.length) results.push({orderId:order.id,matches:[...new Set(ms)]});
-    }
-    setMgmtResults(results);
-    setMgmtSearching(false);
+    try {
+      const res = await fetch('/api/items');
+      const d = await res.json();
+      const allItems: any[] = d.items || [];
+      const safeArr = (v:any):string[] => {
+        if(Array.isArray(v)) return v;
+        try { return JSON.parse(v||'[]'); } catch { return String(v||'').split(',').map((s:string)=>s.trim()).filter(Boolean); }
+      };
+      const results: {orderId:string;matches:string[]}[] = [];
+      for(const order of orders) {
+        const ms: string[] = [];
+        if(order.name.toLowerCase().includes(ql)) ms.push('Order: '+order.name);
+        if(order.workerName?.toLowerCase().includes(ql)) ms.push('Worker: '+order.workerName);
+        if(order.startDate?.includes(ql)) ms.push('Date: '+order.startDate);
+        allItems.filter((i:any)=>i.orderId===order.id).forEach((item:any)=>{
+          const colors = safeArr(item.colors);
+          const sizes  = safeArr(item.sizes);
+          [['Vendor',item.vendor],['Code',item.code],['Category',item.category],
+           ['Price',item.price],['Note',item.notes]
+          ].forEach(([label,val])=>{
+            if(val && String(val).toLowerCase().includes(ql)) ms.push(label+': '+val);
+          });
+          const mc = colors.filter((c:string)=>c.toLowerCase().includes(ql));
+          if(mc.length) ms.push('Color: '+mc.join(', '));
+          const msz = sizes.filter((s:string)=>String(s).toLowerCase().includes(ql));
+          if(msz.length) ms.push('Size: '+msz.join(', '));
+        });
+        if(ms.length) results.push({orderId:order.id, matches:[...new Set(ms)]});
+      }
+      setMgmtResults(results);
+    } finally { setMgmtSearching(false); }
   }
 
   async function loadNotifs() {
@@ -450,31 +457,42 @@ export default function OwnerPage() {
         {/* ── ORDERS TAB ── */}
         {tab==='orders'&&(
           <>
-            <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-              <div style={{display:'flex',gap:6,width:'100%',marginBottom:6}}>
-                <input type="text" placeholder="Deep search: vendor, code, color, price..."
-                  value={mgmtSearch}
-                  onChange={e=>{setMgmtSearch(e.target.value);if(!e.target.value.trim())setMgmtResults([]);}}
-                  onKeyDown={e=>e.key==='Enter'&&doMgmtSearch(mgmtSearch)}
-                  style={{flex:1}}/>
-                <button className="btn btn-sm btn-primary" onClick={()=>doMgmtSearch(mgmtSearch)} disabled={mgmtSearching}>
-                  {mgmtSearching?'...':'Search'}
-                </button>
-                {mgmtSearch&&<button className="btn btn-sm" onClick={()=>{setMgmtSearch('');setMgmtResults([]);}}>✕</button>}
+            {/* Unified search + filter bar */}
+            <div style={{marginBottom:14}}>
+              <div style={{display:'flex',gap:8,marginBottom:10}}>
+                <div style={{position:'relative',flex:1}}>
+                  <input type="text" placeholder="Search by name, vendor, code, color, price, worker..."
+                    value={mgmtSearch||orderSearch}
+                    onChange={e=>{
+                      const v=e.target.value;
+                      setOrderSearch(v);
+                      setMgmtSearch(v);
+                      if(!v.trim()) setMgmtResults([]);
+                    }}
+                    onKeyDown={e=>{if(e.key==='Enter'){const v=(e.target as HTMLInputElement).value;doMgmtSearch(v);}}}
+                    style={{width:'100%',paddingRight:80}}/>
+                  <button className="btn btn-sm btn-primary"
+                    style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)'}}
+                    onClick={()=>doMgmtSearch(mgmtSearch)} disabled={mgmtSearching}>
+                    {mgmtSearching?'...':'Search'}
+                  </button>
+                </div>
+                {(mgmtSearch||orderSearch)&&(
+                  <button className="btn btn-sm" onClick={()=>{setMgmtSearch('');setOrderSearch('');setMgmtResults([]);}}>✕ Clear</button>
+                )}
               </div>
-              <input type="text" placeholder="Filter by name..." value={orderSearch}
-                onChange={e=>setOrderSearch(e.target.value)}
-                style={{flex:1,minWidth:160}}/>
-              {(['','open','submitted','imported'] as const).map(s=>(
-                <button key={s} className={`btn btn-sm ${filterStatus===s?'btn-primary':''}`}
-                  onClick={()=>setFilterStatus(s)}>
-                  {s===''?'All':s.charAt(0).toUpperCase()+s.slice(1)}
-                </button>
-              ))}
-              <button className={`btn btn-sm ${filterStatus==='__store'?'btn-primary':''}`}
-                onClick={()=>setFilterStatus(filterStatus==='__store'?'':'__store')}>🏪 Store</button>
-              <button className={`btn btn-sm ${filterStatus==='__online'?'btn-primary':''}`}
-                onClick={()=>setFilterStatus(filterStatus==='__online'?'':'__online')}>🌐 Online</button>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {(['','open','submitted','imported'] as const).map(s=>(
+                  <button key={s} className={`btn btn-sm ${filterStatus===s?'btn-primary':''}`}
+                    onClick={()=>setFilterStatus(s)}>
+                    {s===''?'All':s.charAt(0).toUpperCase()+s.slice(1)}
+                  </button>
+                ))}
+                <button className={`btn btn-sm ${filterStatus==='__store'?'btn-primary':''}`}
+                  onClick={()=>setFilterStatus(filterStatus==='__store'?'':'__store')}>🏪 Store</button>
+                <button className={`btn btn-sm ${filterStatus==='__online'?'btn-primary':''}`}
+                  onClick={()=>setFilterStatus(filterStatus==='__online'?'':'__online')}>🌐 Online</button>
+              </div>
             </div>
             {orders.filter(o=>{
               if(filterStatus==='__store') return o.orderType!=='online';
