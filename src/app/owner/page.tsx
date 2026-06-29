@@ -89,6 +89,8 @@ function OwnerPageInner() {
   const [loggedInName, setLoggedInName] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [timelineLoaded, setTimelineLoaded] = useState(false);
   const searchParams = useSearchParams();
   const location = searchParams.get('location') || '';
   const [orderSearch, setOrderSearch] = useState('');
@@ -223,6 +225,14 @@ function OwnerPageInner() {
     return ()=>clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[mgmtSearch, orders.length]);
+
+  useEffect(()=>{
+    if(tab==='timeline' && !timelineLoaded) {
+      setTimelineLoaded(true);
+      fetch('/api/timeline').then(r=>r.json()).then(d=>{ if(d.events) setTimelineEvents(d.events); });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[tab]);
 
   useEffect(()=>{ if(!authed) return;
     const iv = setInterval(()=>{
@@ -1044,38 +1054,30 @@ function OwnerPageInner() {
         })()}
 
         {/* ── TIMELINE TAB ── */}
-        {tab==='timeline'&&(()=>{
-          const [timelineEvents, setTimelineEvents] = React.useState<any[]>([]);
-          const [tlLoaded, setTlLoaded] = React.useState(false);
-          if(!tlLoaded) {
-            setTlLoaded(true);
-            fetch('/api/timeline').then(r=>r.json()).then(d=>{ if(d.events) setTimelineEvents(d.events); });
-          }
-          return (
-            <div className="card">
-              <div className="card-title">Order activity timeline</div>
-              {timelineEvents.length===0?(
-                <div className="empty"><div className="empty-text">No activity recorded yet</div></div>
-              ):(
-                timelineEvents.map((e:any,i:number)=>(
-                  <div key={e.id||i} style={{display:'flex',gap:12,padding:'10px 0',
-                    borderBottom:'1px solid var(--border)',alignItems:'flex-start'}}>
-                    <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',
-                      flexShrink:0,marginTop:5}}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:500}}>{e.action}</div>
-                      <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-                        {e.orderName&&<span style={{marginRight:8}}>{e.orderName}</span>}
-                        {e.by&&<span style={{marginRight:8}}>by {e.by}</span>}
-                        {e.timestamp&&<span>{new Date(e.timestamp).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
-                      </div>
+        {tab==='timeline'&&(
+          <div className="card">
+            <div className="card-title">Order activity timeline</div>
+            {timelineEvents.length===0?(
+              <div className="empty"><div className="empty-text">No activity yet — start creating orders</div></div>
+            ):(
+              timelineEvents.map((e:any,i:number)=>(
+                <div key={e.id||i} style={{display:'flex',gap:12,padding:'10px 0',
+                  borderBottom:'1px solid var(--border)',alignItems:'flex-start'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',
+                    flexShrink:0,marginTop:5}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:500}}>{e.action}</div>
+                    <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
+                      {e.orderName&&<span style={{marginRight:8}}>{e.orderName}</span>}
+                      {e.by&&<span style={{marginRight:8}}>by {e.by}</span>}
+                      {e.timestamp&&<span>{new Date(e.timestamp).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          );
-        })()}
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* ── WORKERS TAB ── */}
         {tab==='workers'&&(
