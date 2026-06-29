@@ -344,12 +344,6 @@ function FieldPageInner() {
     setErrors(errs);
     if(Object.keys(errs).length>0) return;
 
-    // Update running total
-  useEffect(()=>{
-    setRunningTotal(items.reduce((s,i)=>s+i.price*i.qty,0));
-  },[items]);
-
-  const autoQty = total(colors)*total(sizes);
     setLoading(true);
 
     // Handle offline
