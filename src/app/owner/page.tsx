@@ -439,18 +439,20 @@ export default function OwnerPage() {
       <div className="header">
         <div className="container-wide">
           <div className="header-inner">
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}}>
               <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
-              <div>
-                <div className="header-title">{loggedInName || 'Management'}</div>
-                <div className="header-sub">Orders Manager · Choices For You</div>
+              <div style={{minWidth:0}}>
+                <div className="header-title" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  {loggedInName || 'Management'}
+                </div>
+                <div className="header-sub" style={{whiteSpace:'nowrap'}}>Orders Manager</div>
               </div>
             </div>
-            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
               <span style={{fontSize:11,fontWeight:600,color:'var(--text-3)',
                 background:'var(--surface-2)',border:'1px solid var(--border)',
                 borderRadius:20,padding:'3px 10px',whiteSpace:'nowrap'}}>
-                {orders.length} orders
+                {orders.length}
               </span>
               <button className="btn btn-sm" style={{fontWeight:500}}
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
@@ -458,7 +460,7 @@ export default function OwnerPage() {
               </button>
               {unreadNotifs>0&&(
                 <button className="btn btn-sm"
-                  style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600}}
+                  style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600,whiteSpace:'nowrap'}}
                   onClick={async()=>{
                     await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
                       body:JSON.stringify({action:'mark-read',for:'owner'})});
