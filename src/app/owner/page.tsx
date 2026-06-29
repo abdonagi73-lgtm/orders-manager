@@ -706,57 +706,73 @@ function OwnerPageInner() {
                       </div>
                     )}
 
-                    {/* Items cards */}
-                    {filteredItems.map(item=>{
-                      const retail = calcRetailPrice(item.price, item.category, settings);
-                      const cost   = calcUnitCost(item.price, item.category, settings);
-                      // Duplicate: warn if this vendor+code combo appears in this same order more than once
-                      const dupeInOrder = filteredItems.filter(i=>i.vendor===item.vendor&&i.code===item.code).length>1;
-                      const variants = item.colors.length * item.sizes.length;
-                      return (
-                        <div key={item.id} className="item-card" style={{
-                          borderLeft:`3px solid ${item.status==='approved'?'var(--green)':item.status==='flagged'?'var(--red)':'var(--amber-border)'}`
-                        }}>
-                          <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
-                              <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
-                                {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
-                              </div>
-                              <div style={{fontSize:12,color:'var(--text-2)'}}>
-                                Purchase: ${item.price}/unit · Qty: {item.qty} units
-                              </div>
-                              {dupeInOrder&&<div style={{fontSize:11,color:'var(--amber)',fontWeight:600}}>⚠ Duplicate code in this order</div>}
-                              {item.notes&&<div style={{fontSize:11,color:'var(--text-2)'}}>Note: {item.notes}</div>}
-                              {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
-                              {item.photo&&<img src={item.photo} alt="item" style={{width:60,height:60,objectFit:'cover',borderRadius:'var(--r-sm)',marginTop:6,cursor:'pointer'}} onClick={()=>window.open(item.photo)}/>}
-                              {/* Live price preview */}
-                              <div style={{marginTop:6,padding:'6px 10px',background:'var(--bg)',borderRadius:6,
-                                display:'flex',gap:16,flexWrap:'wrap',fontSize:12}}>
-                                <span>Unit cost: <strong>${cost.toFixed(2)}</strong></span>
-                                <span>Retail price: <strong style={{color:'var(--green)',fontSize:13}}>${retail.toFixed(2)}</strong></span>
-                                <span style={{color:'var(--text-4)'}}>{variants} variant{variants!==1?'s':''} in Square</span>
-                              </div>
-                            </div>
-                            <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center',flexDirection:'column'}}>
-                              <span className={`badge badge-${item.status}`}>{item.status}</span>
-                              <div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
-                                <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
-                                <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
-                                  onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
-                                <button className="btn btn-sm" onClick={()=>{
-                                  setEditModal({item});
-                                  setEditPrice(String(item.price));
-                                  setEditNotes(item.notes);
-                                  setEditOwnerNote(item.ownerNote);
-                                }} title="Edit item">✎ Edit</button>
-                                <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
-                              </div>
-                            </div>
+                    {/* Items cards - grouped by vendor */}
+                    {(()=>{
+                      const groups: Record<string, typeof filteredItems> = {};
+                      filteredItems.forEach(item => {
+                        if(!groups[item.vendor]) groups[item.vendor] = [];
+                        groups[item.vendor].push(item);
+                      });
+                      return Object.entries(groups).map(([vendorName, vendorItems]) => (
+                        <div key={vendorName} style={{marginBottom:20}}>
+                          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',
+                            letterSpacing:'.07em',color:'var(--text-3)',
+                            padding:'6px 2px',marginBottom:8,
+                            borderBottom:'2px solid var(--border)',
+                            display:'flex',justifyContent:'space-between'}}>
+                            <span>{vendorName}</span>
+                            <span style={{fontWeight:500,fontSize:11}}>
+                              {vendorItems.length} item{vendorItems.length!==1?'s':''} · ${vendorItems.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}
+                            </span>
                           </div>
+                          {vendorItems.map(item=>{
+                            const retail = calcRetailPrice(item.price, item.category, settings);
+                            const cost   = calcUnitCost(item.price, item.category, settings);
+                            const dupeInOrder = vendorItems.filter(i=>i.code===item.code).length>1;
+                            const variants = item.colors.length * item.sizes.length;
+                            return (
+                              <div key={item.id} className="item-card" style={{
+                                borderLeft:`3px solid ${item.status==='approved'?'var(--green)':item.status==='flagged'?'var(--red)':'var(--amber-border)'}`
+                              }}>
+                                <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
+                                  <div style={{flex:1,minWidth:0}}>
+                                    <div style={{fontWeight:600,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
+                                    <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
+                                      {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
+                                    </div>
+                                    <div style={{fontSize:12,color:'var(--text-2)'}}>Purchase: ${item.price}/unit · Qty: {item.qty} units</div>
+                                    {dupeInOrder&&<div style={{fontSize:11,color:'var(--amber)',fontWeight:600}}>⚠ Duplicate code in this order</div>}
+                                    {item.notes&&<div style={{fontSize:11,color:'var(--text-2)'}}>Note: {item.notes}</div>}
+                                    {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
+                                    {item.photo&&<img src={item.photo} alt="item" style={{width:60,height:60,objectFit:'cover',borderRadius:'var(--r-sm)',marginTop:6,cursor:'pointer'}} onClick={()=>window.open(item.photo)}/>}
+                                    <div style={{marginTop:6,padding:'6px 10px',background:'var(--bg)',borderRadius:6,display:'flex',gap:16,flexWrap:'wrap',fontSize:12}}>
+                                      <span>Unit cost: <strong>${cost.toFixed(2)}</strong></span>
+                                      <span>Retail: <strong style={{color:'var(--green)',fontSize:13}}>${retail.toFixed(2)}</strong></span>
+                                      <span style={{color:'var(--text-3)'}}>{variants} variant{variants!==1?'s':''}</span>
+                                    </div>
+                                  </div>
+                                  <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center',flexDirection:'column'}}>
+                                    <span className={`badge badge-${item.status}`}>{item.status}</span>
+                                    <div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
+                                      <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
+                                      <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
+                                        onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
+                                      <button className="btn btn-sm" onClick={()=>{
+                                        setEditModal({item});
+                                        setEditPrice(String(item.price));
+                                        setEditNotes(item.notes);
+                                        setEditOwnerNote(item.ownerNote);
+                                      }} title="Edit">✎ Edit</button>
+                                      <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      ));
+                    })()}}
 
                     {/* Square preview table */}
                     <div style={{marginTop:20,marginBottom:14}}>
