@@ -772,7 +772,7 @@ function OwnerPageInner() {
                           })}
                         </div>
                       ));
-                    })()}}
+                    })()}
 
                     {/* Square preview table */}
                     <div style={{marginTop:20,marginBottom:14}}>
