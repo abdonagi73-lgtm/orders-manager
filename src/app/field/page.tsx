@@ -475,7 +475,7 @@ export default function FieldPage() {
                   🔔 {unreadNotifs}
                 </button>
               )}
-              <button className="btn btn-sm" onClick={()=>setScreen('commission')} title="My commission">💰</button>
+              <button className="btn btn-sm" onClick={()=>setScreen('commission')}>Commission</button>
               <a href="/" className="btn btn-sm" title="Home">🏠</a>
               <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
             </div>
