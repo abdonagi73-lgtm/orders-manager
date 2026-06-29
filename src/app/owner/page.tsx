@@ -139,32 +139,48 @@ export default function OwnerPage() {
       const res = await fetch('/api/items');
       const d = await res.json();
       const allItems: any[] = d.items || [];
-      const safeArr = (v:any):string[] => {
-        if(Array.isArray(v)) return v;
-        try { return JSON.parse(v||'[]'); } catch { return String(v||'').split(',').map((s:string)=>s.trim()).filter(Boolean); }
-      };
-      const results: {orderId:string;matches:string[]}[] = [];
-      for(const order of orders) {
+      const myOrderIds = new Set(orders.map(o => o.id));
+      const matchMap: Record<string, string[]> = {};
+
+      allItems.forEach((item: any) => {
+        if(!myOrderIds.has(item.orderId)) return;
+        const safeArr = (v: any): string[] => {
+          if(Array.isArray(v)) return v.map(String);
+          try { const p = JSON.parse(v||'[]'); return Array.isArray(p)?p.map(String):[]; }
+          catch { return []; }
+        };
+        const colors = safeArr(item.colors);
+        const sizes  = safeArr(item.sizes);
         const ms: string[] = [];
-        if(order.name.toLowerCase().includes(ql)) ms.push('Order: '+order.name);
-        if(order.workerName?.toLowerCase().includes(ql)) ms.push('Worker: '+order.workerName);
-        if(order.startDate?.includes(ql)) ms.push('Date: '+order.startDate);
-        allItems.filter((i:any)=>i.orderId===order.id).forEach((item:any)=>{
-          const colors = safeArr(item.colors);
-          const sizes  = safeArr(item.sizes);
-          [['Vendor',item.vendor],['Code',item.code],['Category',item.category],
-           ['Price',item.price],['Note',item.notes]
-          ].forEach(([label,val])=>{
-            if(val && String(val).toLowerCase().includes(ql)) ms.push(label+': '+val);
-          });
-          const mc = colors.filter((c:string)=>c.toLowerCase().includes(ql));
-          if(mc.length) ms.push('Color: '+mc.join(', '));
-          const msz = sizes.filter((s:string)=>String(s).toLowerCase().includes(ql));
-          if(msz.length) ms.push('Size: '+msz.join(', '));
-        });
-        if(ms.length) results.push({orderId:order.id, matches:[...new Set(ms)]});
-      }
-      setMgmtResults(results);
+        if(String(item.vendor||'').toLowerCase().includes(ql))   ms.push('Vendor: '+item.vendor);
+        if(String(item.code||'').toLowerCase().includes(ql))     ms.push('Code: '+item.code);
+        if(String(item.category||'').toLowerCase().includes(ql)) ms.push('Category: '+item.category);
+        if(String(item.price||'').includes(ql))                  ms.push('Price: $'+item.price);
+        if(String(item.notes||'').toLowerCase().includes(ql))    ms.push('Note: '+item.notes);
+        const mc = colors.filter((c:string)=>c.toLowerCase().includes(ql));
+        if(mc.length) ms.push('Color: '+mc.join(', '));
+        const msz = sizes.filter((s:string)=>s.toLowerCase().includes(ql));
+        if(msz.length) ms.push('Size: '+msz.join(', '));
+        if(ms.length) {
+          if(!matchMap[item.orderId]) matchMap[item.orderId] = [];
+          matchMap[item.orderId].push(...ms);
+        }
+      });
+
+      orders.forEach(o => {
+        if(o.name.toLowerCase().includes(ql)) {
+          if(!matchMap[o.id]) matchMap[o.id] = [];
+          matchMap[o.id].push('Order: '+o.name);
+        }
+        if(o.workerName?.toLowerCase().includes(ql)) {
+          if(!matchMap[o.id]) matchMap[o.id] = [];
+          matchMap[o.id].push('Worker: '+o.workerName);
+        }
+      });
+
+      setMgmtResults(Object.entries(matchMap).map(([orderId,matches])=>({
+        orderId, matches:[...new Set(matches)]
+      })));
     } finally { setMgmtSearching(false); }
   }
 
