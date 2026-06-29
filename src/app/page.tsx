@@ -59,11 +59,20 @@ export default function Home() {
           {location === 'USA' ? '🇺🇸' : '🇶🇦'} {location}
         </div>
 
-        <Link href={`/field?location=${location}`} className="role-card">
+        <Link href={`/field-fast?location=${location}`} className="role-card">
           <div className="role-icon" style={{background:'#E8F2EC'}}>🧾</div>
           <div>
-            <div className="role-title">Order Entry</div>
-            <div className="role-desc">Enter vendor items and order details</div>
+            <div className="role-title">Order Entry <span style={{fontSize:10,background:'var(--green)',color:'#fff',borderRadius:4,padding:'1px 6px',marginLeft:4,verticalAlign:'middle'}}>FAST</span></div>
+            <div className="role-desc">Vendor-first fast entry</div>
+          </div>
+          <div style={{marginLeft:'auto',color:'var(--text-4)',fontSize:18}}>›</div>
+        </Link>
+
+        <Link href={`/field?location=${location}`} className="role-card">
+          <div className="role-icon" style={{background:'#F0EEE9'}}>📝</div>
+          <div>
+            <div className="role-title">Order Entry (Classic)</div>
+            <div className="role-desc">Original one-item-at-a-time flow</div>
           </div>
           <div style={{marginLeft:'auto',color:'var(--text-4)',fontSize:18}}>›</div>
         </Link>
