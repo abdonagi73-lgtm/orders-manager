@@ -306,7 +306,7 @@ export async function initSheet(): Promise<void> {
   const sheets = await getSheets();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const existing = meta.data.sheets?.map(s => s.properties?.title) ?? [];
-  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY, 'Photos']
+  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY, 'Photos', 'Usage', 'Timeline']
     .filter(t => !existing.includes(t));
 
   if (toCreate.length) {
@@ -438,6 +438,63 @@ export async function deleteOrder(orderId: string): Promise<void> {
       }]
     }
   });
+}
+
+// ── USAGE TRACKING ────────────────────────────────────────────────────────
+
+const TAB_USAGE = 'Usage';
+
+export async function getUsageData(): Promise<{vendors:Record<string,number>,categories:Record<string,number>,colors:Record<string,number>,sizes:Record<string,number>}> {
+  try {
+    const sheets = await getSheets();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_USAGE}!A:C`,
+    });
+    const data: any = { vendors:{}, categories:{}, colors:{}, sizes:{} };
+    (res.data.values ?? []).filter(r=>r[0]).forEach(r => {
+      const [type, name, count] = r;
+      if(data[type] !== undefined) data[type][name] = parseInt(count)||0;
+    });
+    return data;
+  } catch { return { vendors:{}, categories:{}, colors:{}, sizes:{} }; }
+}
+
+export async function incrementUsage(items: {type:string, name:string}[]): Promise<void> {
+  if(!items.length) return;
+  try {
+    const sheets = await getSheets();
+    // Read current
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_USAGE}!A:C`,
+    });
+    const rows = res.data.values ?? [];
+    const updates: any[] = [];
+    const newRows: string[][] = [];
+
+    for(const {type, name} of items) {
+      const idx = rows.findIndex(r => r[0]===type && r[1]===name);
+      if(idx >= 0) {
+        const newCount = (parseInt(rows[idx][2])||0) + 1;
+        updates.push({ range: `${TAB_USAGE}!C${idx+1}`, values: [[String(newCount)]] });
+      } else {
+        newRows.push([type, name, '1']);
+      }
+    }
+
+    if(updates.length) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: { valueInputOption: 'RAW', data: updates }
+      });
+    }
+    if(newRows.length) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID, range: `${TAB_USAGE}!A:C`,
+        valueInputOption: 'RAW',
+        requestBody: { values: newRows }
+      });
+    }
+  } catch(e) { console.error('Usage tracking error:', e); }
 }
 
 // ── MANAGERS ──────────────────────────────────────────────────────────────

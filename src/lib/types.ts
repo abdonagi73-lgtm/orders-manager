@@ -47,6 +47,13 @@ export interface Order {
   totalValue: number;
 }
 
+export interface UsageData {
+  vendors: Record<string, number>;      // vendor name -> use count
+  categories: Record<string, number>;   // category -> use count
+  colors: Record<string, number>;       // color -> use count
+  sizes: Record<string, number>;        // size -> use count
+}
+
 export interface SessionSettings {
   tax: number;
   markup: number;

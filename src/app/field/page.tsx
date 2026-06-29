@@ -102,6 +102,9 @@ function FieldPageInner() {
   const [searching, setSearching] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [usage, setUsage] = useState<{vendors:Record<string,number>,categories:Record<string,number>,colors:Record<string,number>,sizes:Record<string,number>}>({vendors:{},categories:{},colors:{},sizes:{}});
+  const [runningTotal, setRunningTotal] = useState(0);
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
   const [photo, setPhoto] = useState<string>('');
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
@@ -133,8 +136,22 @@ function FieldPageInner() {
   },[orderSearch, orders.length]);
 
   useEffect(()=>{
+    // Load dark mode preference
+    const saved = localStorage.getItem(`darkMode_${worker?.id||'field'}`);
+    if(saved === 'true') { setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
+
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry).sort());
+    });
+    // Load usage data for smart suggestions
+    fetch('/api/usage').then(r=>r.json()).then(d=>{
+      if(d.vendors) {
+        setUsage(d);
+        // Re-sort vendors by usage
+        setVendors(prev => [...prev].sort((a,b)=>(d.vendors[b]||0)-(d.vendors[a]||0)));
+        // Re-sort categories by usage
+        if(d.categories) setCategories(prev => [...prev].sort((a:string,b:string)=>(d.categories[b]||0)-(d.categories[a]||0)));
+      }
     });
     // Online/offline detection
     setIsOnline(navigator.onLine);
@@ -327,7 +344,12 @@ function FieldPageInner() {
     setErrors(errs);
     if(Object.keys(errs).length>0) return;
 
-    const autoQty = total(colors)*total(sizes);
+    // Update running total
+  useEffect(()=>{
+    setRunningTotal(items.reduce((s,i)=>s+i.price*i.qty,0));
+  },[items]);
+
+  const autoQty = total(colors)*total(sizes);
     setLoading(true);
 
     // Handle offline
@@ -365,6 +387,16 @@ function FieldPageInner() {
       } else showToast('Error updating item');
     } else {
       // NEW item
+      // Track usage for smart suggestions
+      const usageItems = [
+        {type:'vendors',name:finalVendor},
+        {type:'categories',name:category},
+        ...flat(colors).filter((c,i,a)=>a.indexOf(c)===i).map(c=>({type:'colors',name:c})),
+        ...szArr.filter((s,i,a)=>a.indexOf(s)===i).map(s=>({type:'sizes',name:String(s)})),
+      ];
+      fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({items:usageItems})}).catch(()=>{});
+
       const res = await fetch('/api/items',{method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({orderId:currentOrder!.id,workerId:worker?.id||'',vendor:finalVendor,
@@ -424,6 +456,12 @@ function FieldPageInner() {
       await fetch('/api/orders',{method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',order:updated})});
+      // Log timeline
+      fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:updated.id,orderName:updated.name,
+          action:`Order submitted · ${items.length} items · $${updated.totalValue.toFixed(2)}`,
+          by:worker?.name||''})
+      }).catch(()=>{});
       setCurrentOrder(updated);
       if(worker) loadOrders(worker.id);
       showSuccess('🎉', 'Order submitted!',
@@ -431,6 +469,11 @@ function FieldPageInner() {
       setTimeout(()=>setScreen('orders'),2500);
     } finally { setLoading(false); }
   }
+
+  // Update running total
+  useEffect(()=>{
+    setRunningTotal(items.reduce((s,i)=>s+i.price*i.qty,0));
+  },[items]);
 
   const autoQty = total(colors)*total(sizes);
 
@@ -501,6 +544,14 @@ function FieldPageInner() {
               </div>
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
+              <button className="btn btn-sm" style={{fontWeight:500}}
+                onClick={()=>{
+                  const next=!darkMode; setDarkMode(next);
+                  localStorage.setItem(`darkMode_${worker?.id||'field'}`, String(next));
+                  document.documentElement.setAttribute('data-theme', next?'dark':'');
+                }}>
+                {darkMode?'Light':'Dark'}
+              </button>
               {unreadNotifs>0&&(
                 <button className="btn btn-sm"
                   style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600}}
@@ -869,9 +920,10 @@ function FieldPageInner() {
             <div>
               <div className="header-title">{currentOrder?.name}</div>
               <div className="header-sub">
-                {items.length} items · {worker?.name}
-                {!isOnline&&<span style={{color:'var(--red)',marginLeft:8}}>📴 Offline</span>}
-                {offlineQueue.length>0&&<span style={{color:'var(--amber)',marginLeft:8}}>{offlineQueue.length} queued</span>}
+                {items.length} items
+                {runningTotal>0&&<span style={{marginLeft:6,fontWeight:600,color:'var(--green)'}}>${runningTotal.toFixed(0)}</span>}
+                {!isOnline&&<span style={{color:'var(--red)',marginLeft:6}}>Offline</span>}
+                {offlineQueue.length>0&&<span style={{color:'var(--amber)',marginLeft:6}}>{offlineQueue.length} queued</span>}
               </div>
             </div>
             <div style={{display:'flex',gap:6}}>
@@ -1043,8 +1095,11 @@ function FieldPageInner() {
               </div>
               <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,marginBottom:10,
                 scrollbarWidth:'none',msOverflowStyle:'none'}}>
-                {QUICK_COLORS.map(c=><div key={c} className="chip" style={{flexShrink:0}}
-                  onClick={()=>setColors(prev=>addOrInc(prev,c))}>{c}</div>)}
+                {[...QUICK_COLORS].sort((a,b)=>(usage.colors[b]||0)-(usage.colors[a]||0))
+                  .map(c=><div key={c} className="chip" style={{flexShrink:0}}
+                  onClick={()=>setColors(prev=>addOrInc(prev,c))}>
+                  {c}{usage.colors[c]>0?<span style={{fontSize:9,opacity:.5,marginLeft:2}}>{usage.colors[c]}</span>:null}
+                </div>)}
               </div>
               {colors.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
                 {colors.map(sel=><SelTag key={sel.value} sel={sel}

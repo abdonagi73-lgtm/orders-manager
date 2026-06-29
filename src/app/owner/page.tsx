@@ -5,7 +5,7 @@ import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
-type Tab = 'orders' | 'items' | 'analytics' | 'commission' | 'workers' | 'settings' | 'prices';
+type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
 // Price review row component
 function PriceRow({item, settings, onSave}: {
@@ -87,6 +87,8 @@ function OwnerPageInner() {
   const [newWorkerPin, setNewWorkerPin] = useState('');
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loggedInName, setLoggedInName] = useState('');
+  const [darkMode, setDarkMode] = useState(false);
+  const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
   const searchParams = useSearchParams();
   const location = searchParams.get('location') || '';
   const [orderSearch, setOrderSearch] = useState('');
@@ -122,6 +124,11 @@ function OwnerPageInner() {
     ]);
     setPinLoading(false);
     if(verifyRes.ok){
+      // Load dark mode pref
+      const dm = localStorage.getItem(`darkMode_owner_${pin}`);
+      if(dm==='true') { setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
+      // Load usage
+      fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
       // Find who logged in
       const settings = sessionRes.settings;
       const managers = sessionRes.managers || [];
@@ -256,7 +263,12 @@ function OwnerPageInner() {
     const updated = {...item, status, ownerNote};
     setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
-    if(status==='approved') showSuccess('✅', 'Item approved!', `${item.vendor} · ${item.code} has been approved.`);
+    if(status==='approved') {
+      showSuccess('✅', 'Item approved!', `${item.vendor} · ${item.code} has been approved.`);
+      fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:item.orderId,orderName:'',action:`Item approved: ${item.vendor} · ${item.code}`,by:loggedInName})
+      }).catch(()=>{});
+    }
     else showToast('⚑ Flagged');
   }
 
@@ -476,6 +488,14 @@ function OwnerPageInner() {
                 </button>
               )}
               <button className="btn btn-sm" style={{fontWeight:500}}
+                onClick={()=>{
+                  const next=!darkMode; setDarkMode(next);
+                  localStorage.setItem(`darkMode_owner_${loggedInName}`, String(next));
+                  document.documentElement.setAttribute('data-theme', next?'dark':'');
+                }}>
+                {darkMode?'Light':'Dark'}
+              </button>
+              <button className="btn btn-sm" style={{fontWeight:500}}
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
                 Refresh
               </button>
@@ -490,9 +510,9 @@ function OwnerPageInner() {
 
       <div className="container-wide" style={{paddingTop:16,paddingBottom:40}}>
         <div className="tabs">
-          {(['orders','items','prices','analytics','commission','workers','settings'] as Tab[]).map(t=>(
+          {(['orders','items','prices','analytics','commission','intelligence','timeline','workers','settings'] as Tab[]).map(t=>(
             <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
-              {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t.charAt(0).toUpperCase()+t.slice(1)}
+              {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t==='intelligence'?'Vendors':t==='timeline'?'Timeline':t.charAt(0).toUpperCase()+t.slice(1)}
               {t==='items'&&selectedOrder&&` — ${selectedOrder.name}`}
               {t==='commission'&&orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length>0&&
                 <span style={{background:'var(--red)',color:'#fff',borderRadius:10,padding:'1px 6px',fontSize:10,marginLeft:4}}>
@@ -955,6 +975,105 @@ function OwnerPageInner() {
                 <div className="empty"><div className="empty-icon">💰</div><div className="empty-text">No commission records yet</div></div>
               )}
             </>
+          );
+        })()}
+
+        {/* ── VENDOR INTELLIGENCE TAB ── */}
+        {tab==='intelligence'&&(()=>{
+          const vendorStats = Object.entries(usage.vendors||{})
+            .sort((a:any,b:any)=>b[1]-a[1])
+            .map(([name,count]:any) => {
+              const vendorOrders = orders.filter(o=>
+                items.some(i=>i.orderId===o.id&&i.vendor===name)
+              );
+              const totalSpend = orders.reduce((s,o)=>{
+                return s; // would need all items
+              },0);
+              return { name, count, orders: vendorOrders.length };
+            });
+
+          const topCategories = Object.entries(usage.categories||{}).sort((a:any,b:any)=>b[1]-a[1]).slice(0,10);
+          const topColors = Object.entries(usage.colors||{}).sort((a:any,b:any)=>b[1]-a[1]).slice(0,10);
+
+          return (
+            <>
+              <div className="card" style={{marginBottom:12}}>
+                <div className="card-title">Top vendors by order frequency</div>
+                {vendorStats.length===0?(
+                  <div className="empty"><div className="empty-text">No vendor data yet — start adding items</div></div>
+                ):(
+                  vendorStats.slice(0,15).map(({name,count},i)=>(
+                    <div key={name} className="vendor-row">
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <span style={{fontSize:12,color:'var(--text-3)',width:20,textAlign:'right'}}>{i+1}</span>
+                        <strong>{name}</strong>
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{background:'var(--green-light)',borderRadius:4,
+                          width:Math.max(4,Math.round((count/vendorStats[0].count)*80)),
+                          height:6}}/>
+                        <span style={{fontSize:12,color:'var(--text-3)'}}>{count} item{count!==1?'s':''}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div className="card">
+                  <div className="card-title">Top categories</div>
+                  {topCategories.map(([name,count]:any,i)=>(
+                    <div key={name} className="vendor-row" style={{padding:'6px 0'}}>
+                      <span style={{fontSize:13}}>{name}</span>
+                      <span style={{fontSize:12,color:'var(--text-3)'}}>{count}×</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="card">
+                  <div className="card-title">Top colors</div>
+                  {topColors.map(([name,count]:any)=>(
+                    <div key={name} className="vendor-row" style={{padding:'6px 0'}}>
+                      <span style={{fontSize:13}}>{name}</span>
+                      <span style={{fontSize:12,color:'var(--text-3)'}}>{count}×</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          );
+        })()}
+
+        {/* ── TIMELINE TAB ── */}
+        {tab==='timeline'&&(()=>{
+          const [timelineEvents, setTimelineEvents] = React.useState<any[]>([]);
+          const [tlLoaded, setTlLoaded] = React.useState(false);
+          if(!tlLoaded) {
+            setTlLoaded(true);
+            fetch('/api/timeline').then(r=>r.json()).then(d=>{ if(d.events) setTimelineEvents(d.events); });
+          }
+          return (
+            <div className="card">
+              <div className="card-title">Order activity timeline</div>
+              {timelineEvents.length===0?(
+                <div className="empty"><div className="empty-text">No activity recorded yet</div></div>
+              ):(
+                timelineEvents.map((e:any,i:number)=>(
+                  <div key={e.id||i} style={{display:'flex',gap:12,padding:'10px 0',
+                    borderBottom:'1px solid var(--border)',alignItems:'flex-start'}}>
+                    <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',
+                      flexShrink:0,marginTop:5}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:500}}>{e.action}</div>
+                      <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
+                        {e.orderName&&<span style={{marginRight:8}}>{e.orderName}</span>}
+                        {e.by&&<span style={{marginRight:8}}>by {e.by}</span>}
+                        {e.timestamp&&<span>{new Date(e.timestamp).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           );
         })()}
 
