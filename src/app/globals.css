@@ -282,15 +282,18 @@ input[type=number]::-webkit-inner-spin-button { opacity: .5; }
 .stat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin-top: 4px; }
 
 /* ── Tabs ── */
-.tabs { display: flex; gap: 2px; margin-bottom: 20px; background: var(--surface-2); padding: 3px; border-radius: var(--r-sm); border: 1px solid var(--border); width: fit-content; }
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; background: var(--surface-2); padding: 3px; border-radius: var(--r-sm); border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; width: 100%; }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
-  padding: 6px 16px;
+  padding: 6px 14px;
   border-radius: 3px;
   border: none;
   background: transparent;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   font-family: inherit;
   transition: all .12s;
   color: var(--text-3);

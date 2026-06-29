@@ -448,16 +448,7 @@ export default function OwnerPage() {
                 <div className="header-sub" style={{whiteSpace:'nowrap'}}>Orders Manager</div>
               </div>
             </div>
-            <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
-              <span style={{fontSize:11,fontWeight:600,color:'var(--text-3)',
-                background:'var(--surface-2)',border:'1px solid var(--border)',
-                borderRadius:20,padding:'3px 10px',whiteSpace:'nowrap'}}>
-                {orders.length}
-              </span>
-              <button className="btn btn-sm" style={{fontWeight:500}}
-                onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
-                Refresh
-              </button>
+            <div style={{display:'flex',gap:5,alignItems:'center',flexShrink:0}}>
               {unreadNotifs>0&&(
                 <button className="btn btn-sm"
                   style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600,whiteSpace:'nowrap'}}
@@ -469,6 +460,10 @@ export default function OwnerPage() {
                   {unreadNotifs} new
                 </button>
               )}
+              <button className="btn btn-sm" style={{fontWeight:500}}
+                onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
+                Refresh
+              </button>
               <a href="/" className="btn btn-sm" style={{fontWeight:500}}>Home</a>
               <button className="btn btn-sm"
                 style={{borderColor:'var(--border-strong)',color:'var(--text-2)',fontWeight:500}}
@@ -567,25 +562,23 @@ export default function OwnerPage() {
                         {order.totalOrderCost>0&&<> · <strong style={{color:'var(--green)'}}>Total: ${order.totalOrderCost.toFixed(2)}</strong></>}
                       </div>
                     </div>
-                    <div style={{display:'flex',gap:6,alignItems:'flex-start',flexShrink:0,flexDirection:'column'}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
                       <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
                         {order.status}
                       </span>
-                      <div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
-                        <button className="btn btn-sm" onClick={e=>{e.stopPropagation();setEditOrderModal({...order});}}>✎ Edit</button>
-                        {order.status==='submitted'&&(
-                          <button className="btn btn-sm btn-success" onClick={e=>{e.stopPropagation();closeOrder(order.id)}}>
-                            ✓ Import
-                          </button>
-                        )}
-                        {selectedOrder&&order.id!==selectedOrder.id&&(
-                          <button className="btn btn-sm" title="Copy items to current order"
-                            onClick={e=>{e.stopPropagation();
-                              if(confirm(`Copy items from "${order.name}" to "${selectedOrder.name}"?`))
-                                copyOrderItems(order.id, selectedOrder.id);
-                            }}>⎘ Copy</button>
-                        )}
-                      </div>
+                      <button className="btn btn-sm" onClick={e=>{e.stopPropagation();setEditOrderModal({...order});}}>Edit</button>
+                      {order.status==='submitted'&&(
+                        <button className="btn btn-sm btn-success" onClick={e=>{e.stopPropagation();closeOrder(order.id)}}>
+                          Import
+                        </button>
+                      )}
+                      {selectedOrder&&order.id!==selectedOrder.id&&(
+                        <button className="btn btn-sm"
+                          onClick={e=>{e.stopPropagation();
+                            if(confirm(`Copy items from "${order.name}" to "${selectedOrder.name}"?`))
+                              copyOrderItems(order.id, selectedOrder.id);
+                          }}>Copy</button>
+                      )}
                     </div>
                   </div>
                 </div>
