@@ -203,6 +203,13 @@ export default function OwnerPage() {
     if(sessionRes.managers) setManagers(sessionRes.managers);
   },[]);
 
+  // Live search debounce
+  useEffect(()=>{
+    if(!mgmtSearch.trim()) { setMgmtResults([]); return; }
+    const timer = setTimeout(()=>doMgmtSearch(mgmtSearch), 400);
+    return ()=>clearTimeout(timer);
+  },[mgmtSearch, orders.length]);
+
   useEffect(()=>{ if(!authed) return;
     const iv = setInterval(()=>{
       fetch('/api/orders').then(r=>r.json()).then(d=>{
@@ -478,24 +485,20 @@ export default function OwnerPage() {
               <div style={{display:'flex',gap:8,marginBottom:10}}>
                 <div style={{position:'relative',flex:1}}>
                   <input type="text" placeholder="Search by name, vendor, code, color, price, worker..."
-                    value={mgmtSearch||orderSearch}
+                    value={mgmtSearch}
                     onChange={e=>{
-                      const v=e.target.value;
-                      setOrderSearch(v);
-                      setMgmtSearch(v);
-                      if(!v.trim()) setMgmtResults([]);
+                      setMgmtSearch(e.target.value);
+                      setOrderSearch(e.target.value);
+                      if(!e.target.value.trim()) setMgmtResults([]);
                     }}
-                    onKeyDown={e=>{if(e.key==='Enter'){const v=(e.target as HTMLInputElement).value;doMgmtSearch(v);}}}
-                    style={{width:'100%',paddingRight:80}}/>
-                  <button className="btn btn-sm btn-primary"
-                    style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)'}}
-                    onClick={()=>doMgmtSearch(mgmtSearch)} disabled={mgmtSearching}>
-                    {mgmtSearching?'...':'Search'}
-                  </button>
+                    style={{width:'100%',paddingRight:mgmtSearch?36:12}}/>
+                  {mgmtSearching&&<span style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',fontSize:12,color:'var(--text-3)'}}>...</span>}
+                  {mgmtSearch&&!mgmtSearching&&(
+                    <button className="btn btn-sm btn-ghost"
+                      style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)',height:26,color:'var(--text-3)'}}
+                      onClick={()=>{setMgmtSearch('');setOrderSearch('');setMgmtResults([]);}}>✕</button>
+                  )}
                 </div>
-                {(mgmtSearch||orderSearch)&&(
-                  <button className="btn btn-sm" onClick={()=>{setMgmtSearch('');setOrderSearch('');setMgmtResults([]);}}>✕ Clear</button>
-                )}
               </div>
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                 {(['','open','submitted','imported'] as const).map(s=>(

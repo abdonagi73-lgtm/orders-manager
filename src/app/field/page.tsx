@@ -122,6 +122,13 @@ export default function FieldPage() {
   }
   function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2500); }
 
+  // Live search with debounce
+  useEffect(()=>{
+    if(!orderSearch.trim()) { setSearchResults([]); return; }
+    const timer = setTimeout(()=>doSearch(orderSearch), 400);
+    return ()=>clearTimeout(timer);
+  },[orderSearch, orders.length]);
+
   useEffect(()=>{
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry).sort());
@@ -518,19 +525,25 @@ export default function FieldPage() {
             onChange={e=>{setOrderSearch(e.target.value);if(!e.target.value.trim()){setSearchResults([]);}}}
             onKeyDown={e=>{if(e.key==='Enter'){const v=(e.target as HTMLInputElement).value;doSearch(v);}}}
             style={{width:'100%',paddingRight:80}}/>
-          <button className="btn btn-sm btn-primary"
-            style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)'}}
-            onClick={e=>{const inp=e.currentTarget.previousElementSibling as HTMLInputElement;doSearch(inp?.value||orderSearch);}} disabled={searching}>
-            {searching?'..':'Search'}
-          </button>
+          {searching&&(
+            <span style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
+              fontSize:12,color:'var(--text-3)'}}>...</span>
+          )}
+          {orderSearch&&!searching&&(
+            <button className="btn btn-sm btn-ghost"
+              style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)',
+                color:'var(--text-3)',height:26}}
+              onClick={()=>{setOrderSearch('');setSearchResults([]);}}>✕</button>
+          )}
         </div>
-        {orderSearch&&!searching&&(
-          <div style={{fontSize:12,color:'var(--text-3)',marginBottom:8,
-            background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>
-            {searchResults.length===0
-              ? `No matches found. Orders loaded: ${orders.length}. Try searching again.`
-              : `Found ${searchResults.length} order(s) matching "${orderSearch}"`
-            }
+        {orderSearch&&!searching&&searchResults.length>0&&(
+          <div style={{fontSize:12,color:'var(--text-3)',marginBottom:8,padding:'6px 2px'}}>
+            {searchResults.length} order{searchResults.length!==1?'s':''} found
+          </div>
+        )}
+        {orderSearch&&!searching&&searchResults.length===0&&(
+          <div style={{fontSize:12,color:'var(--text-3)',marginBottom:8,padding:'6px 2px'}}>
+            No matches found for "{orderSearch}"
           </div>
         )}
         {orders.length===0?(
