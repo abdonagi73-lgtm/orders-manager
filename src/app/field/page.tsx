@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import type { Worker, Order, OrderItem } from '@/lib/types';
 
@@ -55,9 +56,11 @@ function SelTag({sel,onAdd,onRemove}:{sel:Sel;onAdd:()=>void;onRemove:()=>void})
   );
 }
 
-export default function FieldPage() {
+function FieldPageInner() {
   const [screen, setScreen] = useState<Screen>('login');
   const [worker, setWorker] = useState<Worker|null>(null);
+  const searchParams = useSearchParams();
+  const location = searchParams.get('location') || '';
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
@@ -492,7 +495,10 @@ export default function FieldPage() {
           <div className="header-inner">
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
-              <div className="header-title">{worker?.name}</div>
+              <div>
+                <div className="header-title">{worker?.name}</div>
+                {location&&<div className="header-sub">{location}</div>}
+              </div>
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               {unreadNotifs>0&&(
@@ -1215,4 +1221,8 @@ export default function FieldPage() {
       )}
     </div>
   );
+}
+
+export default function FieldPage() {
+  return <Suspense><FieldPageInner /></Suspense>;
 }

@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
@@ -57,7 +58,7 @@ function PriceRow({item, settings, onSave}: {
   );
 }
 
-export default function OwnerPage() {
+function OwnerPageInner() {
   const [authed, setAuthed] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -86,6 +87,8 @@ export default function OwnerPage() {
   const [newWorkerPin, setNewWorkerPin] = useState('');
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loggedInName, setLoggedInName] = useState('');
+  const searchParams = useSearchParams();
+  const location = searchParams.get('location') || '';
   const [orderSearch, setOrderSearch] = useState('');
   const [mgmtSearch, setMgmtSearch] = useState('');
   const [mgmtResults, setMgmtResults] = useState<{orderId:string;matches:string[]}[]>([]);
@@ -445,7 +448,7 @@ export default function OwnerPage() {
                 <div className="header-title" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                   {loggedInName || 'Management'}
                 </div>
-                <div className="header-sub" style={{whiteSpace:'nowrap'}}>Orders Manager</div>
+                <div className="header-sub" style={{whiteSpace:'nowrap'}}>Orders Manager{location ? ' · '+location : ''}</div>
               </div>
             </div>
             <div style={{display:'flex',gap:5,alignItems:'center',flexShrink:0}}>
@@ -1292,4 +1295,8 @@ export default function OwnerPage() {
       )}
     </div>
   );
+}
+
+export default function OwnerPage() {
+  return <Suspense><OwnerPageInner /></Suspense>;
 }
