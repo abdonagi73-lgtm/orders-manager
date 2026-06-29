@@ -36,6 +36,7 @@ export default function Home() {
       </div>
 
       <div className="home-credit">Developed by Abdo Alasaadi</div>
+      <div className="home-credit" style={{marginTop:4}}>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</div>
     </main>
   );
 
@@ -78,6 +79,7 @@ export default function Home() {
       </div>
 
       <div className="home-credit">Developed by Abdo Alasaadi</div>
+      <div className="home-credit" style={{marginTop:4}}>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</div>
     </main>
   );
 }
