@@ -492,7 +492,7 @@ export default function FieldPage() {
           <div className="header-inner">
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
-              <div className="header-title">👋 {worker?.name}</div>
+              <div className="header-title">{worker?.name}</div>
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               {unreadNotifs>0&&(
