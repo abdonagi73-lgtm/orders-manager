@@ -447,20 +447,30 @@ export default function OwnerPage() {
               </div>
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
-              <span className="badge badge-info">{orders.length}</span>
-              <button className="btn btn-sm" onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}} title="Refresh">↻</button>
+              <span style={{fontSize:11,fontWeight:600,color:'var(--text-3)',
+                background:'var(--surface-2)',border:'1px solid var(--border)',
+                borderRadius:20,padding:'3px 10px',whiteSpace:'nowrap'}}>
+                {orders.length} orders
+              </span>
+              <button className="btn btn-sm" style={{fontWeight:500}}
+                onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
+                Refresh
+              </button>
               {unreadNotifs>0&&(
-                <button className="btn btn-sm" style={{background:'var(--red-light)',borderColor:'var(--red-border)',color:'var(--red)'}}
+                <button className="btn btn-sm"
+                  style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600}}
                   onClick={async()=>{
                     await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
                       body:JSON.stringify({action:'mark-read',for:'owner'})});
                     setUnreadNotifs(0);
                   }}>
-                  🔔 {unreadNotifs} new
+                  {unreadNotifs} new
                 </button>
               )}
-              <a href="/" className="btn btn-sm" title="Home">🏠</a>
-              <button className="btn btn-sm" onClick={()=>setAuthed(false)}>Exit</button>
+              <a href="/" className="btn btn-sm" style={{fontWeight:500}}>Home</a>
+              <button className="btn btn-sm"
+                style={{borderColor:'var(--border-strong)',color:'var(--text-2)',fontWeight:500}}
+                onClick={()=>setAuthed(false)}>Sign out</button>
             </div>
           </div>
         </div>

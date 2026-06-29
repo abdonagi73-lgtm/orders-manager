@@ -496,19 +496,23 @@ export default function FieldPage() {
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               {unreadNotifs>0&&(
-                <button className="btn btn-sm" style={{background:'var(--red-light)',borderColor:'var(--red-border)',color:'var(--red)'}}
+                <button className="btn btn-sm"
+                  style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600}}
                   onClick={async()=>{
                     await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
                       body:JSON.stringify({action:'mark-read',for:'worker',workerId:worker?.id})});
                     setUnreadNotifs(0);
                     if(worker) loadOrders(worker.id);
                   }}>
-                  🔔 {unreadNotifs}
+                  {unreadNotifs} new
                 </button>
               )}
-              <button className="btn btn-sm" onClick={()=>setScreen('commission')}>Earnings</button>
-              <a href="/" className="btn btn-sm" title="Home">🏠</a>
-              <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
+              <button className="btn btn-sm" style={{fontWeight:500}}
+                onClick={()=>setScreen('commission')}>Earnings</button>
+              <a href="/" className="btn btn-sm" style={{fontWeight:500}}>Home</a>
+              <button className="btn btn-sm"
+                style={{borderColor:'var(--border-strong)',color:'var(--text-2)',fontWeight:500}}
+                onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
             </div>
           </div>
         </div>
@@ -865,12 +869,15 @@ export default function FieldPage() {
               </div>
             </div>
             <div style={{display:'flex',gap:6}}>
-              <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
+              <button className="btn btn-sm" onClick={()=>setScreen('orders')}>Back</button>
               <button className={`btn btn-sm ${showItemList?'btn-primary':''}`}
-                onClick={()=>{setShowItemList(true);resetItemForm();}}>List ({items.length})</button>
+                onClick={()=>{setShowItemList(true);resetItemForm();}}>
+                List {items.length>0&&<span style={{opacity:.7}}>({items.length})</span>}
+              </button>
               <button className={`btn btn-sm ${!showItemList&&!editingItem?'btn-primary':''}`}
-                onClick={()=>{setShowItemList(false);resetItemForm();}}>+ Add</button>
-              <button className="btn btn-sm btn-success" onClick={()=>setScreen('summary')}>Review & Submit →</button>
+                onClick={()=>{setShowItemList(false);resetItemForm();}}>Add item</button>
+              <button className="btn btn-sm btn-success" style={{fontWeight:600}}
+                onClick={()=>setScreen('summary')}>Review & Submit</button>
             </div>
           </div>
         </div>
