@@ -179,6 +179,7 @@ export default function FieldPage() {
 
       if(matches.length > 0) results.push({orderId: order.id, matches: [...new Set(matches)]});
     }
+    console.log('Search results:', results.length, 'items total:', allItems.length, 'orders:', orders.length);
     setSearchResults(results);
     setSearching(false);
   }
@@ -475,7 +476,7 @@ export default function FieldPage() {
                   🔔 {unreadNotifs}
                 </button>
               )}
-              <button className="btn btn-sm" onClick={()=>setScreen('commission')}>Commission</button>
+              <button className="btn btn-sm" onClick={()=>setScreen('commission')}>Earnings</button>
               <a href="/" className="btn btn-sm" title="Home">🏠</a>
               <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
             </div>
@@ -492,11 +493,11 @@ export default function FieldPage() {
           <input type="text" placeholder="Search orders, items, codes, colors, prices..."
             value={orderSearch}
             onChange={e=>{setOrderSearch(e.target.value);if(!e.target.value.trim()){setSearchResults([]);}}}
-            onKeyDown={e=>e.key==='Enter'&&doSearch(orderSearch)}
+            onKeyDown={e=>{if(e.key==='Enter'){const v=(e.target as HTMLInputElement).value;doSearch(v);}}}
             style={{width:'100%',paddingRight:80}}/>
           <button className="btn btn-sm btn-primary"
             style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)'}}
-            onClick={()=>doSearch(orderSearch)} disabled={searching}>
+            onClick={e=>{const inp=e.currentTarget.previousElementSibling as HTMLInputElement;doSearch(inp?.value||orderSearch);}} disabled={searching}>
             {searching?'..':'Search'}
           </button>
         </div>
@@ -730,7 +731,7 @@ export default function FieldPage() {
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
                 <div>
-                  <div className="header-title">My Commission</div>
+                  <div className="header-title">My Earnings</div>
                   <div className="header-sub">{worker?.name}</div>
                 </div>
               </div>
