@@ -524,9 +524,13 @@ export default function FieldPage() {
             {searching?'..':'Search'}
           </button>
         </div>
-        {orderSearch&&searchResults.length===0&&!searching&&(
-          <div style={{fontSize:13,color:'var(--text-3)',textAlign:'center',padding:'8px 0',marginBottom:8}}>
-            No matches found
+        {orderSearch&&!searching&&(
+          <div style={{fontSize:12,color:'var(--text-3)',padding:'8px 0',marginBottom:8,
+            background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>
+            {searchResults.length===0
+              ? `No matches found. Orders loaded: ${orders.length}. Try searching again.`
+              : `Found ${searchResults.length} order(s) matching "${orderSearch}"`
+            }
           </div>
         )}
         {orders.length===0?(
