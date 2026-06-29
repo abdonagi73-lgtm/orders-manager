@@ -502,6 +502,11 @@ export default function OwnerPage() {
                   )}
                 </div>
               </div>
+              {mgmtSearch&&(
+                <div style={{fontSize:11,color:'var(--text-3)',marginBottom:6,padding:'0 2px'}}>
+                  {mgmtSearching?'Searching...':mgmtResults.length>0?`${mgmtResults.length} order(s) found`:`No matches · ${orders.length} orders loaded`}
+                </div>
+              )}
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                 {(['','open','submitted','imported'] as const).map(s=>(
                   <button key={s} className={`btn btn-sm ${filterStatus===s?'btn-primary':''}`}
