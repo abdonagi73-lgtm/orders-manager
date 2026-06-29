@@ -16,7 +16,7 @@ const DEFAULT_CATEGORIES = [
   'Sweatshirt','T-Shirt','Tank Top','Tracksuit','Underwear'
 ];
 
-type Screen = 'login'|'orders'|'new-order'|'items'|'summary';
+type Screen = 'login'|'orders'|'new-order'|'items'|'summary'|'commission';
 type SizeMode = 'letter'|'numeric';
 interface Sel { value:string; count:number; }
 
@@ -164,14 +164,16 @@ export default function FieldPage() {
 
       const orderItems = allItems.filter((i:any) => i.orderId === order.id);
       orderItems.forEach((item:any) => {
+        const colors = Array.isArray(item.colors) ? item.colors : (()=>{try{return JSON.parse(item.colors||'[]')}catch{return []}})();
+        const sizes  = Array.isArray(item.sizes)  ? item.sizes  : (()=>{try{return JSON.parse(item.sizes||'[]') }catch{return []}})();
         if(item.vendor?.toLowerCase().includes(q)) matches.push(`Vendor: ${item.vendor}`);
         if(item.code?.toLowerCase().includes(q)) matches.push(`Code: ${item.code}`);
         if(item.category?.toLowerCase().includes(q)) matches.push(`Category: ${item.category}`);
         if(String(item.price).includes(q)) matches.push(`Price: $${item.price}`);
-        const matchColors = (item.colors||[]).filter((c:string)=>c.toLowerCase().includes(q));
-        if(matchColors.length) matches.push(`Color: ${matchColors.join(', ')}`);
-        const matchSizes = (item.sizes||[]).filter((s:string)=>String(s).toLowerCase().includes(q));
-        if(matchSizes.length) matches.push(`Size: ${matchSizes.join(', ')}`);
+        const mc = colors.filter((c:string)=>c.toLowerCase().includes(q));
+        if(mc.length) matches.push(`Color: ${mc.join(', ')}`);
+        const ms = sizes.filter((s:string)=>String(s).toLowerCase().includes(q));
+        if(ms.length) matches.push(`Size: ${ms.join(', ')}`);
         if(item.notes?.toLowerCase().includes(q)) matches.push(`Note: ${item.notes}`);
       });
 
@@ -463,7 +465,7 @@ export default function FieldPage() {
             </div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               {unreadNotifs>0&&(
-                <button className="btn btn-sm" style={{position:'relative',background:'var(--red-light)',borderColor:'var(--red-border)',color:'var(--red)'}}
+                <button className="btn btn-sm" style={{background:'var(--red-light)',borderColor:'var(--red-border)',color:'var(--red)'}}
                   onClick={async()=>{
                     await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
                       body:JSON.stringify({action:'mark-read',for:'worker',workerId:worker?.id})});
@@ -473,6 +475,7 @@ export default function FieldPage() {
                   🔔 {unreadNotifs}
                 </button>
               )}
+              <button className="btn btn-sm" onClick={()=>setScreen('commission')} title="My commission">💰</button>
               <a href="/" className="btn btn-sm" title="Home">🏠</a>
               <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
             </div>
@@ -712,6 +715,99 @@ export default function FieldPage() {
       )}
     </div>
   );
+
+  // ── COMMISSION SCREEN ──
+  if(screen==='commission') {
+    const myOrders = orders.filter(o=>o.workerCommission>0);
+    const totalEarned   = myOrders.reduce((s,o)=>s+o.workerCommission,0);
+    const totalPaid     = myOrders.filter(o=>o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
+    const totalUnpaid   = myOrders.filter(o=>!o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
+    return (
+      <div className="page">
+        <div className="header">
+          <div className="container">
+            <div className="header-inner">
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
+                <div>
+                  <div className="header-title">My Commission</div>
+                  <div className="header-sub">{worker?.name}</div>
+                </div>
+              </div>
+              <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
+            </div>
+          </div>
+        </div>
+        <div className="container" style={{paddingTop:16,paddingBottom:40}}>
+          {/* Summary stats */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}}>
+            <div className="stat-card">
+              <div className="stat-val">${totalEarned.toFixed(2)}</div>
+              <div className="stat-lbl">Total earned</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-val" style={{color:'var(--green)'}}>${totalPaid.toFixed(2)}</div>
+              <div className="stat-lbl">Paid</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-val" style={{color:'var(--amber)'}}>${totalUnpaid.toFixed(2)}</div>
+              <div className="stat-lbl">Pending</div>
+            </div>
+          </div>
+
+          {/* Unpaid commissions */}
+          {myOrders.filter(o=>!o.commissionPaid).length>0&&(
+            <div className="card" style={{marginBottom:12,borderColor:'var(--amber-border)'}}>
+              <div className="card-title" style={{color:'var(--amber)'}}>Pending payment</div>
+              {myOrders.filter(o=>!o.commissionPaid).map(o=>(
+                <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                  padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:14}}>{o.name}</div>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>
+                      {o.startDate} · 3% of ${o.totalValue.toFixed(2)}
+                    </div>
+                    <div style={{fontSize:11,color:'var(--text-3)'}}>{o.status}</div>
+                  </div>
+                  <div style={{fontWeight:700,fontSize:18,color:'var(--amber)'}}>${o.workerCommission.toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Paid commissions */}
+          {myOrders.filter(o=>o.commissionPaid).length>0&&(
+            <div className="card">
+              <div className="card-title">Payment history</div>
+              {myOrders.filter(o=>o.commissionPaid).map(o=>(
+                <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                  padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:14}}>{o.name}</div>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>
+                      {o.startDate} · 3% of ${o.totalValue.toFixed(2)}
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span className="badge badge-approved">paid ✓</span>
+                    <span style={{fontWeight:700,fontSize:16,color:'var(--green)'}}>${o.workerCommission.toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {myOrders.length===0&&(
+            <div className="empty">
+              <div className="empty-icon">💰</div>
+              <div className="empty-text">No commission records yet</div>
+            </div>
+          )}
+        </div>
+        {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+      </div>
+    );
+  }
 
   // ── ITEMS SCREEN ──
   return (
