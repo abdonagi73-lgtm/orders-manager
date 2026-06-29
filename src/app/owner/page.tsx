@@ -131,16 +131,17 @@ export default function OwnerPage() {
     } else setPinError(true);
   }
 
-  async function doMgmtSearch(query: string) {
+  async function doMgmtSearch(query: string, searchOrders?: Order[]) {
     const ql = query.toLowerCase().trim();
     if(!ql) { setMgmtResults([]); return; }
-    if(orders.length===0) { setMgmtResults([]); return; } // orders not loaded yet
+    const currentOrders = searchOrders || orders;
+    if(currentOrders.length===0) { setMgmtResults([]); return; }
     setMgmtSearching(true);
     try {
       const res = await fetch('/api/items');
       const d = await res.json();
       const allItems: any[] = d.items || [];
-      const myOrderIds = new Set(orders.map(o => o.id));
+      const myOrderIds = new Set(currentOrders.map(o => o.id));
       const matchMap: Record<string, string[]> = {};
 
       allItems.forEach((item: any) => {
@@ -168,7 +169,7 @@ export default function OwnerPage() {
         }
       });
 
-      orders.forEach(o => {
+      currentOrders.forEach(o => {
         if(o.name.toLowerCase().includes(ql)) {
           if(!matchMap[o.id]) matchMap[o.id] = [];
           matchMap[o.id].push('Order: '+o.name);
@@ -207,10 +208,11 @@ export default function OwnerPage() {
   // Live search debounce
   useEffect(()=>{
     if(!mgmtSearch.trim()) { setMgmtResults([]); return; }
-    const timer = setTimeout(()=>doMgmtSearch(mgmtSearch), 400);
+    const currentOrders = orders;
+    const timer = setTimeout(()=>doMgmtSearch(mgmtSearch, currentOrders), 400);
     return ()=>clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[mgmtSearch, orders]);
+  },[mgmtSearch, orders.length]);
 
   useEffect(()=>{ if(!authed) return;
     const iv = setInterval(()=>{
