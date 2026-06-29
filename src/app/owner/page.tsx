@@ -134,6 +134,7 @@ export default function OwnerPage() {
   async function doMgmtSearch(query: string) {
     const ql = query.toLowerCase().trim();
     if(!ql) { setMgmtResults([]); return; }
+    if(orders.length===0) { setMgmtResults([]); return; } // orders not loaded yet
     setMgmtSearching(true);
     try {
       const res = await fetch('/api/items');
@@ -208,7 +209,8 @@ export default function OwnerPage() {
     if(!mgmtSearch.trim()) { setMgmtResults([]); return; }
     const timer = setTimeout(()=>doMgmtSearch(mgmtSearch), 400);
     return ()=>clearTimeout(timer);
-  },[mgmtSearch, orders.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[mgmtSearch, orders]);
 
   useEffect(()=>{ if(!authed) return;
     const iv = setInterval(()=>{
