@@ -626,3 +626,15 @@ input[type=number]::-webkit-inner-spin-button { opacity: .5; }
 .confirm-msg { font-size: 13px; color: var(--text-3); line-height: 1.5; margin-bottom: 22px; }
 .confirm-actions { display: flex; gap: 10px; }
 .confirm-actions .btn { flex: 1; height: 42px; font-size: 14px; }
+
+/* ── Horizontal scroll strip ── */
+.scroll-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-strip::-webkit-scrollbar { display: none; }
+.scroll-strip .chip { flex-shrink: 0; }

@@ -997,9 +997,11 @@ export default function FieldPage() {
             {/* 3. CATEGORY */}
             <div className="card">
               <div className="card-title">3 · Category</div>
-              <div className="chip-group" style={{marginBottom:10}}>
+              <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,marginBottom:10,
+                scrollbarWidth:'none',msOverflowStyle:'none'}}>
                 {categories.map(c=>(
                   <div key={c} className={`chip ${category===c?'active':''}`}
+                    style={{flexShrink:0}}
                     onClick={()=>setCategory(c)}>{c}</div>
                 ))}
               </div>
@@ -1033,8 +1035,9 @@ export default function FieldPage() {
                   if(colorInput.trim()){setColors(prev=>addOrInc(prev,colorInput.trim()));setColorInput('');}
                 }}>Add</button>
               </div>
-              <div className="chip-group" style={{marginBottom:10}}>
-                {QUICK_COLORS.map(c=><div key={c} className="chip"
+              <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,marginBottom:10,
+                scrollbarWidth:'none',msOverflowStyle:'none'}}>
+                {QUICK_COLORS.map(c=><div key={c} className="chip" style={{flexShrink:0}}
                   onClick={()=>setColors(prev=>addOrInc(prev,c))}>{c}</div>)}
               </div>
               {colors.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
@@ -1055,14 +1058,16 @@ export default function FieldPage() {
                   onClick={()=>{setSizeMode('numeric');setSizes([]);}}>28 / 30 / 32</button>
               </div>
               {sizeMode==='letter'&&(
-                <div className="chip-group" style={{marginBottom:sizes.length?10:0}}>
-                  {LETTER_SIZES.map(s=><div key={s} className="chip"
+                <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,
+                  marginBottom:sizes.length?10:0,scrollbarWidth:'none',msOverflowStyle:'none'}}>
+                  {LETTER_SIZES.map(s=><div key={s} className="chip" style={{flexShrink:0}}
                     onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>)}
                 </div>
               )}
               {sizeMode==='numeric'&&(<>
-                <div className="chip-group" style={{marginBottom:8,flexWrap:'wrap'}}>
-                  {EVEN_SIZES.map(s=><div key={s} className="chip"
+                <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,
+                  marginBottom:8,scrollbarWidth:'none',msOverflowStyle:'none'}}>
+                  {EVEN_SIZES.map(s=><div key={s} className="chip" style={{flexShrink:0}}
                     onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>)}
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:sizes.length?10:0}}>
