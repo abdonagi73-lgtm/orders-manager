@@ -490,7 +490,6 @@ export default function OwnerPage() {
                     value={mgmtSearch}
                     onChange={e=>{
                       setMgmtSearch(e.target.value);
-                      setOrderSearch(e.target.value);
                       if(!e.target.value.trim()) setMgmtResults([]);
                     }}
                     style={{width:'100%',paddingRight:mgmtSearch?36:12}}/>
@@ -498,7 +497,7 @@ export default function OwnerPage() {
                   {mgmtSearch&&!mgmtSearching&&(
                     <button className="btn btn-sm btn-ghost"
                       style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)',height:26,color:'var(--text-3)'}}
-                      onClick={()=>{setMgmtSearch('');setOrderSearch('');setMgmtResults([]);}}>✕</button>
+                      onClick={()=>{setMgmtSearch('');setMgmtResults([]);}}>✕</button>
                   )}
                 </div>
               </div>
@@ -524,8 +523,7 @@ export default function OwnerPage() {
               if(filterStatus==='__store') return o.orderType!=='online';
               if(filterStatus==='__online') return o.orderType==='online';
               return (!filterStatus||o.status===filterStatus);
-            }).filter(o=>!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
-              o.workerName.toLowerCase().includes(orderSearch.toLowerCase())).length===0?(
+            }).filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id)).length===0?(
               <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
             ):(
               orders
@@ -534,8 +532,6 @@ export default function OwnerPage() {
                   if(filterStatus==='__online') return o.orderType==='online';
                   return (!filterStatus||o.status===filterStatus);
                 })
-                .filter(o=>!orderSearch||o.name.toLowerCase().includes(orderSearch.toLowerCase())||
-                  o.workerName.toLowerCase().includes(orderSearch.toLowerCase()))
                 .filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id))
                 .map(order=>(
                 <div key={order.id} className="item-card" style={{cursor:'pointer'}} onClick={()=>selectOrder(order)}>
