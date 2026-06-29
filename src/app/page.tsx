@@ -4,9 +4,9 @@ import Image from 'next/image';
 export default function Home() {
   return (
     <main className="home-page">
-      <Image src="/logo.png" alt="Choices For You" width={80} height={80} className="home-logo" priority />
+      <Image src="/logo.png" alt="Mishkat Apparel" width={80} height={80} className="home-logo" priority />
       <div className="home-brand">Orders Manager</div>
-      <div className="home-tagline">Choices For You · Vendor ordering system</div>
+      <div className="home-tagline">Mishkat Apparel · Vendor ordering system</div>
 
       <Link href="/field" className="role-card">
         <div className="role-icon" style={{background:'#E8F2EC'}}>🧾</div>

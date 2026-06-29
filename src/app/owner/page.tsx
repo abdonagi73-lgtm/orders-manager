@@ -396,10 +396,10 @@ export default function OwnerPage() {
     <main className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <Image src="/logo.png" alt="Choices For You" width={72} height={72}
+          <Image src="/logo.png" alt="Mishkat Apparel" width={72} height={72}
             style={{borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16}} />
           <div className="login-brand">Orders Manager</div>
-          <div className="login-sub">Management · Choices For You</div>
+          <div className="login-sub">Management · Mishkat Apparel</div>
         </div>
         <div className="login-form">
           <div className="field">
