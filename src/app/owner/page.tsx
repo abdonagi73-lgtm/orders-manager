@@ -231,6 +231,9 @@ function OwnerPageInner() {
       setTimelineLoaded(true);
       fetch('/api/timeline').then(r=>r.json()).then(d=>{ if(d.events) setTimelineEvents(d.events); });
     }
+    if(tab==='intelligence') {
+      fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[tab]);
 
