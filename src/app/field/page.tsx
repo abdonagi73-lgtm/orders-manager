@@ -152,8 +152,8 @@ export default function FieldPage() {
     const q = query.toLowerCase().trim();
     const results: {orderId:string;matches:string[]}[] = [];
 
-    // Load ALL items for this worker at once
-    const allItemsRes = await fetch(`/api/items?workerId=${worker?.id}`);
+    // Load ALL items at once (filter by orderId client-side)
+    const allItemsRes = await fetch('/api/items');
     const allItemsData = await allItemsRes.json();
     const allItems: any[] = allItemsData.items || [];
 
