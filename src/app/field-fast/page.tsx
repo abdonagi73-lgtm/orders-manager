@@ -271,30 +271,38 @@ function FieldFastInner() {
   const cartTotal = cart.reduce((s,i)=>s+i.price*i.qty,0);
 
   // Open an existing order — load everything, show detail screen
+  const [detailLoading, setDetailLoading] = useState(false);
+
   async function openExistingOrder(order:Order){
+    // Switch screen immediately and show loading
     setEditingExisting(order);
     setOrderName(order.name);
     setOrderDate(order.startDate);
     setOrderType(order.orderType||'store');
     setShippingCost(String(order.shippingCost||''));
     setDeletedServerIds([]);
-    // Load its items into cart
-    const res = await fetch(`/api/items?orderId=${order.id}`);
-    const d = await res.json();
-    const items:OrderItem[] = d.items||[];
-    // Load photos
-    let photos:Record<string,string> = {};
-    if(items.length){
-      const ids = items.map(i=>i.id).join(',');
-      try { const pr=await fetch(`/api/photos?ids=${ids}`); const pd=await pr.json(); photos=pd.photos||{}; } catch{}
-    }
-    setCart(items.map(i=>({
-      tempId:'t_'+i.id, serverId:i.id, vendor:i.vendor, code:i.code, category:i.category,
-      colors:safeArr(i.colors), sizes:safeArr(i.sizes), price:i.price, qty:i.qty,
-      notes:i.notes||'', photo:photos[i.id]||'', orig:i,
-    })));
-    setCurrentVendor(''); setFormOpen(false);
+    setCart([]);
+    setDetailLoading(true);
     setScreen('detail');
+
+    // Load items in background — screen is already showing with loading indicator
+    try {
+      const res = await fetch(`/api/items?orderId=${order.id}`);
+      const d = await res.json();
+      const items:OrderItem[] = d.items||[];
+      let photos:Record<string,string> = {};
+      if(items.length){
+        const ids = items.map(i=>i.id).join(',');
+        try { const pr=await fetch(`/api/photos?ids=${ids}`); const pd=await pr.json(); photos=pd.photos||{}; } catch{}
+      }
+      setCart(items.map(i=>({
+        tempId:'t_'+i.id, serverId:i.id, vendor:i.vendor, code:i.code, category:i.category,
+        colors:safeArr(i.colors), sizes:safeArr(i.sizes), price:i.price, qty:i.qty,
+        notes:i.notes||'', photo:photos[i.id]||'', orig:i,
+      })));
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   function startNewOrder(){
@@ -522,7 +530,7 @@ function FieldFastInner() {
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
             <div><div className="header-title">{o.name}</div>
-              <div className="header-sub">{cart.length} items · ${cartTotal.toFixed(2)}</div></div>
+              <div className="header-sub">{detailLoading?'Loading…':`${cart.length} items · $${cartTotal.toFixed(2)}`}</div></div>
           </div>
           <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
         </div></div></div>
@@ -563,9 +571,11 @@ function FieldFastInner() {
             </div>
           ))}
 
-          {cart.length===0&&(
+          {detailLoading?(
+            <div className="empty"><div className="empty-text">Loading items…</div></div>
+          ):cart.length===0?(
             <div className="empty"><div className="empty-text">No items in this order yet</div></div>
-          )}
+          ):null}
 
           {/* Action buttons */}
           <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:16}}>
