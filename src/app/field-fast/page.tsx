@@ -225,24 +225,31 @@ function FieldFastInner() {
         setCart(prev=>[newItem,...prev]);
         showToast('Item saved');
       }
-      // Update order totals on server to reflect new item
+      // Update order totals on server — AWAIT this so the list always shows correct counts
+      const newCartLength = editingTempId ? cart.length : cart.length + 1;
       const newTotal = cart.reduce((s,i)=>{
         if(editingTempId && i.tempId===editingTempId) return s+Number(price)*(autoQty||1);
         return s+i.price*i.qty;
       },0) + (editingTempId?0:Number(price)*(autoQty||1));
+      const newVariants = cart.reduce((s,i)=>{
+        if(editingTempId && i.tempId===editingTempId) return s+(autoQty||1);
+        return s+i.qty;
+      },0) + (editingTempId?0:(autoQty||1));
       const commission = parseFloat((newTotal*0.03).toFixed(2));
-      fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+      await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',order:{
           ...activeOrder,
-          itemCount: cart.length + (editingTempId?0:1),
+          itemCount: newCartLength,
           totalValue: newTotal,
           workerCommission: commission,
           totalOrderCost: parseFloat((newTotal+commission).toFixed(2)),
           status:'open',
-        }})}).catch(()=>{});
+        }})});
 
       resetItemForm();
       setFormOpen(false);
+      // Refresh orders list in background so counts are correct when worker goes back
+      if(worker) loadOrders(worker.id);
     } catch(e:any){
       setErrorBox({title:'Save failed', items:[e.message]});
     } finally {
@@ -502,7 +509,7 @@ function FieldFastInner() {
                     </div>
                   )}
                   <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
-                    {order.itemCount} item{order.itemCount!==1?'s':''} · Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
+                    {order.itemCount} pack{order.itemCount!==1?'s':''} · Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
                   </div>
                   {order.totalOrderCost>0&&<div style={{fontSize:12,fontWeight:600,color:'var(--green)',marginTop:2}}>
                     Total: ${order.totalOrderCost.toFixed(2)}</div>}
@@ -546,7 +553,7 @@ function FieldFastInner() {
             <div style={{fontSize:13,color:'var(--text-3)',lineHeight:1.8}}>
               <div>Type: {o.orderType==='online'?'🌐 Online':'🏪 Store'}</div>
               <div>Started: {o.startDate}</div>
-              <div>Items: <strong>{cart.length}</strong></div>
+              <div>Packs: <strong>{cart.length}</strong> &nbsp;·&nbsp; Variants (units): <strong>{cart.reduce((s,i)=>s+i.qty,0)}</strong></div>
               <div>Purchase value: <strong style={{color:'var(--text)'}}>${cartTotal.toFixed(2)}</strong></div>
               <div>Commission (3%): <strong style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</strong></div>
             </div>
@@ -946,7 +953,7 @@ function FieldFastInner() {
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontWeight:600,fontFamily:'monospace',fontSize:14}}>{item.code}</div>
                           <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>
-                            {item.category} · {item.colors.length} colors × {item.sizes.length} sizes · ${item.price} · {item.qty} units
+                            {item.category} · {item.colors.length} color{item.colors.length!==1?'s':''} × {item.sizes.length} size{item.sizes.length!==1?'s':''} · {item.qty} variants · ${item.price}
                           </div>
                         </div>
                         {item.photo&&<img src={item.photo} alt="" style={{width:36,height:36,borderRadius:6,objectFit:'cover'}}/>}
@@ -958,7 +965,7 @@ function FieldFastInner() {
                           <div style={{fontSize:12,color:'var(--text-2)',padding:'10px 0',lineHeight:1.7}}>
                             <div><strong>Colors:</strong> {item.colors.join(', ')}</div>
                             <div><strong>Sizes:</strong> {item.sizes.join(', ')}</div>
-                            <div><strong>Total units:</strong> {item.qty}</div>
+                            <div><strong>Variants (units):</strong> {item.qty} &nbsp;<span style={{color:'var(--text-3)',fontSize:11}}>({item.colors.length} colors × {item.sizes.length} sizes)</span></div>
                             <div><strong>Line total:</strong> ${(item.price*item.qty).toFixed(2)}</div>
                             {item.notes&&<div><strong>Note:</strong> {item.notes}</div>}
                           </div>
@@ -990,7 +997,7 @@ function FieldFastInner() {
           padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',
           boxShadow:'0 -4px 16px rgba(0,0,0,.08)',zIndex:50}}>
           <div style={{fontSize:12,color:'var(--text-3)'}}>
-            {cart.length} item{cart.length!==1?'s':''} · {Object.keys(cartByVendor).length} vendor{Object.keys(cartByVendor).length!==1?'s':''}
+            {cart.length} pack{cart.length!==1?'s':''} · {cart.reduce((s,i)=>s+i.qty,0)} variants · {Object.keys(cartByVendor).length} vendor{Object.keys(cartByVendor).length!==1?'s':''}
           </div>
           <div style={{fontWeight:700,fontSize:18,color:'var(--green)'}}>${cartTotal.toFixed(2)}</div>
         </div>
