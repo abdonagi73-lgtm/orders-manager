@@ -41,7 +41,7 @@ function FieldFastInner() {
   const searchParams = useSearchParams();
   const location = searchParams.get('location') || '';
 
-  type Screen = 'login'|'orders'|'setup'|'entry'|'cart'|'success'|'earnings';
+  type Screen = 'login'|'orders'|'detail'|'setup'|'entry'|'cart'|'success'|'earnings';
   const [screen, setScreen] = useState<Screen>('login');
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -84,8 +84,10 @@ function FieldFastInner() {
     tempId:string; vendor:string; code:string; category:string;
     colors:string[]; sizes:string[]; price:number; qty:number; notes:string; photo:string;
     serverId?:string; // if loaded from existing order
+    orig?:OrderItem;  // original server item, to preserve status/createdAt/etc on update
   }
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [deletedServerIds, setDeletedServerIds] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<Record<string,boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [shippingCost, setShippingCost] = useState('');
@@ -93,6 +95,7 @@ function FieldFastInner() {
   const [toast, setToast] = useState('');
   // Centered error box
   const [errorBox, setErrorBox] = useState<{title:string; items:string[]}|null>(null);
+  const [confirmBox, setConfirmBox] = useState<{title:string; message:string; onConfirm:()=>void}|null>(null);
 
   function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2000); }
 
@@ -187,6 +190,10 @@ function FieldFastInner() {
   }
 
   function removeRow(tempId:string){
+    const item = cart.find(i=>i.tempId===tempId);
+    if(item?.serverId){
+      setDeletedServerIds(prev=>[...prev, item.serverId!]);
+    }
     setCart(prev=>prev.filter(i=>i.tempId!==tempId));
   }
 
@@ -194,13 +201,14 @@ function FieldFastInner() {
   cart.forEach(i=>{ if(!cartByVendor[i.vendor]) cartByVendor[i.vendor]=[]; cartByVendor[i.vendor].push(i); });
   const cartTotal = cart.reduce((s,i)=>s+i.price*i.qty,0);
 
-  // Open an existing order to edit
+  // Open an existing order — load everything, show detail screen
   async function openExistingOrder(order:Order){
     setEditingExisting(order);
     setOrderName(order.name);
     setOrderDate(order.startDate);
     setOrderType(order.orderType||'store');
     setShippingCost(String(order.shippingCost||''));
+    setDeletedServerIds([]);
     // Load its items into cart
     const res = await fetch(`/api/items?orderId=${order.id}`);
     const d = await res.json();
@@ -214,22 +222,36 @@ function FieldFastInner() {
     setCart(items.map(i=>({
       tempId:'t_'+i.id, serverId:i.id, vendor:i.vendor, code:i.code, category:i.category,
       colors:safeArr(i.colors), sizes:safeArr(i.sizes), price:i.price, qty:i.qty,
-      notes:i.notes||'', photo:photos[i.id]||'',
+      notes:i.notes||'', photo:photos[i.id]||'', orig:i,
     })));
     setCurrentVendor(''); setFormOpen(false);
-    setScreen('entry');
+    setScreen('detail');
   }
 
   function startNewOrder(){
     setEditingExisting(null);
     setOrderName(''); setOrderDate(new Date().toISOString().split('T')[0]);
     setOrderType('store'); setShippingCost(''); setCart([]); setCurrentVendor('');
-    setFormOpen(false);
+    setDeletedServerIds([]); setFormOpen(false);
     setScreen('setup');
   }
 
-  async function submitOrder(){
-    if(cart.length===0){ setErrorBox({title:'Cannot submit', items:['Add at least one item first']}); return; }
+  // Delete an entire order
+  async function deleteWholeOrder(order:Order){
+    setErrorBox(null);
+    await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'delete',orderId:order.id})});
+    if(worker) loadOrders(worker.id);
+    setScreen('orders');
+    showToast('Order deleted');
+  }
+
+  // Persist the cart to the server. keepOpen=true leaves status 'open' for multi-day work.
+  async function persistOrder(keepOpen:boolean){
+    if(cart.length===0 && !editingExisting){
+      setErrorBox({title:'Cannot save', items:['Add at least one item first']});
+      return;
+    }
     setSubmitting(true);
     try {
       const totalValue = cartTotal;
@@ -240,8 +262,6 @@ function FieldFastInner() {
       let order:Order;
       if(editingExisting){
         order = editingExisting;
-        // Delete removed items, update/add others - simplest: delete all server items then re-add
-        // For now: add new items (those without serverId), keep existing
       } else {
         const orderRes = await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({action:'create',name:orderName.trim(),startDate:orderDate,
@@ -251,44 +271,78 @@ function FieldFastInner() {
         if(!order) throw new Error('Failed to create order');
       }
 
+      // 1. Delete removed server items
+      for(const sid of deletedServerIds){
+        await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({id:sid})}).catch(()=>{});
+      }
+
+      // 2. Add new items, update edited existing items
       const usageItems:{type:string,name:string}[] = [];
       for(const item of cart){
-        if(item.serverId) continue; // already on server
-        const r = await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({orderId:order.id,workerId:worker!.id,vendor:item.vendor,
-            code:item.code,category:item.category,colors:item.colors,sizes:item.sizes,
-            price:item.price,qty:item.qty,notes:item.notes,photo:item.photo})});
-        const itemData = await r.json();
-        if(itemData.item && item.photo){
-          fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({itemId:itemData.item.id,photo:item.photo})}).catch(()=>{});
+        if(item.serverId){
+          // Update existing item — merge edits onto original to preserve status/createdAt/orderId
+          const fullItem = {
+            ...(item.orig||{}),
+            id:item.serverId, orderId:order.id, workerId:worker!.id,
+            vendor:item.vendor, code:item.code, category:item.category,
+            colors:item.colors, sizes:item.sizes,
+            price:item.price, qty:item.qty, notes:item.notes,
+          };
+          await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(fullItem)}).catch(()=>{});
+          if(item.photo){
+            fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({itemId:item.serverId,photo:item.photo})}).catch(()=>{});
+          }
+        } else {
+          const r = await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({orderId:order.id,workerId:worker!.id,vendor:item.vendor,
+              code:item.code,category:item.category,colors:item.colors,sizes:item.sizes,
+              price:item.price,qty:item.qty,notes:item.notes,photo:item.photo})});
+          const itemData = await r.json();
+          if(itemData.item && item.photo){
+            fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({itemId:itemData.item.id,photo:item.photo})}).catch(()=>{});
+          }
+          usageItems.push({type:'vendors',name:item.vendor});
+          usageItems.push({type:'categories',name:item.category});
+          [...new Set(item.colors)].forEach(c=>usageItems.push({type:'colors',name:c}));
+          [...new Set(item.sizes)].forEach(s=>usageItems.push({type:'sizes',name:String(s)}));
         }
-        usageItems.push({type:'vendors',name:item.vendor});
-        usageItems.push({type:'categories',name:item.category});
-        [...new Set(item.colors)].forEach(c=>usageItems.push({type:'colors',name:c}));
-        [...new Set(item.sizes)].forEach(s=>usageItems.push({type:'sizes',name:String(s)}));
       }
       if(usageItems.length){
         fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({items:usageItems})}).catch(()=>{});
       }
 
-      const updated = {...order, shippingCost:shipping, workerCommission:commission,
-        totalOrderCost, status:'submitted' as const};
+      // 3. Update order status & totals
+      const updated = {...order, name:orderName.trim(), startDate:orderDate, orderType,
+        shippingCost:shipping, workerCommission:commission, totalOrderCost,
+        status: (keepOpen ? 'open' : 'submitted') as Order['status']};
       await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',order:updated})});
 
       fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({orderId:order.id,orderName:order.name,
-          action:`Order ${editingExisting?'updated':'submitted'} · ${cart.length} items · $${totalValue.toFixed(2)}`,
+          action:`Order ${keepOpen?'saved (open)':'submitted'} · ${cart.length} items · $${totalValue.toFixed(2)}`,
           by:worker!.name})}).catch(()=>{});
 
+      setDeletedServerIds([]);
       if(worker) loadOrders(worker.id);
-      setScreen('success');
+      if(keepOpen){
+        showToast('Saved — order kept open');
+        setScreen('orders');
+      } else {
+        setScreen('success');
+      }
     } catch(e:any){
-      setErrorBox({title:'Submit failed', items:[e.message]});
+      setErrorBox({title:'Save failed', items:[e.message]});
     } finally { setSubmitting(false); }
   }
+
+  function submitOrder(){ persistOrder(false); }
+  function saveAndKeepOpen(){ persistOrder(true); }
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>){
     const file = e.target.files?.[0];
@@ -332,6 +386,20 @@ function FieldFastInner() {
               ))}
             </div>
             <button className="btn btn-primary" style={{width:'100%',height:42}} onClick={()=>setErrorBox(null)}>Got it</button>
+          </div>
+        </div>
+      )}
+      {confirmBox&&(
+        <div className="confirm-overlay" onClick={()=>setConfirmBox(null)}>
+          <div className="confirm-box" onClick={e=>e.stopPropagation()}>
+            <div className="confirm-icon">🗑️</div>
+            <div className="confirm-title">{confirmBox.title}</div>
+            <div style={{fontSize:14,color:'var(--text-3)',margin:'10px 0 20px',lineHeight:1.5}}>{confirmBox.message}</div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn" style={{flex:1,height:42}} onClick={()=>setConfirmBox(null)}>Cancel</button>
+              <button className="btn" style={{flex:1,height:42,background:'var(--red)',color:'#fff',borderColor:'var(--red)'}}
+                onClick={()=>{const fn=confirmBox.onConfirm; setConfirmBox(null); fn();}}>Delete</button>
+            </div>
           </div>
         </div>
       )}
@@ -411,6 +479,87 @@ function FieldFastInner() {
       {overlays}
     </div>
   );
+
+  // ── ORDER DETAIL (Continue / Edit / Delete) ──
+  if(screen==='detail' && editingExisting){
+    const o = editingExisting;
+    const detailByVendor: Record<string, typeof cart> = {};
+    cart.forEach(i=>{ if(!detailByVendor[i.vendor]) detailByVendor[i.vendor]=[]; detailByVendor[i.vendor].push(i); });
+    return (
+      <div className="page">
+        <div className="header"><div className="container"><div className="header-inner">
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+            <div><div className="header-title">{o.name}</div>
+              <div className="header-sub">{cart.length} items · ${cartTotal.toFixed(2)}</div></div>
+          </div>
+          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
+        </div></div></div>
+
+        <div className="container" style={{paddingTop:16,paddingBottom:40}}>
+          {/* Order summary card */}
+          <div className="card" style={{marginBottom:14}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div style={{fontWeight:700,fontSize:16}}>{o.name}</div>
+              <span className={`badge ${o.status==='open'?'badge-pending':o.status==='submitted'?'badge-info':'badge-approved'}`}>{o.status}</span>
+            </div>
+            <div style={{fontSize:13,color:'var(--text-3)',lineHeight:1.8}}>
+              <div>Type: {o.orderType==='online'?'🌐 Online':'🏪 Store'}</div>
+              <div>Started: {o.startDate}</div>
+              <div>Items: <strong>{cart.length}</strong></div>
+              <div>Purchase value: <strong style={{color:'var(--text)'}}>${cartTotal.toFixed(2)}</strong></div>
+              <div>Commission (3%): <strong style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</strong></div>
+            </div>
+          </div>
+
+          {/* Items grouped by vendor (read overview) */}
+          {Object.entries(detailByVendor).map(([vendor,items])=>(
+            <div key={vendor} className="card" style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingBottom:8,marginBottom:8,borderBottom:'2px solid var(--border)'}}>
+                <div style={{fontWeight:700,fontSize:15}}>{vendor}</div>
+                <div style={{fontSize:12,color:'var(--text-3)'}}>{items.length} item{items.length!==1?'s':''} · ${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}</div>
+              </div>
+              {items.map(item=>(
+                <div key={item.tempId} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'8px 0',borderBottom:'1px solid var(--border)',gap:10}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>{item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}</div>
+                    <div style={{fontSize:12,color:'var(--text-3)'}}>${item.price} × {item.qty} = <strong>${(item.price*item.qty).toFixed(2)}</strong></div>
+                  </div>
+                  {item.photo&&<img src={item.photo} alt="" style={{width:40,height:40,borderRadius:6,objectFit:'cover',flexShrink:0}}/>}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {cart.length===0&&(
+            <div className="empty"><div className="empty-text">No items in this order yet</div></div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:16}}>
+            <button className="btn btn-primary" style={{width:'100%',padding:14,fontSize:15}}
+              onClick={()=>{ setCurrentVendor(''); setFormOpen(false); setScreen('entry'); }}>
+              Continue adding / edit items
+            </button>
+            <button className="btn btn-success" style={{width:'100%',padding:14,fontSize:15}}
+              onClick={()=>setScreen('cart')}>
+              Review &amp; submit order
+            </button>
+            <button className="btn" style={{width:'100%',padding:14,fontSize:15,color:'var(--red)',borderColor:'var(--red-border)'}}
+              onClick={()=>setConfirmBox({
+                title:'Delete this order?',
+                message:`"${o.name}" and all its ${cart.length} items will be permanently deleted. This cannot be undone.`,
+                onConfirm:()=>deleteWholeOrder(o),
+              })}>
+              Delete entire order
+            </button>
+          </div>
+        </div>
+        {overlays}
+      </div>
+    );
+  }
 
   // ── EARNINGS ──
   if(screen==='earnings'){
@@ -574,10 +723,16 @@ function FieldFastInner() {
             <span style={{color:'var(--text-3)'}}>Your commission (3%)</span><span style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</span>
           </div>
         </div>
-        <button className="btn btn-success" style={{width:'100%',padding:16,fontSize:16,fontWeight:600}}
-          onClick={submitOrder} disabled={submitting}>
-          {submitting?'Submitting...':editingExisting?'Save changes':`Submit order · ${cart.length} items`}
-        </button>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <button className="btn" style={{width:'100%',padding:14,fontSize:15,fontWeight:600,borderColor:'var(--green-border)',color:'var(--green)'}}
+            onClick={saveAndKeepOpen} disabled={submitting}>
+            {submitting?'Saving...':'Save & keep open (add more later)'}
+          </button>
+          <button className="btn btn-success" style={{width:'100%',padding:16,fontSize:16,fontWeight:600}}
+            onClick={submitOrder} disabled={submitting}>
+            {submitting?'Submitting...':`Submit order · ${cart.length} items`}
+          </button>
+        </div>
       </div>
       {overlays}
     </div>
@@ -593,7 +748,10 @@ function FieldFastInner() {
           <div><div className="header-title">{orderName||'Order'}</div>
             <div className="header-sub">{cart.length} items{cartTotal>0&&<span style={{marginLeft:6,color:'var(--green)',fontWeight:600}}>${cartTotal.toFixed(0)}</span>}</div></div>
         </div>
-        <button className="btn btn-sm btn-primary" onClick={()=>setScreen('cart')}>Review ({cart.length})</button>
+        <div style={{display:'flex',gap:6}}>
+          {editingExisting&&<button className="btn btn-sm" onClick={()=>setScreen('detail')}>← Back</button>}
+          <button className="btn btn-sm btn-primary" onClick={()=>setScreen('cart')}>Review ({cart.length})</button>
+        </div>
       </div></div></div>
 
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
