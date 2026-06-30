@@ -131,18 +131,30 @@ export async function createOrder(order: Order): Promise<void> {
 
 export async function updateOrder(order: Order): Promise<void> {
   const sheets = await getSheets();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
-  });
-  const ids = (res.data.values ?? []).map(r => r[0]);
-  const rowIndex = ids.findIndex(id => id === order.id);
-  if (rowIndex < 1) throw new Error('Order not found');
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ORDERS}!A${rowIndex + 1}:O${rowIndex + 1}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [orderToRow(order)] },
-  });
+
+  async function findAndUpdate(): Promise<boolean> {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+    });
+    const ids = (res.data.values ?? []).map(r => r[0]);
+    const rowIndex = ids.findIndex(id => id === order.id);
+    if (rowIndex < 1) return false;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${TAB_ORDERS}!A${rowIndex + 1}:O${rowIndex + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [orderToRow(order)] },
+    });
+    return true;
+  }
+
+  // Try once, then retry after 1.5s if not found yet (e.g. just created)
+  const found = await findAndUpdate();
+  if (!found) {
+    await new Promise(r => setTimeout(r, 1500));
+    const retry = await findAndUpdate();
+    if (!retry) throw new Error(`Order not found after retry: ${order.id}`);
+  }
 }
 
 function orderToRow(o: Order): string[] {

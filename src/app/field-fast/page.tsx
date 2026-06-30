@@ -225,18 +225,14 @@ function FieldFastInner() {
         setCart(prev=>[newItem,...prev]);
         showToast('Item saved');
       }
-      // Update order totals on server — AWAIT this so the list always shows correct counts
+      // Update order totals on server — non-blocking so a failure never prevents item save
       const newCartLength = editingTempId ? cart.length : cart.length + 1;
       const newTotal = cart.reduce((s,i)=>{
         if(editingTempId && i.tempId===editingTempId) return s+Number(price)*(autoQty||1);
         return s+i.price*i.qty;
       },0) + (editingTempId?0:Number(price)*(autoQty||1));
-      const newVariants = cart.reduce((s,i)=>{
-        if(editingTempId && i.tempId===editingTempId) return s+(autoQty||1);
-        return s+i.qty;
-      },0) + (editingTempId?0:(autoQty||1));
       const commission = parseFloat((newTotal*0.03).toFixed(2));
-      await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+      fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',order:{
           ...activeOrder,
           itemCount: newCartLength,
@@ -244,12 +240,12 @@ function FieldFastInner() {
           workerCommission: commission,
           totalOrderCost: parseFloat((newTotal+commission).toFixed(2)),
           status:'open',
-        }})});
+        }})}).catch(()=>{});
 
       resetItemForm();
       setFormOpen(false);
-      // Refresh orders list in background so counts are correct when worker goes back
-      if(worker) loadOrders(worker.id);
+      // Reload orders after a short delay so totals are updated on server before we read back
+      if(worker) setTimeout(()=>loadOrders(worker.id), 2000);
     } catch(e:any){
       setErrorBox({title:'Save failed', items:[e.message]});
     } finally {
