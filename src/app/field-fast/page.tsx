@@ -5,8 +5,7 @@ import Image from 'next/image';
 import ComboBox from '@/components/ComboBox';
 import type { Worker, Order, OrderItem } from '@/lib/types';
 
-const EVEN_SIZES = Array.from({length:17},(_,i)=>String(28+i*2));  // 28,30,32...60
-const ODD_SIZES  = Array.from({length:16},(_,i)=>String(29+i*2));  // 29,31,33...59
+const NUMERIC_SIZES = Array.from({length:33},(_,i)=>String(28+i));  // 28,29,30...60
 const LETTER_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
 const QUICK_COLORS = [
   'Black','White','Gray','Navy','Beige','Brown','Green','Blue',
@@ -76,7 +75,7 @@ function FieldFastInner() {
   const [category, setCategory] = useState('');
   const [colors, setColors] = useState<Sel[]>([]);
   const [sizes, setSizes] = useState<Sel[]>([]);
-  const [sizeMode, setSizeMode] = useState<'letter'|'even'|'odd'>('letter');
+  const [sizeMode, setSizeMode] = useState<'letter'|'numeric'>('letter');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState('');
@@ -879,11 +878,10 @@ function FieldFastInner() {
                   <label className="label">Sizes {sizes.length>0&&<span style={{color:'var(--green)'}}>({total(sizes)})</span>}</label>
                   <div style={{display:'flex',gap:6,marginBottom:8}}>
                     <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`} onClick={()=>setSizeMode('letter')}>Letter</button>
-                    <button className={`btn btn-sm ${sizeMode==='even'?'btn-primary':''}`} onClick={()=>setSizeMode('even')}>Even</button>
-                    <button className={`btn btn-sm ${sizeMode==='odd'?'btn-primary':''}`} onClick={()=>setSizeMode('odd')}>Odd</button>
+                    <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`} onClick={()=>setSizeMode('numeric')}>Numeric</button>
                   </div>
                   <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
-                    {(sizeMode==='letter'?LETTER_SIZES:sizeMode==='even'?EVEN_SIZES:ODD_SIZES).map(s=>(
+                    {(sizeMode==='letter'?LETTER_SIZES:NUMERIC_SIZES).map(s=>(
                       <div key={s} className="chip" style={{flexShrink:0}} onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>
                     ))}
                   </div>
