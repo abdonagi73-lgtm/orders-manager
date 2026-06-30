@@ -86,6 +86,8 @@ function OwnerPageInner() {
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerPin, setNewWorkerPin] = useState('');
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [notifList, setNotifList] = useState<any[]>([]);
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [loggedInName, setLoggedInName] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
@@ -202,6 +204,7 @@ function OwnerPageInner() {
     const res = await fetch('/api/notifications?for=owner');
     const d = await res.json();
     if(typeof d.unread==='number') setUnreadNotifs(d.unread);
+    if(Array.isArray(d.notifications)) setNotifList(d.notifications);
   }
 
   const loadAll = useCallback(async()=>{
@@ -490,15 +493,42 @@ function OwnerPageInner() {
             </div>
             <div style={{display:'flex',gap:5,alignItems:'center',flexShrink:0}}>
               {unreadNotifs>0&&(
-                <button className="btn btn-sm"
-                  style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600,whiteSpace:'nowrap'}}
-                  onClick={async()=>{
-                    await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
-                      body:JSON.stringify({action:'mark-read',for:'owner'})});
-                    setUnreadNotifs(0);
-                  }}>
-                  {unreadNotifs} new
-                </button>
+                <div style={{position:'relative'}}>
+                  <button className="btn btn-sm"
+                    style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600,whiteSpace:'nowrap'}}
+                    onClick={()=>setNotifPanelOpen(p=>!p)}>
+                    {unreadNotifs} new
+                  </button>
+                  {notifPanelOpen&&(
+                    <div style={{position:'fixed',top:60,right:12,width:320,maxHeight:400,overflowY:'auto',
+                      background:'var(--surface)',border:'1px solid var(--border-strong)',
+                      borderRadius:'var(--r)',boxShadow:'var(--shadow-lg)',zIndex:200}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                        padding:'12px 14px',borderBottom:'1px solid var(--border)',fontWeight:600,fontSize:14}}>
+                        <span>Notifications</span>
+                        <div style={{display:'flex',gap:8}}>
+                          <button className="btn btn-sm" style={{fontSize:11}} onClick={async()=>{
+                            await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
+                              body:JSON.stringify({action:'mark-read',for:'owner'})});
+                            setUnreadNotifs(0); setNotifPanelOpen(false);
+                          }}>Mark all read</button>
+                          <button className="btn btn-sm btn-ghost" onClick={()=>setNotifPanelOpen(false)}>✕</button>
+                        </div>
+                      </div>
+                      {notifList.length===0?(
+                        <div style={{padding:16,fontSize:13,color:'var(--text-3)'}}>No notifications</div>
+                      ):notifList.map((n:any,i:number)=>(
+                        <div key={i} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',
+                          background:n.read==='false'||n.read===false?'var(--amber-light)':'transparent'}}>
+                          <div style={{fontSize:13,fontWeight:500}}>{n.message||n[9]||'New notification'}</div>
+                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:3}}>
+                            {n.type||n[1]} · {n.workerName||n[4]||''} · {(n.createdAt||n[11]||'').slice(0,10)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               <button className="btn btn-sm" style={{fontWeight:500}}
                 onClick={()=>{

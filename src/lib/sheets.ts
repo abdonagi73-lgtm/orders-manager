@@ -117,8 +117,13 @@ export async function getOrdersByWorker(workerId: string): Promise<Order[]> {
 
 export async function createOrder(order: Order): Promise<void> {
   const sheets = await getSheets();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:O`,
+  const colA = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+  });
+  const nextRow = (colA.data.values ?? []).length + 1;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_ORDERS}!A${nextRow}:O${nextRow}`,
     valueInputOption: 'RAW',
     requestBody: { values: [orderToRow(order)] },
   });
@@ -176,8 +181,16 @@ export async function getAllItems(): Promise<OrderItem[]> {
 
 export async function appendItem(item: OrderItem): Promise<void> {
   const sheets = await getSheets();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:N`,
+  // ROBUST: find the actual last used row in column A, then write to next row explicitly.
+  // Google Sheets append can misplace data if any cell outside column A has stale content.
+  const colA = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:A`,
+  });
+  const lastRow = (colA.data.values ?? []).length; // includes header row
+  const nextRow = lastRow + 1; // next empty row (1-indexed)
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_ITEMS}!A${nextRow}:N${nextRow}`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -192,10 +205,10 @@ export async function updateItem(item: OrderItem): Promise<void> {
   });
   const ids = (res.data.values ?? []).map(r => r[0]);
   const rowIndex = ids.findIndex(id => id === item.id);
-  if (rowIndex < 1) throw new Error('Item not found');
+  if (rowIndex < 1) throw new Error(`Item not found: ${item.id}`);
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:N${rowIndex + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -529,9 +542,14 @@ export async function addNotification(
 ): Promise<void> {
   try {
     const sheets = await getSheets();
-    await sheets.spreadsheets.values.append({
+    // ROBUST: explicit row targeting to avoid column misalignment
+    const colA = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'Notifications!A:A',
+    });
+    const nextRow = (colA.data.values ?? []).length + 1;
+    await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: 'Notifications!A:L',
+      range: `Notifications!A${nextRow}:L${nextRow}`,
       valueInputOption: 'RAW',
       requestBody: {
         values: [[
