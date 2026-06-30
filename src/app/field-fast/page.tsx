@@ -136,12 +136,6 @@ function FieldFastInner() {
     else setPinError(true);
   }
 
-  function loginByName(w:Worker){
-    setWorker(w);
-    loadOrders(w.id);
-    setScreen('orders');
-  }
-
   function resetItemForm(){
     setCode(''); setCategory(''); setColors([]); setSizes([]);
     setPrice(''); setNotes(''); setPhoto(''); setEditingTempId(null);
@@ -417,7 +411,7 @@ function FieldFastInner() {
     </>
   );
 
-  // ── LOGIN (pick worker by name) ──
+  // ── LOGIN (PIN) ──
   if(screen==='login') return (
     <div className="page">
       <div className="login-wrap">
@@ -426,22 +420,15 @@ function FieldFastInner() {
           <div className="login-brand" style={{textAlign:'center'}}>Order Entry</div>
           <div className="login-sub" style={{textAlign:'center'}}>Choices For You{location?` · ${location}`:''}</div>
           <div className="field" style={{marginTop:20}}>
-            <label className="label">Who are you?</label>
-            {workersList.length===0?(
-              <div style={{fontSize:13,color:'var(--text-3)',textAlign:'center',padding:'12px 0'}}>Loading workers…</div>
-            ):(
-              <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:4}}>
-                {workersList.map(w=>(
-                  <button key={w.id} className="role-card" style={{width:'100%',cursor:'pointer',textAlign:'left',margin:0}}
-                    onClick={()=>loginByName(w)}>
-                    <div className="role-icon" style={{background:'#E8F2EC'}}>👤</div>
-                    <div><div className="role-title">{w.name}</div></div>
-                    <div style={{marginLeft:'auto',color:'var(--text-4)',fontSize:18}}>›</div>
-                  </button>
-                ))}
-              </div>
-            )}
+            <label className="label">Worker PIN</label>
+            <input type="password" inputMode="numeric" value={pin} autoFocus
+              onChange={e=>{setPin(e.target.value);setPinError(false);}}
+              onKeyDown={e=>e.key==='Enter'&&verifyPin()} placeholder="Enter your PIN"/>
+            {pinError&&<div className="field-error">Incorrect PIN</div>}
           </div>
+          <button className="btn btn-primary" style={{width:'100%'}} onClick={verifyPin} disabled={pinLoading}>
+            {pinLoading?'Checking...':'Sign in'}
+          </button>
         </div>
       </div>
       {overlays}
