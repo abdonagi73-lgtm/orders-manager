@@ -90,6 +90,9 @@ function FieldFastInner() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [deletedServerIds, setDeletedServerIds] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<Record<string,boolean>>({});
+  // liveOrder is the order created on server as soon as worker starts entering items
+  const [liveOrder, setLiveOrder] = useState<Order|null>(null);
+  const [savingItem, setSavingItem] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [shippingCost, setShippingCost] = useState('');
 
@@ -154,32 +157,96 @@ function FieldFastInner() {
     return missing;
   }
 
-  function saveItem(){
+  async function saveItem(){
     const missing = validateItem();
     if(missing.length>0){
       setErrorBox({title:'Cannot add item — missing:', items:missing});
       return;
     }
-    if(editingTempId){
-      // Update existing cart item
-      setCart(prev=>prev.map(i=>i.tempId===editingTempId?{
-        ...i, code:code.trim(), category, colors:flat(colors), sizes:flat(sizes),
-        price:Number(price), qty:autoQty||1, notes, photo
-      }:i));
-      showToast('Item updated');
-    } else {
-      const item:CartItem = {
-        tempId:'t_'+Date.now()+Math.random(),
-        vendor:currentVendor, code:code.trim(), category,
-        colors:flat(colors), sizes:flat(sizes),
-        price:Number(price), qty:autoQty||1, notes, photo,
-      };
-      // Add to TOP
-      setCart(prev=>[item,...prev]);
-      showToast('Item added');
+    setSavingItem(true);
+    // The active order — either existing or newly created
+    const activeOrder = editingExisting || liveOrder;
+    if(!activeOrder){
+      setErrorBox({title:'No active order', items:['Please go back and start an order first']}); 
+      setSavingItem(false); return;
     }
-    resetItemForm();
-    setFormOpen(false);
+    try {
+      if(editingTempId){
+        // Update existing cart item — save to server if it has a serverId
+        const existing = cart.find(i=>i.tempId===editingTempId);
+        const updated = {
+          ...existing, code:code.trim(), category, colors:flat(colors), sizes:flat(sizes),
+          price:Number(price), qty:autoQty||1, notes, photo
+        };
+        if(existing?.serverId){
+          await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({...(existing.orig||{}),id:existing.serverId,
+              orderId:activeOrder.id,workerId:worker!.id,
+              vendor:updated.vendor,code:updated.code,category:updated.category,
+              colors:updated.colors,sizes:updated.sizes,
+              price:updated.price,qty:updated.qty,notes:updated.notes})}).catch(()=>{});
+          if(photo && photo!==existing.photo){
+            fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({itemId:existing.serverId,photo})}).catch(()=>{});
+          }
+        }
+        setCart(prev=>prev.map(i=>i.tempId===editingTempId?{...i,...updated}:i));
+        showToast('Item updated');
+      } else {
+        // NEW item — save to server immediately
+        const r = await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({orderId:activeOrder.id,workerId:worker!.id,vendor:currentVendor,
+            code:code.trim(),category,colors:flat(colors),sizes:flat(sizes),
+            price:Number(price),qty:autoQty||1,notes,photo})});
+        const itemData = await r.json();
+        const serverId = itemData.item?.id;
+        // Save photo separately
+        if(serverId && photo){
+          fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({itemId:serverId,photo})}).catch(()=>{});
+        }
+        // Track usage
+        const usageItems = [
+          {type:'vendors',name:currentVendor},{type:'categories',name:category},
+          ...flat(colors).filter((c,i,a)=>a.indexOf(c)===i).map(c=>({type:'colors',name:c})),
+          ...flat(sizes).filter((s,i,a)=>a.indexOf(s)===i).map(s=>({type:'sizes',name:String(s)})),
+        ];
+        fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({items:usageItems})}).catch(()=>{});
+
+        const newItem:CartItem = {
+          tempId:'t_'+Date.now()+Math.random(),
+          serverId, orig:itemData.item,
+          vendor:currentVendor, code:code.trim(), category,
+          colors:flat(colors), sizes:flat(sizes),
+          price:Number(price), qty:autoQty||1, notes, photo,
+        };
+        setCart(prev=>[newItem,...prev]);
+        showToast('Item saved');
+      }
+      // Update order totals on server to reflect new item
+      const newTotal = cart.reduce((s,i)=>{
+        if(editingTempId && i.tempId===editingTempId) return s+Number(price)*(autoQty||1);
+        return s+i.price*i.qty;
+      },0) + (editingTempId?0:Number(price)*(autoQty||1));
+      const commission = parseFloat((newTotal*0.03).toFixed(2));
+      fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'update',order:{
+          ...activeOrder,
+          itemCount: cart.length + (editingTempId?0:1),
+          totalValue: newTotal,
+          workerCommission: commission,
+          totalOrderCost: parseFloat((newTotal+commission).toFixed(2)),
+          status:'open',
+        }})}).catch(()=>{});
+
+      resetItemForm();
+      setFormOpen(false);
+    } catch(e:any){
+      setErrorBox({title:'Save failed', items:[e.message]});
+    } finally {
+      setSavingItem(false);
+    }
   }
 
   function editRow(item:CartItem){
@@ -231,7 +298,7 @@ function FieldFastInner() {
   }
 
   function startNewOrder(){
-    setEditingExisting(null);
+    setEditingExisting(null); setLiveOrder(null);
     setOrderName(''); setOrderDate(new Date().toISOString().split('T')[0]);
     setOrderType('store'); setShippingCost(''); setCart([]); setCurrentVendor('');
     setDeletedServerIds([]); setFormOpen(false);
@@ -249,10 +316,15 @@ function FieldFastInner() {
   }
 
   // Persist the cart to the server. keepOpen=true leaves status 'open' for multi-day work.
+  // NOTE: all items are already saved to server by saveItem() - this just finalizes the order status
   async function persistOrder(keepOpen:boolean){
-    if(cart.length===0 && !editingExisting){
-      setErrorBox({title:'Cannot save', items:['Add at least one item first']});
+    if(cart.length===0){
+      setErrorBox({title:'Cannot submit', items:['Add at least one item first']});
       return;
+    }
+    const activeOrder = editingExisting || liveOrder;
+    if(!activeOrder){
+      setErrorBox({title:'No active order', items:['Something went wrong — please go back and retry']}); return;
     }
     setSubmitting(true);
     try {
@@ -261,66 +333,14 @@ function FieldFastInner() {
       const commission = parseFloat((totalValue*0.03).toFixed(2));
       const totalOrderCost = parseFloat((totalValue+shipping+commission).toFixed(2));
 
-      let order:Order;
-      if(editingExisting){
-        order = editingExisting;
-      } else {
-        const orderRes = await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'create',name:orderName.trim(),startDate:orderDate,
-            workerId:worker!.id,workerName:worker!.name,orderType})});
-        const od = await orderRes.json();
-        order = od.order;
-        if(!order) throw new Error('Failed to create order');
-      }
-
-      // 1. Delete removed server items
+      // Delete any items that were removed while editing
       for(const sid of deletedServerIds){
         await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({id:sid})}).catch(()=>{});
       }
 
-      // 2. Add new items, update edited existing items
-      const usageItems:{type:string,name:string}[] = [];
-      for(const item of cart){
-        if(item.serverId){
-          // Update existing item — merge edits onto original to preserve status/createdAt/orderId
-          const fullItem = {
-            ...(item.orig||{}),
-            id:item.serverId, orderId:order.id, workerId:worker!.id,
-            vendor:item.vendor, code:item.code, category:item.category,
-            colors:item.colors, sizes:item.sizes,
-            price:item.price, qty:item.qty, notes:item.notes,
-          };
-          await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify(fullItem)}).catch(()=>{});
-          if(item.photo){
-            fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({itemId:item.serverId,photo:item.photo})}).catch(()=>{});
-          }
-        } else {
-          const r = await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({orderId:order.id,workerId:worker!.id,vendor:item.vendor,
-              code:item.code,category:item.category,colors:item.colors,sizes:item.sizes,
-              price:item.price,qty:item.qty,notes:item.notes,photo:item.photo})});
-          const itemData = await r.json();
-          if(itemData.item && item.photo){
-            fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({itemId:itemData.item.id,photo:item.photo})}).catch(()=>{});
-          }
-          usageItems.push({type:'vendors',name:item.vendor});
-          usageItems.push({type:'categories',name:item.category});
-          [...new Set(item.colors)].forEach(c=>usageItems.push({type:'colors',name:c}));
-          [...new Set(item.sizes)].forEach(s=>usageItems.push({type:'sizes',name:String(s)}));
-        }
-      }
-      if(usageItems.length){
-        fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({items:usageItems})}).catch(()=>{});
-      }
-
-      // 3. Update order status & totals — ALWAYS use locally computed itemCount/totalValue
-      //    (never trust the possibly-stale `order` object's own itemCount/totalValue here)
-      const updated = {...order, name:orderName.trim(), startDate:orderDate, orderType,
+      // Update order status & totals
+      const updated = {...activeOrder, name:orderName.trim(), startDate:orderDate, orderType,
         shippingCost:shipping, workerCommission:commission, totalOrderCost,
         itemCount: cart.length, totalValue: totalValue,
         status: (keepOpen ? 'open' : 'submitted') as Order['status']};
@@ -328,11 +348,12 @@ function FieldFastInner() {
         body:JSON.stringify({action:'update',order:updated})});
 
       fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({orderId:order.id,orderName:order.name,
+        body:JSON.stringify({orderId:activeOrder.id,orderName:activeOrder.name,
           action:`Order ${keepOpen?'saved (open)':'submitted'} · ${cart.length} items · $${totalValue.toFixed(2)}`,
           by:worker!.name})}).catch(()=>{});
 
       setDeletedServerIds([]);
+      setLiveOrder(null);
       if(worker) loadOrders(worker.id);
       if(keepOpen){
         showToast('Saved — order kept open');
@@ -460,11 +481,17 @@ function FieldFastInner() {
         ):(
           orders.map(order=>(
             <div key={order.id} className="item-card"
-              style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1}}
+              style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1,
+                borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent'}}
               onClick={()=>order.status!=='imported'&&openExistingOrder(order)}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
+                  {order.status==='open'&&(
+                    <div style={{fontSize:11,fontWeight:700,color:'var(--amber)',marginBottom:3}}>
+                      ● Continue this order — not submitted yet
+                    </div>
+                  )}
                   <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
                     {order.itemCount} item{order.itemCount!==1?'s':''} · Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
                   </div>
@@ -659,8 +686,20 @@ function FieldFastInner() {
           </div>
         </div>
         <button className="btn btn-primary" style={{width:'100%',marginTop:16,padding:14,fontSize:15}}
-          onClick={()=>{
+          onClick={async()=>{
             if(!orderName.trim()){ setErrorBox({title:'Cannot continue',items:['Order name']}); return; }
+            // Create order on server RIGHT NOW so items can be saved immediately
+            try {
+              const res = await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({action:'create',name:orderName.trim(),startDate:orderDate,
+                  workerId:worker!.id,workerName:worker!.name,orderType})});
+              const d = await res.json();
+              if(!d.order) throw new Error('Failed to create order');
+              setLiveOrder(d.order);
+              setEditingExisting(d.order);
+            } catch(e:any){
+              setErrorBox({title:'Could not start order',items:[e.message]}); return;
+            }
             setCurrentVendor(''); setFormOpen(false); setScreen('entry');
           }}>Start adding items →</button>
       </div>
@@ -862,8 +901,8 @@ function FieldFastInner() {
                   <label className="label">Note (optional)</label>
                   <input type="text" placeholder="Any note..." value={notes} onChange={e=>setNotes(e.target.value)}/>
                 </div>
-                <button className="btn btn-primary" style={{width:'100%',padding:13,fontSize:15}} onClick={saveItem}>
-                  {editingTempId?'Save changes':'+ Add item'}
+                <button className="btn btn-primary" style={{width:'100%',padding:13,fontSize:15}} onClick={saveItem} disabled={savingItem}>
+                  {savingItem?'Saving…':editingTempId?'Save changes':'+ Add item'}
                 </button>
               </div>
             )}
