@@ -324,9 +324,11 @@ function FieldFastInner() {
           body:JSON.stringify({items:usageItems})}).catch(()=>{});
       }
 
-      // 3. Update order status & totals
+      // 3. Update order status & totals — ALWAYS use locally computed itemCount/totalValue
+      //    (never trust the possibly-stale `order` object's own itemCount/totalValue here)
       const updated = {...order, name:orderName.trim(), startDate:orderDate, orderType,
         shippingCost:shipping, workerCommission:commission, totalOrderCost,
+        itemCount: cart.length, totalValue: totalValue,
         status: (keepOpen ? 'open' : 'submitted') as Order['status']};
       await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',order:updated})});

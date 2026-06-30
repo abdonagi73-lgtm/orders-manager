@@ -445,6 +445,8 @@ function FieldPageInner() {
         shippingCost:shipping,
         workerCommission:commission,
         totalOrderCost,
+        itemCount: items.length,
+        totalValue: totalValue,
         status:'submitted',
       };
       await fetch('/api/orders',{method:'POST',
