@@ -658,6 +658,9 @@ function OwnerPageInner() {
                           }}>Copy</button>
                       )}
                       <button className="btn btn-sm"
+                        style={{color:'var(--blue)',borderColor:'var(--blue-border)'}}
+                        onClick={e=>{e.stopPropagation();window.open(`/order-pdf?orderId=${order.id}`,'_blank');}}>PDF</button>
+                      <button className="btn btn-sm"
                         style={{color:'var(--red)',borderColor:'var(--red-border)'}}
                         onClick={e=>{e.stopPropagation();deleteOrderHandler(order);}}>Delete</button>
                     </div>

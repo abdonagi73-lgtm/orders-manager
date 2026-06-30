@@ -5,7 +5,8 @@ import Image from 'next/image';
 import ComboBox from '@/components/ComboBox';
 import type { Worker, Order, OrderItem } from '@/lib/types';
 
-const EVEN_SIZES = Array.from({length:16},(_,i)=>String(28+i*2));
+const EVEN_SIZES = Array.from({length:17},(_,i)=>String(28+i*2));  // 28,30,32...60
+const ODD_SIZES  = Array.from({length:16},(_,i)=>String(29+i*2));  // 29,31,33...59
 const LETTER_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
 const QUICK_COLORS = [
   'Black','White','Gray','Navy','Beige','Brown','Green','Blue',
@@ -75,7 +76,7 @@ function FieldFastInner() {
   const [category, setCategory] = useState('');
   const [colors, setColors] = useState<Sel[]>([]);
   const [sizes, setSizes] = useState<Sel[]>([]);
-  const [sizeMode, setSizeMode] = useState<'letter'|'numeric'>('letter');
+  const [sizeMode, setSizeMode] = useState<'letter'|'even'|'odd'>('letter');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState('');
@@ -587,6 +588,10 @@ function FieldFastInner() {
               onClick={()=>setScreen('cart')}>
               Review &amp; submit order
             </button>
+            <button className="btn" style={{width:'100%',padding:14,fontSize:15,borderColor:'var(--blue-border)',color:'var(--blue)'}}
+              onClick={()=>window.open(`/order-pdf?orderId=${o.id}`,'_blank')}>
+              ⬇ Download PDF
+            </button>
             <button className="btn" style={{width:'100%',padding:14,fontSize:15,color:'var(--red)',borderColor:'var(--red-border)'}}
               onClick={()=>setConfirmBox({
                 title:'Delete this order?',
@@ -785,6 +790,12 @@ function FieldFastInner() {
             onClick={submitOrder} disabled={submitting}>
             {submitting?'Submitting...':`Submit order · ${cart.length} items`}
           </button>
+          {(editingExisting||liveOrder)&&(
+            <button className="btn" style={{width:'100%',padding:12,fontSize:14,borderColor:'var(--blue-border)',color:'var(--blue)'}}
+              onClick={()=>window.open(`/order-pdf?orderId=${(editingExisting||liveOrder)!.id}`,'_blank')}>
+              ⬇ Download PDF
+            </button>
+          )}
         </div>
       </div>
       {overlays}
@@ -865,10 +876,11 @@ function FieldFastInner() {
                   <label className="label">Sizes {sizes.length>0&&<span style={{color:'var(--green)'}}>({total(sizes)})</span>}</label>
                   <div style={{display:'flex',gap:6,marginBottom:8}}>
                     <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`} onClick={()=>setSizeMode('letter')}>Letter</button>
-                    <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`} onClick={()=>setSizeMode('numeric')}>Numeric</button>
+                    <button className={`btn btn-sm ${sizeMode==='even'?'btn-primary':''}`} onClick={()=>setSizeMode('even')}>Even</button>
+                    <button className={`btn btn-sm ${sizeMode==='odd'?'btn-primary':''}`} onClick={()=>setSizeMode('odd')}>Odd</button>
                   </div>
                   <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
-                    {(sizeMode==='letter'?LETTER_SIZES:EVEN_SIZES).map(s=>(
+                    {(sizeMode==='letter'?LETTER_SIZES:sizeMode==='even'?EVEN_SIZES:ODD_SIZES).map(s=>(
                       <div key={s} className="chip" style={{flexShrink:0}} onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>
                     ))}
                   </div>
@@ -920,8 +932,9 @@ function FieldFastInner() {
             {/* ITEM ROWS for this vendor (collapsible, newest on top) */}
             {vendorItems.length>0&&(
               <div style={{marginBottom:14}}>
-                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--text-3)',padding:'4px 2px',marginBottom:6}}>
-                  {currentVendor} — {vendorItems.length} item{vendorItems.length!==1?'s':''}
+                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--text-3)',padding:'4px 2px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span>{currentVendor} — {vendorItems.length} item{vendorItems.length!==1?'s':''}</span>
+                  <span style={{color:'var(--green)',fontWeight:700,fontSize:13}}>${vendorItems.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
                 </div>
                 {vendorItems.map(item=>{
                   const expanded = expandedRows[item.tempId];
@@ -969,6 +982,20 @@ function FieldFastInner() {
           </>
         )}
       </div>
+
+      {/* STICKY TOTAL BAR — always visible when items exist */}
+      {cart.length>0&&(
+        <div style={{position:'fixed',bottom:0,left:0,right:0,
+          background:'var(--surface)',borderTop:'2px solid var(--border)',
+          padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',
+          boxShadow:'0 -4px 16px rgba(0,0,0,.08)',zIndex:50}}>
+          <div style={{fontSize:12,color:'var(--text-3)'}}>
+            {cart.length} item{cart.length!==1?'s':''} · {Object.keys(cartByVendor).length} vendor{Object.keys(cartByVendor).length!==1?'s':''}
+          </div>
+          <div style={{fontWeight:700,fontSize:18,color:'var(--green)'}}>${cartTotal.toFixed(2)}</div>
+        </div>
+      )}
+
       {overlays}
     </div>
   );
