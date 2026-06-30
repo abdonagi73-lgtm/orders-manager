@@ -42,6 +42,9 @@ export default function Home() {
 
       <div className="home-credit">Developed by Abdo Alasaadi</div>
       <div className="home-credit" style={{marginTop:4}}>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</div>
+      <div className="home-credit" style={{marginTop:8,fontSize:11,letterSpacing:'.05em',color:'var(--text-4)'}}>
+        v2.7 · build {process.env.NEXT_PUBLIC_BUILD_HASH || 'dev'}
+      </div>
     </main>
   );
 }
