@@ -583,7 +583,13 @@ function FieldFastInner() {
           {/* Action buttons */}
           <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:16}}>
             <button className="btn btn-primary" style={{width:'100%',padding:14,fontSize:15}}
-              onClick={()=>{ setCurrentVendor(''); setFormOpen(false); setScreen('entry'); }}>
+              onClick={()=>{
+                // Restore the last vendor used so items are visible immediately
+                const lastVendor = cart.length > 0 ? cart[0].vendor : '';
+                setCurrentVendor(lastVendor);
+                setFormOpen(false);
+                setScreen('entry');
+              }}>
               Continue adding / edit items
             </button>
             <button className="btn btn-success" style={{width:'100%',padding:14,fontSize:15}}
@@ -980,6 +986,52 @@ function FieldFastInner() {
               <button className="btn" style={{flex:1}} onClick={()=>{ setCurrentVendor(''); setFormOpen(false); resetItemForm(); }}>+ New vendor</button>
               {cart.length>0&&<button className="btn btn-success" style={{flex:1}} onClick={()=>setScreen('cart')}>Review ({cart.length})</button>}
             </div>
+
+            {/* OTHER VENDORS — show all other vendors' items so worker can see and edit everything */}
+            {Object.entries(cartByVendor).filter(([v])=>v!==currentVendor).map(([vendor,vitems])=>(
+              <div key={vendor} style={{marginTop:14}}>
+                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',
+                  color:'var(--text-3)',padding:'4px 2px',marginBottom:6,
+                  display:'flex',justifyContent:'space-between',alignItems:'center',
+                  cursor:'pointer'}} onClick={()=>setCurrentVendor(vendor)}>
+                  <span>{vendor} — {vitems.length} item{vitems.length!==1?'s':''}</span>
+                  <span style={{color:'var(--green)',fontWeight:700,fontSize:13}}>${vitems.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
+                </div>
+                {vitems.map(item=>{
+                  const expanded = expandedRows[item.tempId];
+                  return (
+                    <div key={item.tempId} className="item-card" style={{padding:0,overflow:'hidden'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',cursor:'pointer'}}
+                        onClick={()=>setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:600,fontFamily:'monospace',fontSize:14}}>{item.code}</div>
+                          <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>
+                            {item.category} · {item.colors.length} color{item.colors.length!==1?'s':''} × {item.sizes.length} size{item.sizes.length!==1?'s':''} · {item.qty} variants · ${item.price}
+                          </div>
+                        </div>
+                        {item.photo&&<img src={item.photo} alt="" style={{width:36,height:36,borderRadius:6,objectFit:'cover'}}/>}
+                        <span style={{color:'var(--text-4)',fontSize:13}}>{expanded?'▲':'▼'}</span>
+                      </div>
+                      {expanded&&(
+                        <div style={{padding:'0 14px 14px',borderTop:'1px solid var(--border)'}}>
+                          <div style={{fontSize:12,color:'var(--text-2)',padding:'10px 0',lineHeight:1.7}}>
+                            <div><strong>Colors:</strong> {item.colors.join(', ')}</div>
+                            <div><strong>Sizes:</strong> {item.sizes.join(', ')}</div>
+                            <div><strong>Variants (units):</strong> {item.qty} &nbsp;<span style={{color:'var(--text-3)',fontSize:11}}>({item.colors.length} colors × {item.sizes.length} sizes)</span></div>
+                            <div><strong>Line total:</strong> ${(item.price*item.qty).toFixed(2)}</div>
+                            {item.notes&&<div><strong>Note:</strong> {item.notes}</div>}
+                          </div>
+                          <div style={{display:'flex',gap:8}}>
+                            <button className="btn btn-sm" style={{flex:1}} onClick={()=>editRow(item)}>Edit</button>
+                            <button className="btn btn-sm" style={{flex:1,color:'var(--red)',borderColor:'var(--red-border)'}} onClick={()=>removeRow(item.tempId)}>Delete</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </>
         )}
       </div>
