@@ -111,7 +111,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
   onDuplicate:()=>void; onAddMore:()=>void; continueLabel:string;
   isOpen:boolean; onSwipeOpen:()=>void; onSwipeClose:()=>void;
   expanded:boolean; onToggleExpand:()=>void;
-  summary:{vendor:string;packs:number;total:number}[]|null;
+  summary:{vendor:string;packs:number;variants:number;total:number}[]|null;
 }){
   const [offset, setOffset] = useState(0);
   const startX = useRef(0);
@@ -221,7 +221,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
                   transition:'color .15s'}}>
                 <span style={{fontSize:13,transition:'transform .25s',
                   display:'inline-block',transform:expanded?'rotate(180deg)':'rotate(0deg)'}}>▾</span>
-                <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'vendor summary'}</span>
+                <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'order summary'}</span>
               </div>
             )}
           </div>
@@ -240,22 +240,27 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
             <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'4px 0'}}>No items yet</div>
           ):(
             <>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',gap:6,
+              <div style={{display:'grid',gridTemplateColumns:'1fr 55px 65px 75px',gap:6,
                 fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',
                 color:'var(--text-4)',paddingBottom:6,borderBottom:'1px solid var(--border)'}}>
-                <span>Vendor</span><span style={{textAlign:'center'}}>Packs</span><span style={{textAlign:'right'}}>Total</span>
+                <span>Vendor</span>
+                <span style={{textAlign:'center'}}>Packs</span>
+                <span style={{textAlign:'center'}}>Variants</span>
+                <span style={{textAlign:'right'}}>Total</span>
               </div>
               {summary.map(row=>(
-                <div key={row.vendor} style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',gap:6,
+                <div key={row.vendor} style={{display:'grid',gridTemplateColumns:'1fr 55px 65px 75px',gap:6,
                   padding:'5px 0',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
                   <span style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.vendor}</span>
                   <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.packs}</span>
+                  <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.variants}</span>
                   <span style={{fontSize:12,fontWeight:700,color:'var(--green)',textAlign:'right'}}>${row.total.toFixed(2)}</span>
                 </div>
               ))}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',gap:6,padding:'6px 0 0',alignItems:'center'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 55px 65px 75px',gap:6,padding:'6px 0 0',alignItems:'center'}}>
                 <span style={{fontSize:11,fontWeight:700,color:'var(--text-3)'}}>TOTAL</span>
                 <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.packs,0)}</span>
+                <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.variants,0)}</span>
                 <span style={{fontSize:13,fontWeight:800,color:'var(--green)',textAlign:'right'}}>${summary.reduce((s,r)=>s+r.total,0).toFixed(2)}</span>
               </div>
               <div style={{textAlign:'center',marginTop:8}}>
@@ -401,7 +406,7 @@ function FieldFastInner() {
   const [openOrderId, setOpenOrderId] = useState<string|null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<string,boolean>>({});
   const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp // tracks which swipe card is open
-  const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;packs:number;total:number}[]>>({}); // cache
+  const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;packs:number;variants:number;total:number}[]>>({}); // cache
 
   const [toast, setToast] = useState('');
   const [errorBox, setErrorBox] = useState<{title:string;items:string[]}|null>(null);
@@ -455,14 +460,17 @@ function FieldFastInner() {
         try {
           const ir = await fetch(`/api/items?orderId=${order.id}`);
           const id = await ir.json();
-          const byV:Record<string,{packs:number;total:number}>={};
+          const byV:Record<string,{packs:number;variants:number;total:number}>={};
           (id.items||[]).forEach((i:any)=>{
-            if(!byV[i.vendor]) byV[i.vendor]={packs:0,total:0};
+            if(!byV[i.vendor]) byV[i.vendor]={packs:0,variants:0,total:0};
             byV[i.vendor].packs++;
+            const colorsCount = Array.isArray(i.colors) ? i.colors.length : 0;
+            const sizesCount = Array.isArray(i.sizes) ? i.sizes.length : 0;
+            byV[i.vendor].variants += colorsCount * sizesCount;
             byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
           });
           setOrderSummaries(prev=>({...prev,[order.id]:
-            Object.entries(byV).map(([vendor,{packs,total}])=>({vendor,packs,total}))
+            Object.entries(byV).map(([vendor,{packs,variants,total}])=>({vendor,packs,variants,total}))
           }));
         } catch {}
       });
