@@ -7,17 +7,25 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
-// ── Smooth expand panel (Samsung notification drawer style) ──
-// Uses max-height + cubic-bezier for natural spring-like feel
-function SmoothPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
+// Samsung-style smooth expand panel — swipe down to open, swipe up to close
+function SmoothPanel({ open, onClose, children }:{ open:boolean; onClose:()=>void; children:React.ReactNode }){
+  const startY = React.useRef(0);
+  const touching = React.useRef(false);
+  function onTS(e:React.TouchEvent){ touching.current=true; startY.current=e.touches[0].clientY; }
+  function onTE(e:React.TouchEvent){
+    if(!touching.current) return; touching.current=false;
+    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
+    if(dy < -40) onClose();
+  }
   return (
     <div style={{
       maxHeight: open ? '600px' : '0px',
       overflow: 'hidden',
       transition: open
-        ? 'max-height 0.42s cubic-bezier(0.34, 1.12, 0.64, 1)' // spring overshoot on open
-        : 'max-height 0.28s cubic-bezier(0.4, 0, 0.6, 1)',      // smooth snap on close
-    }}>
+        ? 'max-height 0.42s cubic-bezier(0.34, 1.12, 0.64, 1)'
+        : 'max-height 0.28s cubic-bezier(0.4, 0, 0.6, 1)',
+    }}
+    onTouchStart={onTS} onTouchEnd={onTE}>
       {children}
     </div>
   );
@@ -147,7 +155,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
       </div>
 
       {/* Smooth slide-down vendor summary */}
-      <SmoothPanel open={expanded}>
+      <SmoothPanel open={expanded} onClose={()=>setExpanded(false)}>
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
           padding:'0 14px 12px'}}>
@@ -531,8 +539,27 @@ function OwnerPageInner() {
       fetch('/api/orders').then(r=>r.json()),
       fetch('/api/session').then(r=>r.json()),
     ]);
-    if(ordersRes.orders) setOrders([...ordersRes.orders].sort((a:Order,b:Order)=>
-      new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()));
+    if(ordersRes.orders){
+      const sorted=[...ordersRes.orders].sort((a:Order,b:Order)=>
+        new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime());
+      setOrders(sorted);
+      // Pre-fetch all summaries in background so slide-down is instant
+      sorted.forEach(async(order:Order)=>{
+        try {
+          const ir=await fetch(`/api/items?orderId=${order.id}`);
+          const id=await ir.json();
+          const byV:Record<string,{items:number;total:number}>={};
+          (id.items||[]).forEach((i:any)=>{
+            if(!byV[i.vendor]) byV[i.vendor]={items:0,total:0};
+            byV[i.vendor].items++;
+            byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
+          });
+          setOrderSummaries(prev=>({...prev,[order.id]:
+            Object.entries(byV).map(([vendor,{items,total}])=>({vendor,items,total}))
+          }));
+        } catch {}
+      });
+    }
     if(sessionRes.settings) setSettings(sessionRes.settings);
     if(sessionRes.registry) setRegistry(sessionRes.registry);
     if(sessionRes.workers) setWorkers(sessionRes.workers);
@@ -956,20 +983,19 @@ function OwnerPageInner() {
                   order={order}
                   selectedOrder={selectedOrder}
                   summary={orderSummaries[order.id]??null}
-                  onExpand={async()=>{
-                    if(orderSummaries[order.id]) return;
-                    setOrderSummaries(p=>({...p,[order.id]:[]}));
-                    try {
-                      const res=await fetch(`/api/items?orderId=${order.id}`);
-                      const d=await res.json();
-                      const byV:Record<string,{items:number;total:number}>={};
-                      (d.items||[]).forEach((i:any)=>{
-                        if(!byV[i.vendor]) byV[i.vendor]={items:0,total:0};
-                        byV[i.vendor].items++;
-                        byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
-                      });
-                      setOrderSummaries(p=>({...p,[order.id]:Object.entries(byV).map(([vendor,v])=>({vendor,...v}))}));
-                    } catch { setOrderSummaries(p=>({...p,[order.id]:[]})); }
+                  onExpand={()=>{
+                    // Data is pre-loaded on login — fallback fetch if not available
+                    if(!orderSummaries[order.id]){
+                      setOrderSummaries(p=>({...p,[order.id]:[]}));
+                      fetch(`/api/items?orderId=${order.id}`).then(r=>r.json()).then(d=>{
+                        const byV:Record<string,{items:number;total:number}>={};
+                        (d.items||[]).forEach((i:any)=>{
+                          if(!byV[i.vendor]) byV[i.vendor]={items:0,total:0};
+                          byV[i.vendor].items++; byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
+                        });
+                        setOrderSummaries(p=>({...p,[order.id]:Object.entries(byV).map(([vendor,v])=>({vendor,...v}))}));
+                      }).catch(()=>{});
+                    }
                   }}
                   onSelect={()=>selectOrder(order)}
                   onEdit={()=>setEditOrderModal({...order})}

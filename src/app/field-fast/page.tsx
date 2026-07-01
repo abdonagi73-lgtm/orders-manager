@@ -94,7 +94,15 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
 
 // ── Swipeable order card ──
 // Samsung notification-style smooth expand panel
-function SmoothPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
+function SmoothPanel({ open, onClose, children }:{ open:boolean; onClose:()=>void; children:React.ReactNode }){
+  const startY = useRef(0);
+  const touching = useRef(false);
+  function onTS(e:React.TouchEvent){ touching.current=true; startY.current=e.touches[0].clientY; }
+  function onTE(e:React.TouchEvent){
+    if(!touching.current) return; touching.current=false;
+    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
+    if(dy < -40) onClose(); // swipe up → close
+  }
   return (
     <div style={{
       maxHeight: open ? '600px' : '0px',
@@ -102,7 +110,8 @@ function SmoothPanel({ open, children }:{ open:boolean; children:React.ReactNode
       transition: open
         ? 'max-height 0.42s cubic-bezier(0.34, 1.12, 0.64, 1)'
         : 'max-height 0.28s cubic-bezier(0.4, 0, 0.6, 1)',
-    }}>
+    }}
+    onTouchStart={onTS} onTouchEnd={onTE}>
       {children}
     </div>
   );
@@ -237,7 +246,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
         </div>
       </div>
 
-      <SmoothPanel open={expanded}>
+      <SmoothPanel open={expanded} onClose={()=>setExpanded(false)}>
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
           padding:'0 16px 12px',boxShadow:'var(--shadow-sm)'}}>
@@ -404,10 +413,29 @@ function FieldFastInner() {
   const loadOrders = useCallback(async(workerId:string)=>{
     const res = await fetch(`/api/orders?workerId=${workerId}`);
     const d = await res.json();
-    if(d.orders) setOrders([...d.orders].sort((a:Order,b:Order)=>{
-      const da=a.createdAt||a.startDate||''; const db=b.createdAt||b.startDate||'';
-      return new Date(db).getTime()-new Date(da).getTime();
-    }));
+    if(d.orders){
+      const sorted = [...d.orders].sort((a:Order,b:Order)=>{
+        const da=a.createdAt||a.startDate||''; const db=b.createdAt||b.startDate||'';
+        return new Date(db).getTime()-new Date(da).getTime();
+      });
+      setOrders(sorted);
+      // Pre-fetch ALL summaries in background so slide-down is instant
+      sorted.forEach(async(order:Order)=>{
+        try {
+          const ir = await fetch(`/api/items?orderId=${order.id}`);
+          const id = await ir.json();
+          const byV:Record<string,{packs:number;total:number}>={};
+          (id.items||[]).forEach((i:any)=>{
+            if(!byV[i.vendor]) byV[i.vendor]={packs:0,total:0};
+            byV[i.vendor].packs++;
+            byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
+          });
+          setOrderSummaries(prev=>({...prev,[order.id]:
+            Object.entries(byV).map(([vendor,{packs,total}])=>({vendor,packs,total}))
+          }));
+        } catch {}
+      });
+    }
   },[]);
 
   async function verifyPin(){
@@ -831,25 +859,19 @@ function FieldFastInner() {
             isOpen={openOrderId===order.id}
             onSwipeOpen={()=>setOpenOrderId(order.id)}
             onSwipeClose={()=>setOpenOrderId(null)}
-            onExpand={async()=>{
-              if(orderSummaries[order.id]) return; // already cached
-              setOrderSummaries(prev=>({...prev,[order.id]:[]})); // mark as loading
-              try {
-                const res = await fetch(`/api/items?orderId=${order.id}`);
-                const d = await res.json();
-                const items:(typeof d.items) = d.items||[];
-                const byVendor:Record<string,{packs:number;total:number}> = {};
-                items.forEach((i:any)=>{
-                  const v = i.vendor||'Unknown';
-                  if(!byVendor[v]) byVendor[v]={packs:0,total:0};
-                  byVendor[v].packs++;
-                  byVendor[v].total += (Number(i.price)||0)*(Number(i.qty)||1);
-                });
-                setOrderSummaries(prev=>({...prev,[order.id]:
-                  Object.entries(byVendor).map(([vendor,{packs,total}])=>({vendor,packs,total}))
-                }));
-              } catch {
+            onExpand={()=>{
+              // Data is pre-loaded — nothing needed here
+              // Fallback: fetch if somehow not loaded yet
+              if(!orderSummaries[order.id]){
                 setOrderSummaries(prev=>({...prev,[order.id]:[]}));
+                fetch(`/api/items?orderId=${order.id}`).then(r=>r.json()).then(d=>{
+                  const byV:Record<string,{packs:number;total:number}>={};
+                  (d.items||[]).forEach((i:any)=>{
+                    if(!byV[i.vendor]) byV[i.vendor]={packs:0,total:0};
+                    byV[i.vendor].packs++; byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
+                  });
+                  setOrderSummaries(prev=>({...prev,[order.id]:Object.entries(byV).map(([vendor,{packs,total}])=>({vendor,packs,total}))}));
+                }).catch(()=>{});
               }
             }}
             onOpen={()=>{ setOpenOrderId(null); order.status!=='imported'&&openExistingOrder(order); }}
