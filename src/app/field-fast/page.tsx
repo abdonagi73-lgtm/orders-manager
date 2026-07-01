@@ -324,38 +324,46 @@ function FieldFastInner() {
   cart.forEach(i=>{ if(!cartByVendor[i.vendor]) cartByVendor[i.vendor]=[]; cartByVendor[i.vendor].push(i); });
   const cartTotal=cart.reduce((s,i)=>s+i.price*i.qty,0);
 
-  // ── Reusable item row renderer (used in entry AND cart screens) ──
-  function renderItemRow(item:CartItem, compact=false){
+  // ── Reusable item row renderer (used in entry, detail, and cart screens) ──
+  function renderItemRow(item:CartItem){
     const expanded=expandedRows[item.tempId];
     return (
-      <div key={item.tempId} className="item-card" style={{padding:0,overflow:'hidden',marginBottom:compact?0:0}}>
+      <div key={item.tempId} className="item-card" style={{padding:0,overflow:'hidden'}}>
+        {/* TOP ROW — always visible: summary + ⋮ menu */}
         <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px'}}>
+          {/* Tap left side to expand/collapse */}
           <div style={{flex:1,minWidth:0,cursor:'pointer'}}
-            onClick={()=>!compact&&setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
+            onClick={()=>setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
             <div style={{fontWeight:600,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
             <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-              {item.category} · {item.colors.length} color{item.colors.length!==1?'s':''} × {item.sizes.length} size{item.sizes.length!==1?'s':''} · {item.qty} variants · ${item.price}
+              {item.category} · {item.colors.length} color{item.colors.length!==1?'s':''} × {item.sizes.length} size{item.sizes.length!==1?'s':''} · <strong>{item.qty}</strong> variants · ${item.price}
             </div>
           </div>
           {item.photo&&<img src={item.photo} alt="" style={{width:32,height:32,borderRadius:4,objectFit:'cover',flexShrink:0}}/>}
-          {!compact&&<span style={{color:'var(--text-4)',fontSize:12,cursor:'pointer'}}
+          <span style={{color:'var(--text-4)',fontSize:11,cursor:'pointer',flexShrink:0}}
             onClick={()=>setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
             {expanded?'▲':'▼'}
-          </span>}
+          </span>
+          {/* THREE-DOT MENU — always visible, never hidden */}
           <ItemMenu
             item={item}
             onEdit={()=>{ editRow(item); setScreen('entry'); }}
-            onDelete={()=>removeRow(item.tempId)}
+            onDelete={()=>setConfirmBox({
+              title:'Delete this item?',
+              message:`${item.vendor} · ${item.code} (${item.qty} variants) will be permanently removed.`,
+              onConfirm:()=>removeRow(item.tempId),
+            })}
             onDuplicate={()=>duplicateRow(item)}
           />
         </div>
-        {expanded&&!compact&&(
+        {/* EXPANDED DETAILS */}
+        {expanded&&(
           <div style={{padding:'0 12px 12px',borderTop:'1px solid var(--border)'}}>
-            <div style={{fontSize:12,color:'var(--text-2)',padding:'8px 0',lineHeight:1.7}}>
+            <div style={{fontSize:12,color:'var(--text-2)',padding:'8px 0',lineHeight:1.8}}>
               <div><strong>Colors:</strong> {item.colors.join(', ')}</div>
               <div><strong>Sizes:</strong> {item.sizes.join(', ')}</div>
-              <div><strong>Variants:</strong> {item.qty} &nbsp;<span style={{fontSize:11,color:'var(--text-3)'}}>({item.colors.length}×{item.sizes.length})</span></div>
-              <div><strong>Line total:</strong> ${(item.price*item.qty).toFixed(2)}</div>
+              <div><strong>Variants:</strong> {item.qty} <span style={{fontSize:11,color:'var(--text-3)'}}>({item.colors.length} colors × {item.sizes.length} sizes)</span></div>
+              <div><strong>Line total:</strong> <span style={{color:'var(--green)',fontWeight:700}}>${(item.price*item.qty).toFixed(2)}</span></div>
               {item.notes&&<div><strong>Note:</strong> {item.notes}</div>}
             </div>
           </div>
@@ -774,25 +782,80 @@ function FieldFastInner() {
         <button className="btn btn-sm" onClick={()=>setScreen('entry')}>← Edit</button>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:120}}>
+
+        {/* ORDER SUMMARY TABLE */}
+        <div className="card" style={{marginBottom:16}}>
+          <div className="card-title">Order summary</div>
+          {/* Header row */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:8,
+            padding:'6px 0',borderBottom:'2px solid var(--border)',
+            fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text-3)'}}>
+            <span>Vendor</span>
+            <span style={{textAlign:'center',minWidth:70}}>Packs / Variants</span>
+            <span style={{textAlign:'right',minWidth:70}}>Total</span>
+          </div>
+          {/* One row per vendor */}
+          {Object.entries(cartByVendor).map(([vendor,items])=>{
+            const vTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
+            const vVariants=items.reduce((s,i)=>s+i.qty,0);
+            return (
+              <div key={vendor} style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:8,
+                padding:'7px 0',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
+                <span style={{fontWeight:600,fontSize:13}}>{vendor}</span>
+                <span style={{textAlign:'center',fontSize:12,color:'var(--text-3)',minWidth:70}}>
+                  {items.length}p / {vVariants}v
+                </span>
+                <span style={{textAlign:'right',fontWeight:700,fontSize:13,color:'var(--green)',minWidth:70}}>
+                  ${vTotal.toFixed(2)}
+                </span>
+              </div>
+            );
+          })}
+          {/* Totals */}
+          <div style={{marginTop:8,paddingTop:8,borderTop:'2px solid var(--border)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Purchase value</span>
+              <strong>${cartTotal.toFixed(2)}</strong>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Shipping</span>
+              <span>${Number(shippingCost||0).toFixed(2)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Commission (3%)</span>
+              <span style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:15,fontWeight:700,
+              padding:'6px 0',marginTop:4,borderTop:'1px solid var(--border)'}}>
+              <span>Total order cost</span>
+              <span style={{color:'var(--green)'}}>
+                ${(cartTotal+Number(shippingCost||0)+cartTotal*0.03).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ITEMS BY VENDOR */}
         {Object.entries(cartByVendor).map(([vendor,items])=>(
           <div key={vendor} className="card" style={{marginBottom:12}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingBottom:8,marginBottom:4,borderBottom:'2px solid var(--border)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+              paddingBottom:8,marginBottom:4,borderBottom:'2px solid var(--border)'}}>
               <div style={{fontWeight:700,fontSize:15}}>{vendor}</div>
-              <div style={{fontSize:12,color:'var(--text-3)'}}>{items.length} pack{items.length!==1?'s':''} · ${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}</div>
+              <div style={{fontSize:11,color:'var(--text-3)',display:'flex',gap:8}}>
+                <span>{items.length} pack{items.length!==1?'s':''}</span>
+                <span>{items.reduce((s,i)=>s+i.qty,0)} variants</span>
+                <span style={{color:'var(--green)',fontWeight:700}}>${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
+              </div>
             </div>
-            {items.map(item=>renderItemRow(item,false))}
+            {items.map(item=>renderItemRow(item))}
           </div>
         ))}
+
+        {/* SHIPPING + ACTION BUTTONS */}
         <div className="card" style={{marginBottom:12}}>
-          <div className="field" style={{marginBottom:8}}>
+          <div className="field" style={{marginBottom:0}}>
             <label className="label">Shipping cost ($) — optional</label>
             <input type="number" step="0.01" placeholder="0.00" value={shippingCost} onChange={e=>setShippingCost(e.target.value)}/>
-          </div>
-          <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'4px 0'}}>
-            <span style={{color:'var(--text-3)'}}>Purchase value</span><strong>${cartTotal.toFixed(2)}</strong>
-          </div>
-          <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'4px 0'}}>
-            <span style={{color:'var(--text-3)'}}>Commission (3%)</span><span style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</span>
           </div>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
@@ -957,10 +1020,14 @@ function FieldFastInner() {
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
                   fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',
                   color:vendor===currentVendor?'var(--green)':'var(--text-3)',
-                  padding:'4px 2px',marginBottom:6,cursor:'pointer'}}
+                  padding:'6px 4px',marginBottom:4,borderBottom:'1px solid var(--border)',cursor:'pointer'}}
                   onClick={()=>{ setCurrentVendor(vendor); setFormOpen(false); resetItemForm(); }}>
-                  <span>{vendor} — {cartByVendor[vendor].length} pack{cartByVendor[vendor].length!==1?'s':''} {vendor===currentVendor?'(active)':''}</span>
-                  <span style={{color:'var(--green)',fontWeight:700,fontSize:13}}>${cartByVendor[vendor].reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
+                  <span>{vendor} {vendor===currentVendor?'● active':''}</span>
+                  <span style={{display:'flex',gap:10,alignItems:'center'}}>
+                    <span style={{fontWeight:500,fontSize:10}}>{cartByVendor[vendor].length} pack{cartByVendor[vendor].length!==1?'s':''}</span>
+                    <span style={{fontWeight:500,fontSize:10}}>{cartByVendor[vendor].reduce((s,i)=>s+i.qty,0)} variants</span>
+                    <span style={{color:'var(--green)',fontWeight:700,fontSize:12}}>${cartByVendor[vendor].reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
+                  </span>
                 </div>
                 {cartByVendor[vendor].map(item=>renderItemRow(item))}
               </div>
