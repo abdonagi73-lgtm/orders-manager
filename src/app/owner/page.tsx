@@ -7,26 +7,58 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
-// Samsung-style smooth expand panel — swipe down to open, swipe up to close
-function SmoothPanel({ open, onClose, children }:{ open:boolean; onClose:()=>void; children:React.ReactNode }){
+// ── FingerPanel: true finger-tracking expand ──
+// Panel is always in DOM, offset below by its own height (overflow:hidden clips it)
+// During touch: moves pixel-for-pixel with finger via translateY
+// On release: springs to open/closed with cubic-bezier
+function FingerPanel({ open, onOpen, onClose, children }:{
+  open:boolean; onOpen:()=>void; onClose:()=>void; children:React.ReactNode;
+}){
+  const innerRef = React.React.useRef<HTMLDivElement>(null);
   const startY = React.useRef(0);
-  const touching = React.useRef(false);
-  function onTS(e:React.TouchEvent){ touching.current=true; startY.current=e.touches[0].clientY; }
-  function onTE(e:React.TouchEvent){
-    if(!touching.current) return; touching.current=false;
-    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
-    if(dy < -40) onClose();
+  const wasDragging = React.useRef(false);
+  const [drag, setDrag] = React.useState(0);
+  const [spring, setSpring] = React.useState(false);
+  const h = innerRef.current?.offsetHeight || 0;
+
+  // live position: open=0, closed=h, during drag: offset from base
+  const baseY = open ? 0 : h;
+  const liveY = wasDragging.current ? baseY + drag : (open ? 0 : h);
+
+  function ts(e:React.TouchEvent){
+    wasDragging.current=true; setSpring(false); setDrag(0);
+    startY.current=e.touches[0].clientY;
   }
+  function tm(e:React.TouchEvent){
+    if(!wasDragging.current) return;
+    e.preventDefault();
+    const dy=e.touches[0].clientY-startY.current;
+    // open → only drag up (dy<0 → drag<0); closed → only drag down (dy>0 → drag>0)
+    setDrag(open ? Math.min(0,dy) : Math.max(0,dy));
+  }
+  function te(e:React.TouchEvent){
+    if(!wasDragging.current) return;
+    wasDragging.current=false;
+    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
+    setSpring(true); setDrag(0);
+    if(open && dy<-44) onClose();
+    else if(!open && dy>44) onOpen();
+  }
+
   return (
-    <div style={{
-      maxHeight: open ? '600px' : '0px',
-      overflow: 'hidden',
-      transition: open
-        ? 'max-height 0.42s cubic-bezier(0.34, 1.12, 0.64, 1)'
-        : 'max-height 0.28s cubic-bezier(0.4, 0, 0.6, 1)',
-    }}
-    onTouchStart={onTS} onTouchEnd={onTE}>
-      {children}
+    <div style={{overflow:'hidden',
+      // container height follows open state with spring
+      height: h ? (open ? `${h}px` : '0') : 'auto',
+      transition: spring ? 'height 0.32s cubic-bezier(0.34,1.08,0.64,1)' : 'none',
+    }}>
+      <div ref={innerRef}
+        onTouchStart={ts} onTouchMove={tm} onTouchEnd={te}
+        style={{
+          transform: `translateY(${liveY - (open?0:h)}px)`,
+          transition: spring ? 'transform 0.32s cubic-bezier(0.34,1.08,0.64,1)' : 'none',
+        }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -155,7 +187,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
       </div>
 
       {/* Smooth slide-down vendor summary */}
-      <SmoothPanel open={expanded} onClose={()=>setExpanded(false)}>
+      <FingerPanel open={expanded} onOpen={()=>setExpanded(true)} onClose={()=>setExpanded(false)}>
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
           padding:'0 14px 12px'}}>
@@ -196,7 +228,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
             </>
           )}
         </div>
-      </SmoothPanel>
+      </FingerPanel>
     </div>
   );
 }
@@ -372,6 +404,51 @@ function PriceRow({item, settings, onSave}: {
   );
 }
 
+
+// Group orders by recency label (like Google Sheets)
+function groupOrdersByDate(orders:any[]): {label:string; orders:any[]}[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const thisWeekStart = new Date(today); thisWeekStart.setDate(today.getDate()-today.getDay());
+  const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(thisWeekStart.getDate()-7);
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  function getDate(o:any){ return new Date(o.createdAt||o.startDate||''); }
+  function label(o:any):string{
+    const d=getDate(o);
+    if(d>=today) return 'Today';
+    if(d>=yesterday) return 'Yesterday';
+    if(d>=thisWeekStart) return 'This week';
+    if(d>=lastWeekStart) return 'Last week';
+    if(d>=thisMonthStart) return 'This month';
+    if(d>=lastMonthStart) return 'Last month';
+    return d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  }
+
+  // Sort by most recently touched (createdAt desc)
+  const sorted = [...orders].sort((a,b)=>{
+    const da=getDate(a).getTime(), db=getDate(b).getTime();
+    return db-da;
+  });
+
+  const groups:Map<string,any[]> = new Map();
+  const labelOrder = ['Today','Yesterday','This week','Last week','This month','Last month'];
+  sorted.forEach(o=>{
+    const l=label(o);
+    if(!groups.has(l)) groups.set(l,[]);
+    groups.get(l)!.push(o);
+  });
+
+  // Return in logical order
+  const result:{label:string;orders:any[]}[] = [];
+  labelOrder.forEach(l=>{ if(groups.has(l)) result.push({label:l,orders:groups.get(l)!}); });
+  groups.forEach((orders,l)=>{ if(!labelOrder.includes(l)) result.push({label:l,orders}); });
+  return result;
+}
+
 function OwnerPageInner() {
   const [authed, setAuthed] = useState(false);
   const [pin, setPin] = useState('');
@@ -403,6 +480,7 @@ function OwnerPageInner() {
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;items:number;total:number}[]>>({});
+  const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp
   const [loggedInName, setLoggedInName] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
@@ -963,21 +1041,24 @@ function OwnerPageInner() {
                   onClick={()=>setFilterStatus(filterStatus==='__online'?'':'__online')}>🌐 Online</button>
               </div>
             </div>
-            {orders.filter(o=>{
-              if(filterStatus==='__store') return o.orderType!=='online';
-              if(filterStatus==='__online') return o.orderType==='online';
-              return (!filterStatus||o.status===filterStatus);
-            }).filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id)).length===0?(
-              <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
-            ):(
-              orders
-                .filter(o=>{
+            {(()=>{
+              const filtered = orders.map(o=>recentlyTouched[o.id]
+                ? {...o, createdAt: new Date(recentlyTouched[o.id]).toISOString()}
+                : o).filter(o=>{
                   if(filterStatus==='__store') return o.orderType!=='online';
                   if(filterStatus==='__online') return o.orderType==='online';
                   return (!filterStatus||o.status===filterStatus);
                 })
-                .filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id))
-                .map(order=>(
+                .filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id));
+              if(filtered.length===0) return <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>;
+              return groupOrdersByDate(filtered).map(({label:grpLabel,orders:grpOrders})=>(
+                <div key={grpLabel} style={{marginBottom:4}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',
+                    color:'var(--text-3)',padding:'8px 4px 6px',
+                    borderBottom:'1px solid var(--border)',marginBottom:8}}>
+                    {grpLabel}
+                  </div>
+                  {grpOrders.map(order=>(
                 <ManagerOrderCard
                   key={order.id}
                   order={order}
@@ -1004,8 +1085,10 @@ function OwnerPageInner() {
                   onDelete={()=>deleteOrderHandler(order)}
                   onCopy={selectedOrder&&order.id!==selectedOrder.id?()=>copyOrderItems(order.id,selectedOrder.id):undefined}
                 />
-              ))
-            )}
+                  ))}
+                </div>
+              ));
+            })()}
           </>
         )}
 
