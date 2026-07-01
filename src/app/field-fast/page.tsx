@@ -1230,13 +1230,13 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <button className="btn btn-sm" onClick={()=>window.location.href='/'} title="Back to home">🏠</button>
-          <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{worker?.name}</div>
             <div className="header-sub">{t('orderEntry')}{location?` · ${location}`:''}</div></div>
         </div>
-        <div style={{display:'flex',gap:6}}>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button className="btn btn-sm" onClick={()=>window.location.href='/'} title="Back to home">🏠</button>
+          <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           <button className="btn btn-sm" onClick={()=>goTo('earnings')}>{t('earnings')}</button>
           <a href={`/worker-settings?id=${worker?.id || ''}&name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
           <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');goTo('login');}}>{t('signOut')}</button>
@@ -1351,6 +1351,11 @@ function FieldFastInner() {
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
         <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+            <div><div className="header-title">{o.name}</div>
+              <div className="header-sub">{detailLoading?t('loading'):`${cart.length} ${cart.length===1?t('packLabel'):t('packsLabel')} · $${cartTotal.toFixed(2)}`}</div></div>
+          </div>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
             <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
             <button className="btn btn-sm" onClick={async()=>{
               setDetailLoading(true);
@@ -1371,9 +1376,6 @@ function FieldFastInner() {
                 showToast(lang==='ar'?'تم التحديث':'Refreshed');
               } catch{} finally { setDetailLoading(false); }
             }} title="Refresh">↻</button>
-            <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
-            <div><div className="header-title">{o.name}</div>
-              <div className="header-sub">{detailLoading?t('loading'):`${cart.length} ${cart.length===1?t('packLabel'):t('packsLabel')} · $${cartTotal.toFixed(2)}`}</div></div>
           </div>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
@@ -1431,10 +1433,12 @@ function FieldFastInner() {
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
         <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
-            <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
             <div><div className="header-title">{t('myEarnings')}</div><div className="header-sub">{worker?.name}</div></div>
+          </div>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+            <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           </div>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
@@ -1482,10 +1486,12 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
-          <button className="btn btn-sm" onClick={()=>{ setOrderName(''); setOrderType('store'); }} title="Reset">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{worker?.name}</div><div className="header-sub">{t('startOrder')}</div></div>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+          <button className="btn btn-sm" onClick={()=>{ setOrderName(''); setOrderType('store'); }} title="Reset">↻</button>
         </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
@@ -1553,13 +1559,15 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <button className="btn btn-sm" onClick={()=>goTo('entry')} title="Back to Entry">←</button>
-          <button className="btn btn-sm" onClick={()=>{}} title="Refresh">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{t('review')}</div>
             <div className="header-sub">{orderName} · {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')} · ${cartTotal.toFixed(2)}</div></div>
         </div>
-        <button className="btn btn-sm" onClick={()=>goTo('entry')}>{lang==='ar'?'تعديل':'Edit'}</button>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button className="btn btn-sm" onClick={()=>goTo('entry')} title="Back to Entry">←</button>
+          <button className="btn btn-sm" onClick={()=>{}} title="Refresh">↻</button>
+          <button className="btn btn-sm btn-primary" onClick={()=>goTo('entry')}>{lang==='ar'?'تعديل':'Edit'}</button>
+        </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:120}}>
 
@@ -1669,6 +1677,14 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+          <div><div className="header-title">{orderName||'Order'}</div>
+            <div className="header-sub">
+              {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')}
+              {cartTotal>0&&<span style={{marginLeft:6,color:'var(--green)',fontWeight:600}}>${cartTotal.toFixed(0)}</span>}
+            </div></div>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
           <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
           <button className="btn btn-sm" onClick={async()=>{
             if(editingExisting){
@@ -1691,14 +1707,6 @@ function FieldFastInner() {
               } catch{} finally { setDetailLoading(false); }
             }
           }} title="Refresh">↻</button>
-          <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
-          <div><div className="header-title">{orderName||'Order'}</div>
-            <div className="header-sub">
-              {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')}
-              {cartTotal>0&&<span style={{marginLeft:6,color:'var(--green)',fontWeight:600}}>${cartTotal.toFixed(0)}</span>}
-            </div></div>
-        </div>
-        <div style={{display:'flex',gap:6}}>
           {editingExisting&&<button className="btn btn-sm" onClick={()=>goTo('detail')}>{lang==='ar'?'تفاصيل':'Detail'}</button>}
           <button className="btn btn-sm btn-primary" onClick={()=>goTo('cart')}>{t('review')} ({cart.length})</button>
         </div>
