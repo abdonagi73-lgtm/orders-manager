@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import ComboBox from '@/components/ComboBox';
@@ -88,6 +88,123 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Swipeable order card ──
+function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel }:{
+  order:Order;
+  onOpen:()=>void;
+  onDelete:()=>void;
+  onEdit:()=>void;
+  onDuplicate:()=>void;
+  onAddMore:()=>void;
+  continueLabel:string;
+}){
+  const [offset, setOffset] = useState(0);
+  const [swiped, setSwiped] = useState(false);
+  const startX = useRef(0);
+  const isDragging = useRef(false);
+  const THRESHOLD = 60;
+  const ACTION_WIDTH = 240; // 4 buttons × 60px
+
+  function onTouchStart(e:React.TouchEvent){ startX.current=e.touches[0].clientX; isDragging.current=true; }
+  function onTouchMove(e:React.TouchEvent){
+    if(!isDragging.current) return;
+    const dx = startX.current - e.touches[0].clientX;
+    if(dx>0) setOffset(Math.min(dx, ACTION_WIDTH));
+    else if(swiped) setOffset(Math.max(ACTION_WIDTH+dx,0));
+  }
+  function onTouchEnd(){
+    isDragging.current=false;
+    if(offset>THRESHOLD){ setOffset(ACTION_WIDTH); setSwiped(true); }
+    else { setOffset(0); setSwiped(false); }
+  }
+
+  // Mouse support for desktop testing
+  const mouseDown = useRef(false);
+  function onMouseDown(e:React.MouseEvent){ mouseDown.current=true; startX.current=e.clientX; }
+  function onMouseMove(e:React.MouseEvent){
+    if(!mouseDown.current) return;
+    const dx=startX.current-e.clientX;
+    if(dx>0) setOffset(Math.min(dx,ACTION_WIDTH));
+    else if(swiped) setOffset(Math.max(ACTION_WIDTH+dx,0));
+  }
+  function onMouseUp(){
+    mouseDown.current=false;
+    if(offset>THRESHOLD){ setOffset(ACTION_WIDTH); setSwiped(true); }
+    else { setOffset(0); setSwiped(false); }
+  }
+
+  function close(){ setOffset(0); setSwiped(false); }
+
+  const imported = order.status==='imported';
+
+  return (
+    <div style={{position:'relative',marginBottom:8,borderRadius:'var(--r)',overflow:'hidden',userSelect:'none'}}>
+      {/* Action buttons revealed on swipe */}
+      <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_WIDTH,
+        display:'flex',alignItems:'stretch',zIndex:1}}>
+        <button style={{flex:1,background:'#3B82F6',color:'#fff',border:'none',cursor:'pointer',
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',gap:4}}
+          onClick={()=>{close();onAddMore();}}>
+          <span style={{fontSize:20}}>+</span>Add
+        </button>
+        <button style={{flex:1,background:'#F59E0B',color:'#fff',border:'none',cursor:'pointer',
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',gap:4}}
+          onClick={()=>{close();onEdit();}}>
+          <span style={{fontSize:20}}>✎</span>Edit
+        </button>
+        <button style={{flex:1,background:'#8B5CF6',color:'#fff',border:'none',cursor:'pointer',
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',gap:4}}
+          onClick={()=>{close();onDuplicate();}}>
+          <span style={{fontSize:20}}>⧉</span>Copy
+        </button>
+        <button style={{flex:1,background:'#EF4444',color:'#fff',border:'none',cursor:'pointer',
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',gap:4}}
+          onClick={()=>{close();onDelete();}}>
+          <span style={{fontSize:20}}>🗑</span>Delete
+        </button>
+      </div>
+
+      {/* Card — slides left to reveal actions */}
+      <div
+        style={{position:'relative',zIndex:2,
+          transform:`translateX(-${offset}px)`,
+          transition:isDragging.current||mouseDown.current?'none':'transform .25s ease',
+          background:'var(--surface)',border:'1px solid var(--border)',
+          borderRadius:'var(--r)',
+          borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent',
+          opacity:imported?.7:1,
+          boxShadow:'var(--shadow-sm)',cursor:imported?'default':'pointer'}}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+        onClick={e=>{ if(offset>0){close();return;} if(!imported) onOpen(); }}>
+        <div style={{padding:'14px 16px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
+              {order.status==='open'&&(
+                <div style={{fontSize:11,fontWeight:700,color:'var(--amber)',marginBottom:3}}>{continueLabel}</div>
+              )}
+              <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
+                {order.itemCount} pack{order.itemCount!==1?'s':''} · <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
+              </div>
+              {order.totalOrderCost>0&&<div style={{fontSize:12,fontWeight:600,color:'var(--green)',marginTop:2}}>Total: ${order.totalOrderCost.toFixed(2)}</div>}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
+              <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>{order.status}</span>
+              <div style={{fontSize:11,color:'var(--text-3)'}}>{order.startDate}</div>
+              {!imported&&<div style={{fontSize:9,color:'var(--text-4)',marginTop:2}}>← swipe</div>}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -618,33 +735,52 @@ function FieldFastInner() {
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
         <button className="btn btn-primary" style={{width:'100%',padding:14,fontSize:15,marginBottom:16}}
           onClick={startNewOrder}>{t('startOrder')}</button>
+
         {orders.length===0?(
           <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">{t('noOrders')}</div></div>
         ):orders.map(order=>(
-          <div key={order.id} className="item-card"
-            style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1,
-              borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent'}}
-            onClick={()=>order.status!=='imported'&&openExistingOrder(order)}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-                {order.status==='open'&&(
-                  <div style={{fontSize:11,fontWeight:700,color:'var(--amber)',marginBottom:3}}>
-                    {t('continueOrder')}
-                  </div>
-                )}
-                <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
-                  {order.itemCount} pack{order.itemCount!==1?'s':''} · Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
-                </div>
-                {order.totalOrderCost>0&&<div style={{fontSize:12,fontWeight:600,color:'var(--green)',marginTop:2}}>Total: ${order.totalOrderCost.toFixed(2)}</div>}
-              </div>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
-                <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>{order.status}</span>
-                <div style={{fontSize:11,color:'var(--text-3)'}}>{order.startDate}</div>
-              </div>
-            </div>
-          </div>
+          <SwipeableOrderCard
+            key={order.id}
+            order={order}
+            onOpen={()=>order.status!=='imported'&&openExistingOrder(order)}
+            onDelete={()=>setConfirmBox({
+              title:'Delete order?',
+              message:`"${order.name}" and all its items will be permanently deleted.`,
+              onConfirm:async()=>{
+                await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({action:'delete',orderId:order.id})});
+                if(worker) loadOrders(worker.id);
+                showToast('Order deleted');
+              },
+            })}
+            onEdit={()=>openExistingOrder(order)}
+            onDuplicate={async()=>{
+              // Create a copy of the order
+              const res = await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({action:'create',name:order.name+' (copy)',startDate:new Date().toISOString().split('T')[0],
+                  workerId:worker!.id,workerName:worker!.name,orderType:order.orderType||'store'})});
+              const d = await res.json();
+              if(d.order){
+                // Copy items
+                const itemsRes = await fetch(`/api/items?orderId=${order.id}`);
+                const itemsData = await itemsRes.json();
+                for(const item of (itemsData.items||[])){
+                  await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({orderId:d.order.id,workerId:worker!.id,vendor:item.vendor,
+                      code:item.code,category:item.category,colors:item.colors,sizes:item.sizes,
+                      price:item.price,qty:item.qty,notes:item.notes||''})}).catch(()=>{});
+                }
+                if(worker) loadOrders(worker.id);
+                showToast('Order duplicated');
+              }
+            }}
+            onAddMore={()=>openExistingOrder(order)}
+            continueLabel={t('continueOrder')}
+          />
         ))}
+        <div style={{fontSize:11,color:'var(--text-3)',textAlign:'center',marginTop:12,opacity:.6}}>
+          ← Swipe left on an order to see options
+        </div>
       </div>
       {overlays}
     </div>
