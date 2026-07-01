@@ -93,6 +93,21 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
 }
 
 // ── Swipeable order card ──
+// Samsung notification-style smooth expand panel
+function SmoothPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
+  return (
+    <div style={{
+      maxHeight: open ? '600px' : '0px',
+      overflow: 'hidden',
+      transition: open
+        ? 'max-height 0.42s cubic-bezier(0.34, 1.12, 0.64, 1)'
+        : 'max-height 0.28s cubic-bezier(0.4, 0, 0.6, 1)',
+    }}>
+      {children}
+    </div>
+  );
+}
+
 function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel, isOpen, onSwipeOpen, onSwipeClose, onExpand, summary }:{
   order:Order; onOpen:()=>void; onDelete:()=>void; onEdit:()=>void;
   onDuplicate:()=>void; onAddMore:()=>void; continueLabel:string;
@@ -222,10 +237,11 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
         </div>
       </div>
 
-      {expanded&&(
+      <SmoothPanel open={expanded}>
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
-          padding:'10px 16px 12px',boxShadow:'var(--shadow-sm)'}}>
+          padding:'0 16px 12px',boxShadow:'var(--shadow-sm)'}}>
+          <div style={{height:1,background:'var(--border)',margin:'0 0 10px'}}/>
           {!summary?(
             <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'4px 0'}}>Loading…</div>
           ):summary.length===0?(
@@ -251,13 +267,16 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
                 <span style={{fontSize:13,fontWeight:800,color:'var(--green)',textAlign:'right'}}>${summary.reduce((s,r)=>s+r.total,0).toFixed(2)}</span>
               </div>
               <div style={{textAlign:'center',marginTop:8}}>
-                <button style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:'var(--text-4)'}}
-                  onClick={()=>setExpanded(false)}>▲ collapse</button>
+                <button style={{background:'none',border:'none',cursor:'pointer',
+                  fontSize:11,color:'var(--text-4)',display:'flex',alignItems:'center',gap:4,margin:'0 auto'}}
+                  onClick={()=>setExpanded(false)}>
+                  <span style={{fontSize:14}}>▲</span> collapse
+                </button>
               </div>
             </>
           )}
         </div>
-      )}
+      </SmoothPanel>
     </div>
   );
 }

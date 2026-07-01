@@ -7,6 +7,192 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
+// ── Smooth expand panel (Samsung notification drawer style) ──
+// Uses max-height + cubic-bezier for natural spring-like feel
+function SmoothPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
+  return (
+    <div style={{
+      maxHeight: open ? '600px' : '0px',
+      overflow: 'hidden',
+      transition: open
+        ? 'max-height 0.42s cubic-bezier(0.34, 1.12, 0.64, 1)' // spring overshoot on open
+        : 'max-height 0.28s cubic-bezier(0.4, 0, 0.6, 1)',      // smooth snap on close
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Manager order card with swipe-left + slide-down vendor summary ──
+function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, onCopy, selectedOrder, summary, onExpand }:{
+  order:any; onSelect:()=>void; onEdit:()=>void; onImport?:()=>void;
+  onPDF:()=>void; onDelete:()=>void; onCopy?:()=>void;
+  selectedOrder:any; summary:{vendor:string;items:number;total:number}[]|null; onExpand:()=>void;
+}){
+  const [offset, setOffset] = React.useState(0);
+  const [expanded, setExpanded] = React.useState(false);
+  const startX = React.useRef(0);
+  const startY = React.useRef(0);
+  const dragDir = React.useRef<'h'|'v'|null>(null);
+  const touching = React.useRef(false);
+  const ACTION_W = 220;
+  const THRESHOLD = 70;
+  const V_THRESHOLD = 40;
+
+  function onTS(e:React.TouchEvent){
+    touching.current=true;
+    startX.current=e.touches[0].clientX;
+    startY.current=e.touches[0].clientY;
+    dragDir.current=null;
+  }
+
+  function onTM(e:React.TouchEvent){
+    if(!touching.current) return;
+    const dx=startX.current-e.touches[0].clientX;
+    const dy=e.touches[0].clientY-startY.current;
+    if(!dragDir.current){
+      if(Math.abs(dx)>8||Math.abs(dy)>8)
+        dragDir.current=Math.abs(dy)>Math.abs(dx)?'v':'h';
+      return;
+    }
+    e.preventDefault();
+    if(dragDir.current==='h'){
+      const base=offset>THRESHOLD?ACTION_W:0;
+      setOffset(Math.max(0,Math.min(ACTION_W,base+dx)));
+    }
+  }
+
+  function onTE(e:React.TouchEvent){
+    if(!touching.current) return;
+    touching.current=false;
+    const dx=startX.current-(e.changedTouches[0]?.clientX||startX.current);
+    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
+    const dir=dragDir.current; dragDir.current=null;
+    if(dir==='v'){
+      if(dy>V_THRESHOLD&&!expanded){ setExpanded(true); onExpand(); }
+      else if(dy<-V_THRESHOLD&&expanded) setExpanded(false);
+    } else if(dir==='h'){
+      if(offset>THRESHOLD&&dx>0) { setOffset(ACTION_W); }
+      else if(dx<-THRESHOLD) { setOffset(0); }
+      else if(offset>ACTION_W/2) setOffset(ACTION_W);
+      else setOffset(0);
+    }
+  }
+
+  function close(){ setOffset(0); }
+  const isSelected = selectedOrder?.id===order.id;
+
+  return (
+    <div style={{marginBottom:8,userSelect:'none',touchAction:'pan-y'}}>
+      {/* Swipe layer */}
+      <div style={{position:'relative',borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',overflow:'hidden'}}>
+        {/* Action buttons */}
+        <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_W,
+          display:'flex',alignItems:'stretch',zIndex:1}}>
+          {[
+            {label:'Edit',icon:'✎',bg:'#F59E0B',fn:onEdit},
+            ...(order.status==='submitted'?[{label:'Import',icon:'✓',bg:'#16a34a',fn:onImport||onEdit}]:[]),
+            {label:'PDF',icon:'⬇',bg:'#3B82F6',fn:onPDF},
+            {label:'Delete',icon:'🗑',bg:'#EF4444',fn:onDelete},
+          ].map(({label,icon,bg,fn})=>(
+            <button key={label} style={{flex:1,background:bg,color:'#fff',border:'none',cursor:'pointer',
+              fontSize:10,fontWeight:700,display:'flex',flexDirection:'column',
+              alignItems:'center',justifyContent:'center',gap:2}}
+              onClick={()=>{close();fn();}}>
+              <span style={{fontSize:16}}>{icon}</span>{label}
+            </button>
+          ))}
+        </div>
+
+        {/* Card face */}
+        <div
+          style={{position:'relative',zIndex:2,
+            transform:`translateX(-${offset}px)`,
+            transition:touching.current?'none':'transform .22s ease',
+            background:'var(--surface)',
+            border:`1px solid ${isSelected?'var(--green)':'var(--border)'}`,
+            borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',
+            borderLeft:`3px solid ${order.status==='open'?'var(--amber)':order.status==='submitted'?'var(--blue)':order.status==='imported'?'var(--green)':'var(--border)'}`,
+            borderBottom:expanded?'none':'',
+            boxShadow:isSelected?'0 0 0 2px var(--green)':expanded?'none':'var(--shadow-sm)',
+            cursor:'pointer'}}
+          onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
+          onClick={()=>{ if(offset>8){setOffset(0);return;} onSelect(); }}>
+          <div style={{padding:'12px 14px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
+                  {order.orderType==='online'
+                    ? <span className="badge badge-info" style={{fontSize:10}}>🌐</span>
+                    : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)',fontSize:10}}>🏪</span>}
+                </div>
+                <div style={{fontSize:11,color:'var(--text-3)',marginTop:3}}>
+                  {order.workerName} · {order.startDate} · {order.itemCount} item{order.itemCount!==1?'s':''}
+                </div>
+                <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
+                  Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
+                  {order.totalOrderCost>0&&<> · <strong style={{color:'var(--green)'}}>Total: ${order.totalOrderCost.toFixed(2)}</strong></>}
+                </div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,flexShrink:0}}>
+                <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
+                  {order.status}
+                </span>
+                <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>← swipe · ↓ summary</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Smooth slide-down vendor summary */}
+      <SmoothPanel open={expanded}>
+        <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
+          borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
+          padding:'0 14px 12px'}}>
+          <div style={{height:1,background:'var(--border)',margin:'0 0 10px'}}/>
+          {!summary?(
+            <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'6px 0'}}>Loading…</div>
+          ):summary.length===0?(
+            <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'6px 0'}}>No items</div>
+          ):(
+            <>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',
+                fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',
+                color:'var(--text-4)',paddingBottom:6,borderBottom:'1px solid var(--border)'}}>
+                <span>Vendor</span>
+                <span style={{textAlign:'center'}}>Items</span>
+                <span style={{textAlign:'right'}}>Total</span>
+              </div>
+              {summary.map(row=>(
+                <div key={row.vendor} style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',
+                  padding:'5px 0',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
+                  <span style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.vendor}</span>
+                  <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.items}</span>
+                  <span style={{fontSize:12,fontWeight:700,color:'var(--green)',textAlign:'right'}}>${row.total.toFixed(2)}</span>
+                </div>
+              ))}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',padding:'6px 0 0',alignItems:'center'}}>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--text-3)'}}>TOTAL</span>
+                <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.items,0)}</span>
+                <span style={{fontSize:13,fontWeight:800,color:'var(--green)',textAlign:'right'}}>${summary.reduce((s,r)=>s+r.total,0).toFixed(2)}</span>
+              </div>
+              <div style={{textAlign:'center',marginTop:10}}>
+                <button style={{background:'none',border:'none',cursor:'pointer',
+                  fontSize:11,color:'var(--text-4)',display:'flex',alignItems:'center',gap:4,margin:'0 auto'}}
+                  onClick={()=>setExpanded(false)}>
+                  <span style={{fontSize:14}}>▲</span> collapse
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </SmoothPanel>
+    </div>
+  );
+}
+
 // ── Swipeable item card for manager portal ──
 function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprove, onFlag, onEdit, onDelete }:{
   item:any; cost:number; retail:number; variants:number; dupeInOrder:boolean;
@@ -208,6 +394,7 @@ function OwnerPageInner() {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;items:number;total:number}[]>>({});
   const [loggedInName, setLoggedInName] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
@@ -764,51 +951,33 @@ function OwnerPageInner() {
                 })
                 .filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id))
                 .map(order=>(
-                <div key={order.id} className="item-card" style={{cursor:'pointer'}} onClick={()=>selectOrder(order)}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-                        {order.orderType==='online'
-                          ? <span className="badge badge-info">🌐 Online</span>
-                          : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)'}}>🏪 Store</span>}
-                      </div>
-                      <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
-                        {order.workerName} · {order.startDate} · {order.itemCount} items
-                      </div>
-                      <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>
-                        Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
-                        {order.shippingCost>0&&<> · Ship: ${order.shippingCost.toFixed(2)}</>}
-                        {order.workerCommission>0&&<> · Comm: ${order.workerCommission.toFixed(2)}</>}
-                        {order.totalOrderCost>0&&<> · <strong style={{color:'var(--green)'}}>Total: ${order.totalOrderCost.toFixed(2)}</strong></>}
-                      </div>
-                    </div>
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
-                      <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
-                        {order.status}
-                      </span>
-                      <button className="btn btn-sm" onClick={e=>{e.stopPropagation();setEditOrderModal({...order});}}>Edit</button>
-                      {order.status==='submitted'&&(
-                        <button className="btn btn-sm btn-success" onClick={e=>{e.stopPropagation();closeOrder(order.id)}}>
-                          Import
-                        </button>
-                      )}
-                      {selectedOrder&&order.id!==selectedOrder.id&&(
-                        <button className="btn btn-sm"
-                          onClick={e=>{e.stopPropagation();
-                            if(confirm(`Copy items from "${order.name}" to "${selectedOrder.name}"?`))
-                              copyOrderItems(order.id, selectedOrder.id);
-                          }}>Copy</button>
-                      )}
-                      <button className="btn btn-sm"
-                        style={{color:'var(--blue)',borderColor:'var(--blue-border)'}}
-                        onClick={e=>{e.stopPropagation();window.open(`/order-pdf?orderId=${order.id}`,'_blank');}}>PDF</button>
-                      <button className="btn btn-sm"
-                        style={{color:'var(--red)',borderColor:'var(--red-border)'}}
-                        onClick={e=>{e.stopPropagation();deleteOrderHandler(order);}}>Delete</button>
-                    </div>
-                  </div>
-                </div>
+                <ManagerOrderCard
+                  key={order.id}
+                  order={order}
+                  selectedOrder={selectedOrder}
+                  summary={orderSummaries[order.id]??null}
+                  onExpand={async()=>{
+                    if(orderSummaries[order.id]) return;
+                    setOrderSummaries(p=>({...p,[order.id]:[]}));
+                    try {
+                      const res=await fetch(`/api/items?orderId=${order.id}`);
+                      const d=await res.json();
+                      const byV:Record<string,{items:number;total:number}>={};
+                      (d.items||[]).forEach((i:any)=>{
+                        if(!byV[i.vendor]) byV[i.vendor]={items:0,total:0};
+                        byV[i.vendor].items++;
+                        byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
+                      });
+                      setOrderSummaries(p=>({...p,[order.id]:Object.entries(byV).map(([vendor,v])=>({vendor,...v}))}));
+                    } catch { setOrderSummaries(p=>({...p,[order.id]:[]})); }
+                  }}
+                  onSelect={()=>selectOrder(order)}
+                  onEdit={()=>setEditOrderModal({...order})}
+                  onImport={()=>closeOrder(order.id)}
+                  onPDF={()=>window.open(`/order-pdf?orderId=${order.id}`,'_blank')}
+                  onDelete={()=>deleteOrderHandler(order)}
+                  onCopy={selectedOrder&&order.id!==selectedOrder.id?()=>copyOrderItems(order.id,selectedOrder.id):undefined}
+                />
               ))
             )}
           </>
