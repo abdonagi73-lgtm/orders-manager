@@ -1399,11 +1399,11 @@ function OwnerPageInner() {
                       <CatalogList
                         type="vendors" items={vendorList} input={newVendorInput} setInput={setNewVendorInput}
                         placeholder="e.g. New Vendor Name"
-                        onAdd={v=>{ setVendorList(prev=>[v,...prev]); addUsageItem('vendors',v);
+                        onAdd={v=>{ addCatalogItem('vendors',v,setVendorList,()=>vendorList);
                           fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
                             body:JSON.stringify({action:'save-registry',vendor:v})}).catch(()=>{});
-                          showToast('Vendor added'); }}
-                        onDelete={v=>setVendorList(prev=>prev.filter(x=>x!==v))}
+                          showToast('Vendor added — visible to all workers'); }}
+                        onDelete={v=>{ deleteCatalogItem('vendors',v,setVendorList,()=>vendorList); }}
                       />
                     </div>
                   </div>
