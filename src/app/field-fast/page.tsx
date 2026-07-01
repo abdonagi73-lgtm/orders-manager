@@ -261,7 +261,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
               <div style={{textAlign:'center',marginTop:8}}>
                 <button style={{background:'none',border:'none',cursor:'pointer',
                   fontSize:11,color:'var(--text-4)',display:'flex',alignItems:'center',gap:4,margin:'0 auto'}}
-                  onClick={()=>setExpanded(false)}>
+                  onClick={()=>onToggleExpand()}>
                   <span style={{fontSize:14}}>▲</span> collapse
                 </button>
               </div>
