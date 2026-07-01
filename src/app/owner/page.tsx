@@ -92,6 +92,18 @@ function OwnerPageInner() {
   const [darkMode, setDarkMode] = useState(false);
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+
+  // Settings tab state — must live at component level (React hook rules)
+  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'experimental'|'about'>('business');
+  const [catList, setCatList] = useState<string[]>([]);
+  const [colorList, setColorList] = useState<string[]>([]);
+  const [sizeList, setSizeList] = useState<string[]>([]);
+  const [vendorList, setVendorList] = useState<string[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [newCatInput, setNewCatInput] = useState('');
+  const [newColorInput, setNewColorInput] = useState('');
+  const [newSizeInput, setNewSizeInput] = useState('');
+  const [newVendorInput, setNewVendorInput] = useState('');
   const [timelineLoaded, setTimelineLoaded] = useState(false);
   const searchParams = useSearchParams();
   const location = searchParams.get('location') || '';
@@ -236,6 +248,17 @@ function OwnerPageInner() {
     }
     if(tab==='intelligence') {
       fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
+    }
+    if(tab==='settings' && !catalogLoaded) {
+      setCatalogLoaded(true);
+      fetch('/api/usage').then(r=>r.json()).then(d=>{
+        if(d.categories) setCatList(Object.keys(d.categories).sort((a,b)=>(d.categories[b]||0)-(d.categories[a]||0)));
+        if(d.colors) setColorList(Object.keys(d.colors).sort((a,b)=>(d.colors[b]||0)-(d.colors[a]||0)));
+        if(d.sizes) setSizeList(Object.keys(d.sizes).sort());
+      });
+      fetch('/api/session').then(r=>r.json()).then(d=>{
+        if(d.registry) setVendorList(Object.keys(d.registry).sort());
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[tab]);
@@ -1210,30 +1233,6 @@ function OwnerPageInner() {
 
         {/* ── SETTINGS TAB ── */}
         {tab==='settings'&&(()=>{
-          const [settingsSection, setSettingsSection] = React.useState<'account'|'business'|'catalog'|'workers'|'appearance'|'experimental'|'about'>('business');
-
-          // Catalog editing state
-          const [catList, setCatList] = React.useState<string[]>([]);
-          const [colorList, setColorList] = React.useState<string[]>([]);
-          const [sizeList, setSizeList] = React.useState<string[]>([]);
-          const [vendorList, setVendorList] = React.useState<string[]>([]);
-          const [catalogLoaded, setCatalogLoaded] = React.useState(false);
-          const [newCatInput, setNewCatInput] = React.useState('');
-          const [newColorInput, setNewColorInput] = React.useState('');
-          const [newSizeInput, setNewSizeInput] = React.useState('');
-          const [newVendorInput, setNewVendorInput] = React.useState('');
-
-          if(!catalogLoaded){
-            setCatalogLoaded(true);
-            fetch('/api/usage').then(r=>r.json()).then(d=>{
-              if(d.categories) setCatList(Object.keys(d.categories).sort((a,b)=>(d.categories[b]||0)-(d.categories[a]||0)));
-              if(d.colors) setColorList(Object.keys(d.colors).sort((a,b)=>(d.colors[b]||0)-(d.colors[a]||0)));
-              if(d.sizes) setSizeList(Object.keys(d.sizes).sort());
-            });
-            fetch('/api/session').then(r=>r.json()).then(d=>{
-              if(d.registry) setVendorList(Object.keys(d.registry).sort());
-            });
-          }
 
           function addUsageItem(type:string, name:string){
             fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},

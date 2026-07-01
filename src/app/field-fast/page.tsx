@@ -111,6 +111,30 @@ function FieldFastInner() {
   const [pinLoading, setPinLoading] = useState(false);
   const [worker, setWorker] = useState<Worker|null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [lang, setLang] = useState<'en'|'ar'|'tr'>('en');
+
+  // Simple translations for worker portal
+  const T:{[k:string]:{[k:string]:string}} = {
+    en:{ signIn:'Sign in', pin:'Worker PIN', earnings:'Earnings', signOut:'Sign out',
+         startOrder:'+ Start new order', orderEntry:'Order Entry', back:'Back',
+         vendor:'Vendor', addItem:'+ Add item code under', saveItem:'+ Add item',
+         saving:'Saving…', saveChanges:'Save changes', review:'Review',
+         continueOrder:'Continue this order — not submitted yet',
+         noOrders:'No orders yet', loading:'Loading…', settings:'Settings' },
+    ar:{ signIn:'تسجيل الدخول', pin:'رمز الموظف', earnings:'الأرباح', signOut:'خروج',
+         startOrder:'+ بدء طلب جديد', orderEntry:'إدخال الطلب', back:'رجوع',
+         vendor:'المورد', addItem:'+ أضف كود تحت', saveItem:'+ إضافة منتج',
+         saving:'جاري الحفظ…', saveChanges:'حفظ التغييرات', review:'مراجعة',
+         continueOrder:'استمر في هذا الطلب — لم يُرسل بعد',
+         noOrders:'لا توجد طلبات', loading:'جاري التحميل…', settings:'الإعدادات' },
+    tr:{ signIn:'Giriş yap', pin:'Çalışan PIN', earnings:'Kazanç', signOut:'Çıkış',
+         startOrder:'+ Yeni sipariş', orderEntry:'Sipariş Girişi', back:'Geri',
+         vendor:'Satıcı', addItem:'+ Ürün kodu ekle', saveItem:'+ Ürün ekle',
+         saving:'Kaydediliyor…', saveChanges:'Değişiklikleri kaydet', review:'İncele',
+         continueOrder:'Bu siparişe devam et — henüz gönderilmedi',
+         noOrders:'Henüz sipariş yok', loading:'Yükleniyor…', settings:'Ayarlar' },
+  };
+  const t = (k:string) => T[lang]?.[k] || T.en[k] || k;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [editingExisting, setEditingExisting] = useState<Order|null>(null);
@@ -170,6 +194,9 @@ function FieldFastInner() {
     }
     const saved = localStorage.getItem('darkMode_fieldfast');
     if(saved==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
+    // Load language from worker settings
+    const ws = localStorage.getItem('workerSettings');
+    if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry));
     });
@@ -548,21 +575,21 @@ function FieldFastInner() {
 
   // ── LOGIN ──
   if(screen==='login') return (
-    <div className="page">
+    <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="login-wrap">
         <div className="login-form">
           <Image src="/logo.png" alt="logo" width={56} height={56} style={{borderRadius:12,margin:'0 auto 16px',display:'block'}}/>
-          <div className="login-brand" style={{textAlign:'center'}}>Order Entry</div>
+          <div className="login-brand" style={{textAlign:'center'}}>{t('orderEntry')}</div>
           <div className="login-sub" style={{textAlign:'center'}}>Choices For You{location?` · ${location}`:''}</div>
           <div className="field" style={{marginTop:20}}>
-            <label className="label">Worker PIN</label>
+            <label className="label">{t('pin')}</label>
             <input type="password" inputMode="numeric" value={pin} autoFocus
               onChange={e=>{setPin(e.target.value);setPinError(false);}}
               onKeyDown={e=>e.key==='Enter'&&verifyPin()} placeholder="Enter your PIN"/>
             {pinError&&<div className="field-error">Incorrect PIN</div>}
           </div>
           <button className="btn btn-primary" style={{width:'100%'}} onClick={verifyPin} disabled={pinLoading}>
-            {pinLoading?'Checking...':'Sign in'}
+            {pinLoading?t('saving'):t('signIn')}
           </button>
           <div style={{textAlign:'center',marginTop:16}}>
             <a href="/" style={{fontSize:12,color:'var(--text-3)'}}>Back to home</a>
@@ -583,16 +610,16 @@ function FieldFastInner() {
             <div className="header-sub">Order Entry{location?` · ${location}`:''}</div></div>
         </div>
         <div style={{display:'flex',gap:6}}>
-          <button className="btn btn-sm" onClick={()=>setScreen('earnings')}>Earnings</button>
+          <button className="btn btn-sm" onClick={()=>setScreen('earnings')}>{t('earnings')}</button>
           <a href={`/worker-settings?name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
-          <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');setScreen('login');}}>Sign out</button>
+          <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');setScreen('login');}}>{t('signOut')}</button>
         </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
         <button className="btn btn-primary" style={{width:'100%',padding:14,fontSize:15,marginBottom:16}}
-          onClick={startNewOrder}>+ Start new order</button>
+          onClick={startNewOrder}>{t('startOrder')}</button>
         {orders.length===0?(
-          <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">No orders yet</div></div>
+          <div className="empty"><div className="empty-icon">📦</div><div className="empty-text">{t('noOrders')}</div></div>
         ):orders.map(order=>(
           <div key={order.id} className="item-card"
             style={{cursor:order.status!=='imported'?'pointer':'default',opacity:order.status==='imported'?.7:1,
@@ -603,7 +630,7 @@ function FieldFastInner() {
                 <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
                 {order.status==='open'&&(
                   <div style={{fontSize:11,fontWeight:700,color:'var(--amber)',marginBottom:3}}>
-                    ● Continue this order — not submitted yet
+                    {t('continueOrder')}
                   </div>
                 )}
                 <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
@@ -636,7 +663,7 @@ function FieldFastInner() {
             <div><div className="header-title">{o.name}</div>
               <div className="header-sub">{detailLoading?'Loading…':`${cart.length} packs · $${cartTotal.toFixed(2)}`}</div></div>
           </div>
-          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>Back</button>
+          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>{t('back')}</button>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
           <div className="card" style={{marginBottom:14}}>
@@ -944,7 +971,7 @@ function FieldFastInner() {
 
         {/* VENDOR PICKER — always shown, controls which vendor new items go under */}
         <div className="card" style={{marginBottom:14}}>
-          <div className="card-title" style={{marginBottom:6}}>Add items under vendor</div>
+          <div className="card-title" style={{marginBottom:6}}>{t('vendor')}</div>
           <ComboBox options={vendors} value={currentVendor}
             onChange={v=>{ setCurrentVendor(v); setFormOpen(false); resetItemForm(); if(!vendors.includes(v)) setVendors(prev=>[...prev,v]); }}
             usage={usage.vendors} placeholder="Type vendor name to search or add..."/>
@@ -1098,7 +1125,7 @@ function FieldFastInner() {
                   <input type="text" placeholder="Any note..." value={notes} onChange={e=>setNotes(e.target.value)}/>
                 </div>
                 <button className="btn btn-primary" style={{width:'100%',padding:13,fontSize:15}} onClick={saveItem} disabled={savingItem}>
-                  {savingItem?'Saving…':editingTempId?'Save changes':'+ Add item'}
+                  {savingItem?t('saving'):editingTempId?t('saveChanges'):'+ Add item'}
                 </button>
               </div>
             )}
