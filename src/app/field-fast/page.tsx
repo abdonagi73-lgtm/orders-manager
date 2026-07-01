@@ -93,7 +93,7 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
 }
 
 // ── Swipeable order card ──
-function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel }:{
+function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel, isOpen, onSwipeOpen, onSwipeClose }:{
   order:Order;
   onOpen:()=>void;
   onDelete:()=>void;
@@ -101,82 +101,101 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
   onDuplicate:()=>void;
   onAddMore:()=>void;
   continueLabel:string;
+  isOpen:boolean;          // controlled by parent — true = actions revealed
+  onSwipeOpen:()=>void;    // tell parent this card opened
+  onSwipeClose:()=>void;   // tell parent this card closed
 }){
   const [offset, setOffset] = useState(0);
-  const [swiped, setSwiped] = useState(false);
   const startX = useRef(0);
   const isDragging = useRef(false);
+  const mouseDown = useRef(false);
+  const ACTION_WIDTH = 240;
   const THRESHOLD = 60;
-  const ACTION_WIDTH = 240; // 4 buttons × 60px
 
+  // Sync offset when parent closes us (another card was swiped open)
+  useEffect(()=>{
+    if(!isOpen) setOffset(0);
+  },[isOpen]);
+
+  function handleDragMove(dx:number){
+    if(isOpen){
+      // Already open — allow swiping back right to close
+      const newOffset = Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH - dx < 0 ? 0 : ACTION_WIDTH + dx));
+      // dx>0 means moving right (closing), dx<0 means opening more
+      setOffset(Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH - Math.max(0,dx))));
+    } else {
+      if(dx>0) setOffset(Math.min(dx, ACTION_WIDTH));
+    }
+  }
+
+  function handleDragEnd(dx:number){
+    isDragging.current=false;
+    mouseDown.current=false;
+    if(isOpen){
+      if(dx > THRESHOLD){ setOffset(0); onSwipeClose(); }
+      else { setOffset(ACTION_WIDTH); }
+    } else {
+      if(offset>THRESHOLD){ setOffset(ACTION_WIDTH); onSwipeOpen(); }
+      else { setOffset(0); }
+    }
+  }
+
+  // Touch
   function onTouchStart(e:React.TouchEvent){ startX.current=e.touches[0].clientX; isDragging.current=true; }
   function onTouchMove(e:React.TouchEvent){
     if(!isDragging.current) return;
-    const dx = startX.current - e.touches[0].clientX;
-    if(dx>0) setOffset(Math.min(dx, ACTION_WIDTH));
-    else if(swiped) setOffset(Math.max(ACTION_WIDTH+dx,0));
+    handleDragMove(startX.current-e.touches[0].clientX);
   }
-  function onTouchEnd(){
-    isDragging.current=false;
-    if(offset>THRESHOLD){ setOffset(ACTION_WIDTH); setSwiped(true); }
-    else { setOffset(0); setSwiped(false); }
+  function onTouchEnd(e:React.TouchEvent){
+    handleDragEnd(startX.current - (e.changedTouches[0]?.clientX||startX.current));
   }
 
-  // Mouse support for desktop testing
-  const mouseDown = useRef(false);
+  // Mouse
   function onMouseDown(e:React.MouseEvent){ mouseDown.current=true; startX.current=e.clientX; }
   function onMouseMove(e:React.MouseEvent){
     if(!mouseDown.current) return;
-    const dx=startX.current-e.clientX;
-    if(dx>0) setOffset(Math.min(dx,ACTION_WIDTH));
-    else if(swiped) setOffset(Math.max(ACTION_WIDTH+dx,0));
+    handleDragMove(startX.current-e.clientX);
   }
-  function onMouseUp(){
-    mouseDown.current=false;
-    if(offset>THRESHOLD){ setOffset(ACTION_WIDTH); setSwiped(true); }
-    else { setOffset(0); setSwiped(false); }
+  function onMouseUp(e:React.MouseEvent){
+    if(!mouseDown.current) return;
+    handleDragEnd(startX.current-e.clientX);
   }
 
-  function close(){ setOffset(0); setSwiped(false); }
-
+  function close(){ setOffset(0); onSwipeClose(); }
   const imported = order.status==='imported';
 
   return (
     <div style={{position:'relative',marginBottom:8,borderRadius:'var(--r)',overflow:'hidden',userSelect:'none'}}>
-      {/* Action buttons revealed on swipe */}
+      {/* Action buttons */}
       <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_WIDTH,
         display:'flex',alignItems:'stretch',zIndex:1}}>
         <button style={{flex:1,background:'#3B82F6',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
-          justifyContent:'center',gap:4}}
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
           onClick={()=>{close();onAddMore();}}>
-          <span style={{fontSize:20}}>+</span>Add
+          <span style={{fontSize:22}}>+</span>Add
         </button>
         <button style={{flex:1,background:'#F59E0B',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
-          justifyContent:'center',gap:4}}
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
           onClick={()=>{close();onEdit();}}>
-          <span style={{fontSize:20}}>✎</span>Edit
+          <span style={{fontSize:22}}>✎</span>Edit
         </button>
         <button style={{flex:1,background:'#8B5CF6',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
-          justifyContent:'center',gap:4}}
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
           onClick={()=>{close();onDuplicate();}}>
-          <span style={{fontSize:20}}>⧉</span>Copy
+          <span style={{fontSize:22}}>⧉</span>Copy
         </button>
         <button style={{flex:1,background:'#EF4444',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',
-          justifyContent:'center',gap:4}}
+          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
           onClick={()=>{close();onDelete();}}>
-          <span style={{fontSize:20}}>🗑</span>Delete
+          <span style={{fontSize:22}}>🗑</span>Delete
         </button>
       </div>
 
-      {/* Card — slides left to reveal actions */}
+      {/* Sliding card */}
       <div
         style={{position:'relative',zIndex:2,
           transform:`translateX(-${offset}px)`,
-          transition:isDragging.current||mouseDown.current?'none':'transform .25s ease',
+          transition:isDragging.current||mouseDown.current?'none':'transform .22s ease',
           background:'var(--surface)',border:'1px solid var(--border)',
           borderRadius:'var(--r)',
           borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent',
@@ -184,7 +203,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
           boxShadow:'var(--shadow-sm)',cursor:imported?'default':'pointer'}}
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-        onClick={e=>{ if(offset>0){close();return;} if(!imported) onOpen(); }}>
+        onClick={()=>{ if(offset>4){close();return;} if(!imported) onOpen(); }}>
         <div style={{padding:'14px 16px'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
             <div style={{flex:1,minWidth:0}}>
@@ -200,7 +219,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
             <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
               <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>{order.status}</span>
               <div style={{fontSize:11,color:'var(--text-3)'}}>{order.startDate}</div>
-              {!imported&&<div style={{fontSize:9,color:'var(--text-4)',marginTop:2}}>← swipe</div>}
+              {!imported&&!isOpen&&<div style={{fontSize:9,color:'var(--text-4)',marginTop:1,opacity:.6}}>← swipe</div>}
             </div>
           </div>
         </div>
@@ -288,6 +307,7 @@ function FieldFastInner() {
   const [savingItem, setSavingItem] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [shippingCost, setShippingCost] = useState('');
+  const [openOrderId, setOpenOrderId] = useState<string|null>(null); // tracks which swipe card is open
 
   const [toast, setToast] = useState('');
   const [errorBox, setErrorBox] = useState<{title:string;items:string[]}|null>(null);
@@ -742,8 +762,11 @@ function FieldFastInner() {
           <SwipeableOrderCard
             key={order.id}
             order={order}
-            onOpen={()=>order.status!=='imported'&&openExistingOrder(order)}
-            onDelete={()=>setConfirmBox({
+            isOpen={openOrderId===order.id}
+            onSwipeOpen={()=>setOpenOrderId(order.id)}
+            onSwipeClose={()=>setOpenOrderId(null)}
+            onOpen={()=>{ setOpenOrderId(null); order.status!=='imported'&&openExistingOrder(order); }}
+            onDelete={()=>{ setOpenOrderId(null); setConfirmBox({
               title:'Delete order?',
               message:`"${order.name}" and all its items will be permanently deleted.`,
               onConfirm:async()=>{
@@ -752,16 +775,15 @@ function FieldFastInner() {
                 if(worker) loadOrders(worker.id);
                 showToast('Order deleted');
               },
-            })}
-            onEdit={()=>openExistingOrder(order)}
+            });}}
+            onEdit={()=>{ setOpenOrderId(null); openExistingOrder(order); }}
             onDuplicate={async()=>{
-              // Create a copy of the order
+              setOpenOrderId(null);
               const res = await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({action:'create',name:order.name+' (copy)',startDate:new Date().toISOString().split('T')[0],
                   workerId:worker!.id,workerName:worker!.name,orderType:order.orderType||'store'})});
               const d = await res.json();
               if(d.order){
-                // Copy items
                 const itemsRes = await fetch(`/api/items?orderId=${order.id}`);
                 const itemsData = await itemsRes.json();
                 for(const item of (itemsData.items||[])){
@@ -774,7 +796,37 @@ function FieldFastInner() {
                 showToast('Order duplicated');
               }
             }}
-            onAddMore={()=>openExistingOrder(order)}
+            onAddMore={async()=>{
+              // Go DIRECTLY to entry screen, skipping detail
+              setOpenOrderId(null);
+              setEditingExisting(order);
+              setOrderName(order.name);
+              setOrderDate(order.startDate);
+              setOrderType(order.orderType||'store');
+              setShippingCost(String(order.shippingCost||''));
+              setDeletedServerIds([]);
+              setCart([]);
+              setCurrentVendor('');
+              setFormOpen(false);
+              // Load items in background
+              setDetailLoading(true);
+              setScreen('entry');
+              try {
+                const res=await fetch(`/api/items?orderId=${order.id}`);
+                const d=await res.json();
+                const its=(d.items||[]);
+                let photos:Record<string,string>={};
+                if(its.length){
+                  const ids=its.map((i:any)=>i.id).join(',');
+                  try{ const pr=await fetch(`/api/photos?ids=${ids}`); const pd=await pr.json(); photos=pd.photos||{}; }catch{}
+                }
+                setCart(its.map((i:any)=>({
+                  tempId:'t_'+i.id,serverId:i.id,vendor:i.vendor,code:i.code,category:i.category,
+                  colors:safeArr(i.colors),sizes:safeArr(i.sizes),price:i.price,qty:i.qty,
+                  notes:i.notes||'',photo:photos[i.id]||'',orig:i,
+                })));
+              } finally { setDetailLoading(false); }
+            }}
             continueLabel={t('continueOrder')}
           />
         ))}
