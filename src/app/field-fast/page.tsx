@@ -637,7 +637,7 @@ function FieldFastInner() {
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.lang = lang === 'ar' ? 'ar-EG' : lang === 'tr' ? 'tr-TR' : 'en-US';
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     setVoiceListening(true);
@@ -645,27 +645,42 @@ function FieldFastInner() {
     setVoiceTranscript('');
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setVoiceTranscript(transcript);
+      let interimTranscript = '';
+      let finalTranscript = '';
       
-      const parsed = parseVoiceInput(transcript, vendors, categories);
-      
-      if (parsed.vendor) {
-        setCurrentVendor(parsed.vendor);
-      }
-      if (parsed.code) setCode(parsed.code);
-      if (parsed.category) setCategory(parsed.category);
-      if (parsed.price) setPrice(parsed.price);
-      
-      if (parsed.colors.length > 0) {
-        setColors(parsed.colors.map(col => ({ value: col, count: 1 })));
-      }
-      if (parsed.sizes.length > 0) {
-        setSizes(parsed.sizes.map(sz => ({ value: sz, count: 1 })));
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
       
-      showToast(lang === 'ar' ? '✓ تم ملء النموذج!' : lang === 'tr' ? '✓ Form dolduruldu!' : '✓ Form pre-filled!');
-      setTimeout(() => setVoiceListening(false), 1200);
+      const currentTranscript = finalTranscript || interimTranscript;
+      setVoiceTranscript(currentTranscript);
+      
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const transcript = lastResult[0].transcript;
+        const parsed = parseVoiceInput(transcript, vendors, categories);
+        
+        if (parsed.vendor) {
+          setCurrentVendor(parsed.vendor);
+        }
+        if (parsed.code) setCode(parsed.code);
+        if (parsed.category) setCategory(parsed.category);
+        if (parsed.price) setPrice(parsed.price);
+        
+        if (parsed.colors.length > 0) {
+          setColors(parsed.colors.map(col => ({ value: col, count: 1 })));
+        }
+        if (parsed.sizes.length > 0) {
+          setSizes(parsed.sizes.map(sz => ({ value: sz, count: 1 })));
+        }
+        
+        showToast(lang === 'ar' ? '✓ تم ملء النموذج!' : lang === 'tr' ? '✓ Form dolduruldu!' : '✓ Form pre-filled!');
+        setTimeout(() => setVoiceListening(false), 1200);
+      }
     };
 
     recognition.onerror = (event: any) => {
@@ -1087,6 +1102,33 @@ function FieldFastInner() {
         <div className="confirm-overlay" style={{zIndex:100}}>
           <div className="confirm-box" style={{textAlign:'center',padding:'30px 20px'}}>
             <div style={{fontSize:48,animation:'pulse 1.5s infinite',marginBottom:16}}>🎙️</div>
+            
+            {/* Visual Equalizer Listening Wave */}
+            <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:4,height:40,marginBottom:16}}>
+              <div className="voice-bar voice-bar-1"/>
+              <div className="voice-bar voice-bar-2"/>
+              <div className="voice-bar voice-bar-3"/>
+              <div className="voice-bar voice-bar-4"/>
+              <div className="voice-bar voice-bar-5"/>
+              <style>{`
+                @keyframes voice-wave {
+                  0%, 100% { height: 8px; }
+                  50% { height: 32px; }
+                }
+                .voice-bar {
+                  width: 4px;
+                  background: var(--blue);
+                  border-radius: 2px;
+                  animation: voice-wave 0.8s ease-in-out infinite;
+                }
+                .voice-bar-1 { animation-delay: 0.1s; }
+                .voice-bar-2 { animation-delay: 0.25s; }
+                .voice-bar-3 { animation-delay: 0.4s; }
+                .voice-bar-4 { animation-delay: 0.25s; }
+                .voice-bar-5 { animation-delay: 0.1s; }
+              `}</style>
+            </div>
+            
             <div className="confirm-title" style={{marginBottom:10}}>{voiceStatus}</div>
             <div style={{fontSize:13,color:'var(--text-3)',lineHeight:1.6,marginBottom:20}}>
               {lang === 'ar' ? (
@@ -1155,6 +1197,11 @@ function FieldFastInner() {
   if(screen==='login') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="login-wrap">
+        {/* Navigation / Refresh Bar */}
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:16,width:'100%',maxWidth:360,margin:'0 auto'}}>
+          <button className="btn btn-sm" onClick={()=>window.location.href='/'}>🏠 {t('back')}</button>
+          <button className="btn btn-sm" onClick={()=>window.location.reload()}>↻ {lang==='ar'?'تحديث':'Refresh'}</button>
+        </div>
         <div className="login-form">
           <Image src="/logo.png" alt="logo" width={56} height={56} style={{borderRadius:12,margin:'0 auto 16px',display:'block'}}/>
           <div className="login-brand" style={{textAlign:'center'}}>{t('orderEntry')}</div>
@@ -1181,8 +1228,10 @@ function FieldFastInner() {
   // ── ORDERS LIST ──
   if(screen==='orders') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
-      <div className="header"><div className="container"><div className="header-inner">
+      <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button className="btn btn-sm" onClick={()=>window.location.href='/'} title="Back to home">🏠</button>
+          <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{worker?.name}</div>
             <div className="header-sub">{t('orderEntry')}{location?` · ${location}`:''}</div></div>
@@ -1300,13 +1349,32 @@ function FieldFastInner() {
     cart.forEach(i=>{ if(!detailByVendor[i.vendor]) detailByVendor[i.vendor]=[]; detailByVendor[i.vendor].push(i); });
     return (
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
-        <div className="header"><div className="container"><div className="header-inner">
+        <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+            <button className="btn btn-sm" onClick={async()=>{
+              setDetailLoading(true);
+              try {
+                const res=await fetch(`/api/items?orderId=${o.id}`);
+                const d=await res.json();
+                const its=(d.items||[]);
+                let photos:Record<string,string>={};
+                if(its.length){
+                  const ids=its.map((i:any)=>i.id).join(',');
+                  try{ const pr=await fetch(`/api/photos?ids=${ids}`); const pd=await pr.json(); photos=pd.photos||{}; }catch{}
+                }
+                setCart(its.map((i:any)=>({
+                  tempId:'t_'+i.id,serverId:i.id,vendor:i.vendor,code:i.code,category:i.category,
+                  colors:safeArr(i.colors),sizes:safeArr(i.sizes),price:i.price,qty:i.qty,
+                  notes:i.notes||'',photo:photos[i.id]||'',orig:i,
+                })));
+                showToast(lang==='ar'?'تم التحديث':'Refreshed');
+              } catch{} finally { setDetailLoading(false); }
+            }} title="Refresh">↻</button>
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
             <div><div className="header-title">{o.name}</div>
               <div className="header-sub">{detailLoading?t('loading'):`${cart.length} ${cart.length===1?t('packLabel'):t('packsLabel')} · $${cartTotal.toFixed(2)}`}</div></div>
           </div>
-          <button className="btn btn-sm" onClick={()=>goTo('orders')}>{t('back')}</button>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
           <div className="card" style={{marginBottom:14}}>
@@ -1361,12 +1429,13 @@ function FieldFastInner() {
     const totalUnpaid=myOrders.filter(o=>!o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
     return (
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
-        <div className="header"><div className="container"><div className="header-inner">
+        <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+            <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
             <div><div className="header-title">{t('myEarnings')}</div><div className="header-sub">{worker?.name}</div></div>
           </div>
-          <button className="btn btn-sm" onClick={()=>goTo('orders')}>{t('back')}</button>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}}>
@@ -1411,12 +1480,13 @@ function FieldFastInner() {
   // ── SETUP ──
   if(screen==='setup') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
-      <div className="header"><div className="container"><div className="header-inner">
+      <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+          <button className="btn btn-sm" onClick={()=>{ setOrderName(''); setOrderType('store'); }} title="Reset">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{worker?.name}</div><div className="header-sub">{t('startOrder')}</div></div>
         </div>
-        <button className="btn btn-sm" onClick={()=>goTo('orders')}>{t('back')}</button>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
         <div className="card">
@@ -1481,8 +1551,10 @@ function FieldFastInner() {
   // ── CART / REVIEW ──
   if(screen==='cart') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
-      <div className="header"><div className="container"><div className="header-inner">
+      <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button className="btn btn-sm" onClick={()=>goTo('entry')} title="Back to Entry">←</button>
+          <button className="btn btn-sm" onClick={()=>{}} title="Refresh">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{t('review')}</div>
             <div className="header-sub">{orderName} · {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')} · ${cartTotal.toFixed(2)}</div></div>
@@ -1595,8 +1667,30 @@ function FieldFastInner() {
 
   return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
-      <div className="header"><div className="container"><div className="header-inner">
+      <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+          <button className="btn btn-sm" onClick={async()=>{
+            if(editingExisting){
+              setDetailLoading(true);
+              try {
+                const res=await fetch(`/api/items?orderId=${editingExisting.id}`);
+                const d=await res.json();
+                const its=(d.items||[]);
+                let photos:Record<string,string>={};
+                if(its.length){
+                  const ids=its.map((i:any)=>i.id).join(',');
+                  try{ const pr=await fetch(`/api/photos?ids=${ids}`); const pd=await pr.json(); photos=pd.photos||{}; }catch{}
+                }
+                setCart(its.map((i:any)=>({
+                  tempId:'t_'+i.id,serverId:i.id,vendor:i.vendor,code:i.code,category:i.category,
+                  colors:safeArr(i.colors),sizes:safeArr(i.sizes),price:i.price,qty:i.qty,
+                  notes:i.notes||'',photo:photos[i.id]||'',orig:i,
+                })));
+                showToast(lang==='ar'?'تم التحديث':'Refreshed');
+              } catch{} finally { setDetailLoading(false); }
+            }
+          }} title="Refresh">↻</button>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{orderName||'Order'}</div>
             <div className="header-sub">
@@ -1616,7 +1710,7 @@ function FieldFastInner() {
         <div className="card" style={{marginBottom:14}}>
           <div className="card-title" style={{marginBottom:6}}>{t('vendor')}</div>
           <ComboBox options={vendors} value={currentVendor}
-            onChange={v=>{ setCurrentVendor(v); setFormOpen(false); resetItemForm(); if(!vendors.includes(v)) setVendors(prev=>[...prev,v]); }}
+            onChange={v=>{ setCurrentVendor(v); setFormOpen(true); resetItemForm(); if(!vendors.includes(v)) setVendors(prev=>[...prev,v]); }}
             usage={usage.vendors} placeholder="Type vendor name to search or add..."/>
         </div>
 

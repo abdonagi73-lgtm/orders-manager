@@ -900,7 +900,7 @@ function OwnerPageInner() {
     <div className="page">
       <div className="header">
         <div className="container-wide">
-          <div className="header-inner">
+          <div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
             <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}}>
               <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
               <div style={{minWidth:0}}>
