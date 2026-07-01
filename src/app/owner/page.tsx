@@ -7,96 +7,43 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
-// ── FingerPanel: true finger-tracking expand ──
-// Panel is always in DOM, offset below by its own height (overflow:hidden clips it)
-// During touch: moves pixel-for-pixel with finger via translateY
-// On release: springs to open/closed with cubic-bezier
-function FingerPanel({ open, onOpen, onClose, children }:{
-  open:boolean; onOpen:()=>void; onClose:()=>void; children:React.ReactNode;
-}){
-  const innerRef = React.useRef<HTMLDivElement>(null);
-  const startY = React.useRef(0);
-  const wasDragging = React.useRef(false);
-  const [drag, setDrag] = React.useState(0);
-  const [spring, setSpring] = React.useState(false);
-  const h = innerRef.current?.offsetHeight || 0;
-
-  // live position: open=0, closed=h, during drag: offset from base
-  const baseY = open ? 0 : h;
-  const liveY = wasDragging.current ? baseY + drag : (open ? 0 : h);
-
-  function ts(e:React.TouchEvent){
-    wasDragging.current=true; setSpring(false); setDrag(0);
-    startY.current=e.touches[0].clientY;
-  }
-  function tm(e:React.TouchEvent){
-    if(!wasDragging.current) return;
-    e.preventDefault();
-    const dy=e.touches[0].clientY-startY.current;
-    // open → only drag up (dy<0 → drag<0); closed → only drag down (dy>0 → drag>0)
-    setDrag(open ? Math.min(0,dy) : Math.max(0,dy));
-  }
-  function te(e:React.TouchEvent){
-    if(!wasDragging.current) return;
-    wasDragging.current=false;
-    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
-    setSpring(true); setDrag(0);
-    if(open && dy<-44) onClose();
-    else if(!open && dy>44) onOpen();
-  }
-
+// ── ExpandPanel: simple CSS expand, triggered by arrow button ──
+function ExpandPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
   return (
-    <div style={{overflow:'hidden',
-      // container height follows open state with spring
-      height: h ? (open ? `${h}px` : '0') : 'auto',
-      transition: spring ? 'height 0.32s cubic-bezier(0.34,1.08,0.64,1)' : 'none',
+    <div style={{
+      display: open ? 'block' : 'none',
     }}>
-      <div ref={innerRef}
-        onTouchStart={ts} onTouchMove={tm} onTouchEnd={te}
-        style={{
-          transform: `translateY(${liveY - (open?0:h)}px)`,
-          transition: spring ? 'transform 0.32s cubic-bezier(0.34,1.08,0.64,1)' : 'none',
-        }}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
 
-// ── Manager order card with swipe-left + slide-down vendor summary ──
-function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, onCopy, selectedOrder, summary, onExpand }:{
+
+function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, onCopy, selectedOrder, summary, expanded, onToggleExpand }:{
   order:any; onSelect:()=>void; onEdit:()=>void; onImport?:()=>void;
   onPDF:()=>void; onDelete:()=>void; onCopy?:()=>void;
-  selectedOrder:any; summary:{vendor:string;items:number;total:number}[]|null; onExpand:()=>void;
+  selectedOrder:any; summary:{vendor:string;items:number;total:number}[]|null;
+  expanded:boolean; onToggleExpand:()=>void;
 }){
   const [offset, setOffset] = React.useState(0);
-  const [expanded, setExpanded] = React.useState(false);
   const startX = React.useRef(0);
-  const startY = React.useRef(0);
   const dragDir = React.useRef<'h'|'v'|null>(null);
   const touching = React.useRef(false);
   const ACTION_W = 220;
   const THRESHOLD = 70;
-  const V_THRESHOLD = 40;
 
   function onTS(e:React.TouchEvent){
     touching.current=true;
     startX.current=e.touches[0].clientX;
-    startY.current=e.touches[0].clientY;
-    dragDir.current=null;
+    dragDir.current='h';
   }
 
   function onTM(e:React.TouchEvent){
     if(!touching.current) return;
     const dx=startX.current-e.touches[0].clientX;
     const dy=e.touches[0].clientY-startY.current;
-    if(!dragDir.current){
-      if(Math.abs(dx)>8||Math.abs(dy)>8)
-        dragDir.current=Math.abs(dy)>Math.abs(dx)?'v':'h';
-      return;
-    }
-    e.preventDefault();
-    if(dragDir.current==='h'){
+    if(Math.abs(dx)>6){
+      e.preventDefault();
       const base=offset>THRESHOLD?ACTION_W:0;
       setOffset(Math.max(0,Math.min(ACTION_W,base+dx)));
     }
@@ -106,12 +53,8 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
     if(!touching.current) return;
     touching.current=false;
     const dx=startX.current-(e.changedTouches[0]?.clientX||startX.current);
-    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
     const dir=dragDir.current; dragDir.current=null;
-    if(dir==='v'){
-      if(dy>V_THRESHOLD&&!expanded){ setExpanded(true); onExpand(); }
-      else if(dy<-V_THRESHOLD&&expanded) setExpanded(false);
-    } else if(dir==='h'){
+    if(dir==='h'){
       if(offset>THRESHOLD&&dx>0) { setOffset(ACTION_W); }
       else if(dx<-THRESHOLD) { setOffset(0); }
       else if(offset>ACTION_W/2) setOffset(ACTION_W);
@@ -125,7 +68,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
   return (
     <div style={{marginBottom:8,userSelect:'none',touchAction:'pan-y'}}>
       {/* Swipe layer */}
-      <div style={{position:'relative',borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',overflow:'hidden'}}>
+      <div style={{position:'relative',borderRadius:'var(--r)',overflow:'hidden'}}>
         {/* Action buttons */}
         <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_W,
           display:'flex',alignItems:'stretch',zIndex:1}}>
@@ -151,10 +94,9 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
             transition:touching.current?'none':'transform .22s ease',
             background:'var(--surface)',
             border:`1px solid ${isSelected?'var(--green)':'var(--border)'}`,
-            borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',
+            borderRadius:'var(--r)',
             borderLeft:`3px solid ${order.status==='open'?'var(--amber)':order.status==='submitted'?'var(--blue)':order.status==='imported'?'var(--green)':'var(--border)'}`,
-            borderBottom:expanded?'none':'',
-            boxShadow:isSelected?'0 0 0 2px var(--green)':expanded?'none':'var(--shadow-sm)',
+                        boxShadow:isSelected?'0 0 0 2px var(--green)':'var(--shadow-sm)',
             cursor:'pointer'}}
           onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
           onClick={()=>{ if(offset>8){setOffset(0);return;} onSelect(); }}>
@@ -179,15 +121,25 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
                 <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
                   {order.status}
                 </span>
-                <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>← swipe · ↓ summary</div>
+                <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>← swipe</div>
               </div>
             </div>
+          </div>
+          {/* Expand arrow */}
+          <div onClick={e=>{e.stopPropagation();onToggleExpand();}}
+            style={{display:'flex',justifyContent:'center',alignItems:'center',
+              padding:'4px 0 2px',borderTop:'1px solid var(--border)',
+              cursor:'pointer',color:'var(--text-4)',fontSize:11,gap:4}}>
+            <span style={{fontSize:13,transition:'transform .25s',
+              display:'inline-block',transform:expanded?'rotate(180deg)':'rotate(0deg)'}}>▾</span>
+            <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'vendor summary'}</span>
           </div>
         </div>
       </div>
 
-      {/* Smooth slide-down vendor summary */}
-      <FingerPanel open={expanded} onOpen={()=>setExpanded(true)} onClose={()=>setExpanded(false)}>
+      {/* Vendor summary panel */}
+{expanded&&(
+
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
           padding:'0 14px 12px'}}>
@@ -228,7 +180,8 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
             </>
           )}
         </div>
-      </FingerPanel>
+
+)}
     </div>
   );
 }
@@ -480,6 +433,7 @@ function OwnerPageInner() {
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;items:number;total:number}[]>>({});
+  const [expandedOrders, setExpandedOrders] = useState<Record<string,boolean>>({});
   const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp
   const [loggedInName, setLoggedInName] = useState('');
   const [darkMode, setDarkMode] = useState(false);
@@ -1064,20 +1018,8 @@ function OwnerPageInner() {
                   order={order}
                   selectedOrder={selectedOrder}
                   summary={orderSummaries[order.id]??null}
-                  onExpand={()=>{
-                    // Data is pre-loaded on login — fallback fetch if not available
-                    if(!orderSummaries[order.id]){
-                      setOrderSummaries(p=>({...p,[order.id]:[]}));
-                      fetch(`/api/items?orderId=${order.id}`).then(r=>r.json()).then(d=>{
-                        const byV:Record<string,{items:number;total:number}>={};
-                        (d.items||[]).forEach((i:any)=>{
-                          if(!byV[i.vendor]) byV[i.vendor]={items:0,total:0};
-                          byV[i.vendor].items++; byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
-                        });
-                        setOrderSummaries(p=>({...p,[order.id]:Object.entries(byV).map(([vendor,v])=>({vendor,...v}))}));
-                      }).catch(()=>{});
-                    }
-                  }}
+                  expanded={!!expandedOrders[order.id]}
+                  onToggleExpand={()=>setExpandedOrders(p=>({...p,[order.id]:!p[order.id]}))}
                   onSelect={()=>selectOrder(order)}
                   onEdit={()=>setEditOrderModal({...order})}
                   onImport={()=>closeOrder(order.id)}

@@ -94,103 +94,48 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
 
 // ── Swipeable order card ──
 // Samsung notification-style smooth expand panel
-// ── FingerPanel: true finger-tracking expand ──
-// Panel is always in DOM, offset below by its own height (overflow:hidden clips it)
-// During touch: moves pixel-for-pixel with finger via translateY
-// On release: springs to open/closed with cubic-bezier
-function FingerPanel({ open, onOpen, onClose, children }:{
-  open:boolean; onOpen:()=>void; onClose:()=>void; children:React.ReactNode;
-}){
-  const innerRef = useRef<HTMLDivElement>(null);
-  const startY = useRef(0);
-  const wasDragging = useRef(false);
-  const [drag, setDrag] = useState(0);
-  const [spring, setSpring] = useState(false);
-  const h = innerRef.current?.offsetHeight || 0;
-
-  // live position: open=0, closed=h, during drag: offset from base
-  const baseY = open ? 0 : h;
-  const liveY = wasDragging.current ? baseY + drag : (open ? 0 : h);
-
-  function ts(e:React.TouchEvent){
-    wasDragging.current=true; setSpring(false); setDrag(0);
-    startY.current=e.touches[0].clientY;
-  }
-  function tm(e:React.TouchEvent){
-    if(!wasDragging.current) return;
-    e.preventDefault();
-    const dy=e.touches[0].clientY-startY.current;
-    // open → only drag up (dy<0 → drag<0); closed → only drag down (dy>0 → drag>0)
-    setDrag(open ? Math.min(0,dy) : Math.max(0,dy));
-  }
-  function te(e:React.TouchEvent){
-    if(!wasDragging.current) return;
-    wasDragging.current=false;
-    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
-    setSpring(true); setDrag(0);
-    if(open && dy<-44) onClose();
-    else if(!open && dy>44) onOpen();
-  }
-
+// ── ExpandPanel: simple CSS expand, triggered by arrow button ──
+function ExpandPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
   return (
-    <div style={{overflow:'hidden',
-      // container height follows open state with spring
-      height: h ? (open ? `${h}px` : '0') : 'auto',
-      transition: spring ? 'height 0.32s cubic-bezier(0.34,1.08,0.64,1)' : 'none',
+    <div style={{
+      display: open ? 'block' : 'none',
     }}>
-      <div ref={innerRef}
-        onTouchStart={ts} onTouchMove={tm} onTouchEnd={te}
-        style={{
-          transform: `translateY(${liveY - (open?0:h)}px)`,
-          transition: spring ? 'transform 0.32s cubic-bezier(0.34,1.08,0.64,1)' : 'none',
-        }}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
 
-function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel, isOpen, onSwipeOpen, onSwipeClose, onExpand, summary }:{
+
+function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel, isOpen, onSwipeOpen, onSwipeClose, expanded, onToggleExpand, summary }:{
   order:Order; onOpen:()=>void; onDelete:()=>void; onEdit:()=>void;
   onDuplicate:()=>void; onAddMore:()=>void; continueLabel:string;
-  isOpen:boolean; onSwipeOpen:()=>void; onSwipeClose:()=>void; onExpand:()=>void;
+  isOpen:boolean; onSwipeOpen:()=>void; onSwipeClose:()=>void;
+  expanded:boolean; onToggleExpand:()=>void;
   summary:{vendor:string;packs:number;total:number}[]|null;
 }){
   const [offset, setOffset] = useState(0);
-  const [expanded, setExpanded] = useState(false);
   const startX = useRef(0);
-  const startY = useRef(0);
   const currentOffset = useRef(0);
   const dragDir = useRef<'h'|'v'|null>(null);
   const touching = useRef(false);
   const ACTION_WIDTH = 240;
   const THRESHOLD = 80;
-  const V_THRESHOLD = 50;
 
   useEffect(()=>{ if(!isOpen){ setOffset(0); currentOffset.current=0; } },[isOpen]);
 
   function handleTouchStart(e:React.TouchEvent){
     touching.current=true;
     startX.current=e.touches[0].clientX;
-    startY.current=e.touches[0].clientY;
-    dragDir.current=null;
+    dragDir.current='h'; // always horizontal only
     currentOffset.current=isOpen?ACTION_WIDTH:0;
   }
 
   function handleTouchMove(e:React.TouchEvent){
     if(!touching.current) return;
     const dx=startX.current-e.touches[0].clientX;
-    const dy=e.touches[0].clientY-startY.current;
-
-    if(!dragDir.current){
-      if(Math.abs(dx)>8 || Math.abs(dy)>8){
-        dragDir.current = Math.abs(dy)>Math.abs(dx) ? 'v' : 'h';
-      }
-      return;
-    }
-
-    e.preventDefault(); // prevent scroll AND pull-to-refresh for both directions
-    if(dragDir.current==='h'){
+    // Only handle horizontal — let the page scroll vertically naturally
+    if(Math.abs(dx) > 6) {
+      e.preventDefault();
       const base = isOpen ? ACTION_WIDTH : 0;
       const newOffset = Math.max(0, Math.min(ACTION_WIDTH, base + dx));
       currentOffset.current = newOffset;
@@ -201,22 +146,14 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
   function handleTouchEnd(e:React.TouchEvent){
     if(!touching.current) return;
     touching.current=false;
-    const dx=startX.current-(e.changedTouches[0]?.clientX||startX.current);
-    const dy=(e.changedTouches[0]?.clientY||startY.current)-startY.current;
-    const dir=dragDir.current;
     dragDir.current=null;
-
-    if(dir==='v'){
-      if(dy>V_THRESHOLD && !expanded){ setExpanded(true); onExpand(); }
-      else if(dy<-V_THRESHOLD && expanded){ setExpanded(false); }
-    } else if(dir==='h'){
-      if(isOpen){
-        if(dx < -THRESHOLD){ setOffset(0); currentOffset.current=0; onSwipeClose(); }
-        else { setOffset(ACTION_WIDTH); currentOffset.current=ACTION_WIDTH; }
-      } else {
-        if(dx > THRESHOLD){ setOffset(ACTION_WIDTH); currentOffset.current=ACTION_WIDTH; onSwipeOpen(); }
-        else { setOffset(0); currentOffset.current=0; }
-      }
+    const dx=startX.current-(e.changedTouches[0]?.clientX||startX.current);
+    if(isOpen){
+      if(dx < -THRESHOLD){ setOffset(0); currentOffset.current=0; onSwipeClose(); }
+      else { setOffset(ACTION_WIDTH); currentOffset.current=ACTION_WIDTH; }
+    } else {
+      if(dx > THRESHOLD){ setOffset(ACTION_WIDTH); currentOffset.current=ACTION_WIDTH; onSwipeOpen(); }
+      else { setOffset(0); currentOffset.current=0; }
     }
   }
 
@@ -225,7 +162,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
 
   return (
     <div style={{marginBottom:8,userSelect:'none',touchAction:'none'}}>
-      <div style={{position:'relative',borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',overflow:'hidden'}}>
+      <div style={{position:'relative',borderRadius:'var(--r)',overflow:'hidden'}}>
         <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_WIDTH,
           display:'flex',alignItems:'stretch',zIndex:1}}>
           {[
@@ -248,11 +185,10 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
             transform:`translateX(-${offset}px)`,
             transition:touching.current?'none':'transform .22s ease',
             background:'var(--surface)',border:'1px solid var(--border)',
-            borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',
+            borderRadius:'var(--r)',
             borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent',
-            borderBottom:expanded?'none':'',
             opacity:imported?.7:1,
-            boxShadow:expanded?'none':'var(--shadow-sm)'}}
+            boxShadow:'var(--shadow-sm)'}}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -272,14 +208,28 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
               <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
                 <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>{order.status}</span>
                 <div style={{fontSize:11,color:'var(--text-3)'}}>{order.startDate}</div>
-                {!imported&&<div style={{fontSize:9,color:'var(--text-4)',opacity:.5,marginTop:1}}>← swipe · ↓ summary</div>}
+                {!imported&&<div style={{fontSize:9,color:'var(--text-4)',opacity:.5,marginTop:1}}>← swipe</div>}
               </div>
             </div>
+            {/* Expand arrow at bottom */}
+            {!imported&&(
+              <div
+                onClick={e=>{e.stopPropagation();onToggleExpand();}}
+                style={{display:'flex',justifyContent:'center',alignItems:'center',
+                  padding:'4px 0 2px',borderTop:'1px solid var(--border)',
+                  cursor:'pointer',color:'var(--text-4)',fontSize:11,gap:4,
+                  transition:'color .15s'}}>
+                <span style={{fontSize:13,transition:'transform .25s',
+                  display:'inline-block',transform:expanded?'rotate(180deg)':'rotate(0deg)'}}>▾</span>
+                <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'vendor summary'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <FingerPanel open={expanded} onOpen={()=>setExpanded(true)} onClose={()=>setExpanded(false)}>
+{expanded&&(
+
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
           padding:'0 16px 12px',boxShadow:'var(--shadow-sm)'}}>
@@ -318,7 +268,8 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
             </>
           )}
         </div>
-      </FingerPanel>
+
+)}
     </div>
   );
 }
@@ -448,6 +399,7 @@ function FieldFastInner() {
   const [submitting, setSubmitting] = useState(false);
   const [shippingCost, setShippingCost] = useState('');
   const [openOrderId, setOpenOrderId] = useState<string|null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Record<string,boolean>>({});
   const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp // tracks which swipe card is open
   const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;packs:number;total:number}[]>>({}); // cache
 
@@ -947,21 +899,8 @@ function FieldFastInner() {
             isOpen={openOrderId===order.id}
             onSwipeOpen={()=>setOpenOrderId(order.id)}
             onSwipeClose={()=>setOpenOrderId(null)}
-            onExpand={()=>{
-              // Data is pre-loaded — nothing needed here
-              // Fallback: fetch if somehow not loaded yet
-              if(!orderSummaries[order.id]){
-                setOrderSummaries(prev=>({...prev,[order.id]:[]}));
-                fetch(`/api/items?orderId=${order.id}`).then(r=>r.json()).then(d=>{
-                  const byV:Record<string,{packs:number;total:number}>={};
-                  (d.items||[]).forEach((i:any)=>{
-                    if(!byV[i.vendor]) byV[i.vendor]={packs:0,total:0};
-                    byV[i.vendor].packs++; byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
-                  });
-                  setOrderSummaries(prev=>({...prev,[order.id]:Object.entries(byV).map(([vendor,{packs,total}])=>({vendor,packs,total}))}));
-                }).catch(()=>{});
-              }
-            }}
+            expanded={!!expandedOrders[order.id]}
+            onToggleExpand={()=>setExpandedOrders(p=>({...p,[order.id]:!p[order.id]}))}
             onOpen={()=>{ setOpenOrderId(null); if(order.status!=='imported'){ setRecentlyTouched(p=>({...p,[order.id]:Date.now()})); openExistingOrder(order); } }}
             onDelete={()=>{ setOpenOrderId(null); setConfirmBox({
               title:'Delete order?',
