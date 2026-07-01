@@ -41,7 +41,6 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
   function onTM(e:React.TouchEvent){
     if(!touching.current) return;
     const dx=startX.current-e.touches[0].clientX;
-    const dy=e.touches[0].clientY-startY.current;
     if(Math.abs(dx)>6){
       e.preventDefault();
       const base=offset>THRESHOLD?ACTION_W:0;
