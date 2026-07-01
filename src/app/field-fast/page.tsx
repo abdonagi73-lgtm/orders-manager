@@ -56,10 +56,11 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
   return (
     <div style={{position:'relative',flexShrink:0}}>
       <button
-        style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'var(--text-3)',
-          padding:'4px 8px',borderRadius:6,lineHeight:1}}
+        style={{background:'var(--surface-2)',border:'1px solid var(--border)',cursor:'pointer',
+          fontSize:18,color:'var(--text-2)',padding:'3px 9px',borderRadius:6,lineHeight:1,
+          fontWeight:700,letterSpacing:2}}
         onClick={e=>{e.stopPropagation();setOpen(p=>!p);}}>
-        ⋮
+        ···
       </button>
       {open&&(
         <>
@@ -324,41 +325,42 @@ function FieldFastInner() {
   cart.forEach(i=>{ if(!cartByVendor[i.vendor]) cartByVendor[i.vendor]=[]; cartByVendor[i.vendor].push(i); });
   const cartTotal=cart.reduce((s,i)=>s+i.price*i.qty,0);
 
-  // ── Reusable item row renderer (used in entry, detail, and cart screens) ──
+  // ── Reusable item row renderer ──
   function renderItemRow(item:CartItem){
     const expanded=expandedRows[item.tempId];
     return (
-      <div key={item.tempId} className="item-card" style={{padding:0,overflow:'hidden'}}>
-        {/* TOP ROW — always visible: summary + ⋮ menu */}
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px'}}>
-          {/* Tap left side to expand/collapse */}
+      <div key={item.tempId} className="item-card" style={{padding:0,overflow:'visible',marginBottom:6}}>
+        {/* TOP ROW — always visible */}
+        <div style={{display:'flex',alignItems:'center',gap:6,padding:'10px 12px'}}>
+          {/* Left: tap to expand */}
           <div style={{flex:1,minWidth:0,cursor:'pointer'}}
             onClick={()=>setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
             <div style={{fontWeight:600,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
             <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-              {item.category} · {item.colors.length} color{item.colors.length!==1?'s':''} × {item.sizes.length} size{item.sizes.length!==1?'s':''} · <strong>{item.qty}</strong> variants · ${item.price}
+              {item.category} · {item.colors.length}c × {item.sizes.length}s · <strong>{item.qty}</strong> variants · ${item.price}
             </div>
           </div>
-          {item.photo&&<img src={item.photo} alt="" style={{width:32,height:32,borderRadius:4,objectFit:'cover',flexShrink:0}}/>}
-          <span style={{color:'var(--text-4)',fontSize:11,cursor:'pointer',flexShrink:0}}
+          {item.photo&&<img src={item.photo} alt="" style={{width:30,height:30,borderRadius:4,objectFit:'cover',flexShrink:0}}/>}
+          {/* Expand arrow */}
+          <span style={{color:'var(--text-3)',fontSize:11,cursor:'pointer',flexShrink:0,padding:'0 2px'}}
             onClick={()=>setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
             {expanded?'▲':'▼'}
           </span>
-          {/* THREE-DOT MENU — always visible, never hidden */}
+          {/* THREE-DOT MENU — always visible */}
           <ItemMenu
             item={item}
             onEdit={()=>{ editRow(item); setScreen('entry'); }}
             onDelete={()=>setConfirmBox({
               title:'Delete this item?',
-              message:`${item.vendor} · ${item.code} (${item.qty} variants) will be permanently removed.`,
+              message:`${item.vendor} · ${item.code} — ${item.qty} variants will be permanently removed.`,
               onConfirm:()=>removeRow(item.tempId),
             })}
             onDuplicate={()=>duplicateRow(item)}
           />
         </div>
-        {/* EXPANDED DETAILS */}
+        {/* Expanded details */}
         {expanded&&(
-          <div style={{padding:'0 12px 12px',borderTop:'1px solid var(--border)'}}>
+          <div style={{padding:'0 12px 12px',borderTop:'1px solid var(--border)',marginTop:0}}>
             <div style={{fontSize:12,color:'var(--text-2)',padding:'8px 0',lineHeight:1.8}}>
               <div><strong>Colors:</strong> {item.colors.join(', ')}</div>
               <div><strong>Sizes:</strong> {item.sizes.join(', ')}</div>
