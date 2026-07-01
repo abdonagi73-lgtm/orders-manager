@@ -38,6 +38,23 @@ export async function POST(req: NextRequest) {
       await saveWorkers(body.workers as Worker[]);
       return NextResponse.json({ ok: true });
     }
+    if (body.action === 'change-worker-pin') {
+      const { workerId, newPin } = body;
+      if (!workerId || !newPin || newPin.length < 4) {
+        return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+      }
+      const workers = await getWorkers();
+      if (workers.some(w => w.pin === newPin && w.id !== workerId)) {
+        return NextResponse.json({ error: 'PIN already in use' }, { status: 400 });
+      }
+      const index = workers.findIndex(w => w.id === workerId);
+      if (index === -1) {
+        return NextResponse.json({ error: 'Worker not found' }, { status: 404 });
+      }
+      workers[index].pin = newPin;
+      await saveWorkers(workers);
+      return NextResponse.json({ ok: true });
+    }
 
     if (body.action === 'save-managers') {
       await saveManagers(body.managers);

@@ -108,6 +108,7 @@ const APP_VERSION = 'v2.73';
 function WorkerSettingsInner(){
   const router = useRouter();
   const searchParams = useSearchParams();
+  const workerId = searchParams.get('id') || 'field';
   const workerName = searchParams.get('name') || '';
 
   const [lang, setLang] = useState<'en'|'ar'|'tr'>('en');
@@ -132,7 +133,7 @@ function WorkerSettingsInner(){
 
   useEffect(()=>{
     // Load saved settings
-    const saved = localStorage.getItem('workerSettings');
+    const saved = localStorage.getItem(`workerSettings_${workerId}`);
     if(saved){
       try {
         const s = JSON.parse(saved);
@@ -151,7 +152,7 @@ function WorkerSettingsInner(){
     // Apply saved dark mode
     const dm = localStorage.getItem('darkMode_fieldfast');
     if(dm==='true') setTheme('dark');
-  },[]);
+  },[workerId]);
 
   function applyTheme(t:'light'|'dark'|'system'){
     setTheme(t);
@@ -161,7 +162,7 @@ function WorkerSettingsInner(){
   }
 
   function saveSettings(){
-    localStorage.setItem('workerSettings', JSON.stringify({
+    localStorage.setItem(`workerSettings_${workerId}`, JSON.stringify({
       lang, theme, photoQuality, currency,
       keepVendor, autoFocus, showTotal, autoSave, collapseItems, notifEnabled,
     }));
@@ -201,16 +202,14 @@ function WorkerSettingsInner(){
                 const el=document.getElementById('newPinInput') as HTMLInputElement;
                 const newPin=el?.value.trim();
                 if(!newPin||newPin.length<4){ alert('PIN must be at least 4 digits'); return; }
+                if(workerId==='field'){ alert('Please log in again to update your PIN'); return; }
+                // Save new PIN on server
                 const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-                  body:JSON.stringify({action:'verify-worker',pin:newPin})});
+                  body:JSON.stringify({action:'change-worker-pin',workerId,newPin})});
                 const d=await res.json();
-                if(d.ok){ alert('This PIN is already in use'); return; }
-                // Save new PIN
-                const ws=JSON.parse(localStorage.getItem('workerSettings')||'{}');
-                ws.pin=newPin;
-                localStorage.setItem('workerSettings',JSON.stringify(ws));
+                if(!res.ok){ alert(d.error || 'Failed to update PIN'); return; }
                 el.value='';
-                alert('PIN updated — ask your manager to update it in the system too');
+                alert('PIN updated successfully in the system!');
               }}>Update</button>
             </div>
           </SettingsRow>

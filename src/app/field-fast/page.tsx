@@ -45,6 +45,125 @@ interface CartItem {
   orig?:OrderItem;
 }
 
+function parseVoiceInput(transcript: string, vendors: string[], categories: string[]) {
+  const text = transcript.toLowerCase();
+  let foundVendor = '';
+  let foundCode = '';
+  let foundCategory = '';
+  let foundPrice = '';
+  const foundColors: string[] = [];
+  const foundSizes: string[] = [];
+
+  // 1. Match vendor
+  for (const v of vendors) {
+    if (text.includes(v.toLowerCase())) {
+      foundVendor = v;
+      break;
+    }
+  }
+
+  // 2. Match category
+  for (const c of categories) {
+    if (text.includes(c.toLowerCase())) {
+      foundCategory = c;
+      break;
+    }
+  }
+
+  // 3. Match code
+  const numbers = text.match(/\b\d{3,6}\b/g) || [];
+  if (numbers.length > 0) {
+    foundCode = numbers[0];
+  }
+  const codeMatch = text.match(/(?:code|number|style|كود|رقم|kod|numara)\s+([a-z0-9-]+)/i);
+  if (codeMatch && codeMatch[1]) {
+    foundCode = codeMatch[1].toUpperCase();
+  }
+
+  // 4. Match price
+  const priceMatch = text.match(/(?:price|cost|dollar|dollars|usd|سعر|السعر|fiyat|lira|liras)\s*([0-9.]+)/i) || 
+                     text.match(/([0-9.]+)\s*(?:dollars|usd|lira|دولار|ليرة)/i);
+  if (priceMatch && priceMatch[1]) {
+    foundPrice = priceMatch[1];
+  } else {
+    const allNumbers = text.match(/\b\d+(\.\d+)?\b/g) || [];
+    const nonCodeNumbers = allNumbers.filter(n => n !== foundCode);
+    if (nonCodeNumbers.length > 0) {
+      foundPrice = nonCodeNumbers[0];
+    }
+  }
+
+  // 5. Match Colors
+  const colorMap: Record<string, string[]> = {
+    Black: ['black', 'أسود', 'siyah'],
+    White: ['white', 'أبيض', 'beyaz'],
+    Gray: ['gray', 'grey', 'رمادي', 'gri'],
+    Navy: ['navy', 'كحلي', 'lacivert'],
+    Beige: ['beige', 'بيج', 'bej'],
+    Brown: ['brown', 'بني', 'kahverengi'],
+    Green: ['green', 'أخضر', 'yeşil'],
+    Blue: ['blue', 'أزرق', 'mavi'],
+    Red: ['red', 'أحمر', 'kırmızı'],
+    Khaki: ['khaki', 'خاكي', 'haki'],
+    Burgundy: ['burgundy', 'بوردو', 'bordo'],
+    Cream: ['cream', 'كريم', 'krem'],
+    Olive: ['olive', 'زيتي', 'zeytin'],
+    Camel: ['camel', 'جملي', 'kamel'],
+    Orange: ['orange', 'برتقالي', 'turuncu'],
+    Yellow: ['yellow', 'أصفر', 'sarı'],
+    Purple: ['purple', 'بنفسجي', 'mor'],
+    Pink: ['pink', 'وردي', 'pembe']
+  };
+
+  for (const [colName, keywords] of Object.entries(colorMap)) {
+    for (const kw of keywords) {
+      if (text.includes(kw)) {
+        foundColors.push(colName);
+        break;
+      }
+    }
+  }
+
+  // 6. Match Sizes
+  const sizeMap: Record<string, string[]> = {
+    XS: ['xs', 'extra small', 'إكس سمول'],
+    S: ['s', 'small', 'سمول', 'küçük'],
+    M: ['m', 'medium', 'ميديام', 'orta'],
+    L: ['l', 'large', 'لارج', 'büyük'],
+    XL: ['xl', 'extra large', 'إكس لارج'],
+    '2XL': ['2xl', 'double extra large', 'دبل إكس', 'çift xl'],
+    '3XL': ['3xl', 'triple extra large', '3xl'],
+    '4XL': ['4xl', '4xl']
+  };
+
+  for (const [szAbbr, keywords] of Object.entries(sizeMap)) {
+    for (const kw of keywords) {
+      if (text.includes(kw)) {
+        foundSizes.push(szAbbr);
+        break;
+      }
+    }
+  }
+
+  // Numeric sizes
+  const numericSizes = Array.from({length:16},(_,i)=>String(28+i*2));
+  for (const sz of numericSizes) {
+    const regex = new RegExp('\\b' + sz + '\\b', 'i');
+    if (regex.test(text)) {
+      foundSizes.push(sz);
+    }
+  }
+
+  return {
+    vendor: foundVendor,
+    code: foundCode,
+    category: foundCategory,
+    price: foundPrice,
+    colors: foundColors,
+    sizes: foundSizes
+  };
+}
+
 // ── Three-dot menu component ──
 function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
   item:CartItem;
@@ -345,26 +464,116 @@ function FieldFastInner() {
   const [darkMode, setDarkMode] = useState(false);
   const [lang, setLang] = useState<'en'|'ar'|'tr'>('en');
 
-  // Simple translations for worker portal
+  // Comprehensive translations for worker portal
   const T:{[k:string]:{[k:string]:string}} = {
-    en:{ signIn:'Sign in', pin:'Worker PIN', earnings:'Earnings', signOut:'Sign out',
-         startOrder:'+ Start new order', orderEntry:'Order Entry', back:'Back',
-         vendor:'Vendor', addItem:'+ Add item code under', saveItem:'+ Add item',
-         saving:'Saving…', saveChanges:'Save changes', review:'Review',
-         continueOrder:'Continue this order — not submitted yet',
-         noOrders:'No orders yet', loading:'Loading…', settings:'Settings' },
-    ar:{ signIn:'تسجيل الدخول', pin:'رمز الموظف', earnings:'الأرباح', signOut:'خروج',
-         startOrder:'+ بدء طلب جديد', orderEntry:'إدخال الطلب', back:'رجوع',
-         vendor:'المورد', addItem:'+ أضف كود تحت', saveItem:'+ إضافة منتج',
-         saving:'جاري الحفظ…', saveChanges:'حفظ التغييرات', review:'مراجعة',
-         continueOrder:'استمر في هذا الطلب — لم يُرسل بعد',
-         noOrders:'لا توجد طلبات', loading:'جاري التحميل…', settings:'الإعدادات' },
-    tr:{ signIn:'Giriş yap', pin:'Çalışan PIN', earnings:'Kazanç', signOut:'Çıkış',
-         startOrder:'+ Yeni sipariş', orderEntry:'Sipariş Girişi', back:'Geri',
-         vendor:'Satıcı', addItem:'+ Ürün kodu ekle', saveItem:'+ Ürün ekle',
-         saving:'Kaydediliyor…', saveChanges:'Değişiklikleri kaydet', review:'İncele',
-         continueOrder:'Bu siparişe devam et — henüz gönderilmedi',
-         noOrders:'Henüz sipariş yok', loading:'Yükleniyor…', settings:'Ayarlar' },
+    en:{
+      signIn: 'Sign in', pin: 'Worker PIN', incorrectPin: 'Incorrect PIN',
+      backToHome: 'Back to home', earnings: 'Earnings', signOut: 'Sign out',
+      startOrder: '+ Start new order', orderEntry: 'Order Entry', back: 'Back',
+      vendor: 'Vendor', addItem: '+ Add item code under', saveItem: '+ Add item',
+      saving: 'Saving…', saveChanges: 'Save changes', review: 'Review',
+      continueOrder: 'Continue this order — not submitted yet',
+      noOrders: 'No orders yet', loading: 'Loading…', settings: 'Settings',
+      orderName: 'Order name', startDate: 'Start date', orderType: 'Order type',
+      storeBuy: '🏪 For Store', onlineStore: '🌐 Online', createOrder: 'Start adding items →',
+      orderNameRequired: 'Order name is required', cannotContinue: 'Cannot continue',
+      couldNotStartOrder: 'Could not start order', swipeHelp: '← Swipe left on an order to see options',
+      deleteOrderTitle: 'Delete order?', deleteOrderConfirm: 'and all its items will be permanently deleted.',
+      orderDuplicated: 'Order duplicated', orderDeleted: 'Order deleted',
+      store: 'Store', online: 'Online', packs: 'packs', variants: 'variants',
+      purchase: 'Purchase', ship: 'Ship', commission: 'Commission', total: 'Total',
+      closedImported: 'Closed — imported to POS', orderSummary: 'order summary',
+      hideSummary: 'hide summary', collapse: 'collapse', noItems: 'No items yet',
+      totalOrderCost: 'Total order cost', shippingCostLabel: 'Shipping cost ($) — optional',
+      saveKeepOpen: 'Save & keep open (add more later)', submitOrderBtn: 'Submit order',
+      downloadPdf: '⬇ Download PDF', deleteEntireOrderBtn: 'Delete entire order',
+      deleteOrderWarning: 'and all its items will be permanently deleted.',
+      continueAddingEdit: 'Continue adding / edit items', reviewSubmitOrder: 'Review & submit order',
+      noItemsYet: 'No items yet — tap + Add below', orderSubmittedTitle: 'Order submitted!',
+      backToOrders: 'Back to orders', myEarnings: 'My Earnings', totalEarned: 'Total earned',
+      paid: 'Paid', pending: 'Pending', paymentHistory: 'Payment history',
+      pendingPayment: 'Pending payment', noCommissionRecords: 'No commission records yet',
+      searchPlaceholder: 'Search orders, items, codes...', success: 'success',
+      confirm: 'Confirm', cancel: 'Cancel', delete: 'Delete', gotIt: 'Got it',
+      photoRequiredError: 'Photo is required for online store orders',
+      itemSavedToast: 'Item saved', itemUpdatedToast: 'Item updated',
+      itemRemovedToast: 'Item removed', orderSubmittedToast: 'Order submitted!',
+      packLabel: 'pack', packsLabel: 'packs', itemsLabel: 'items',
+      newPinInput: 'New PIN', changePIN: 'Change PIN', workerID: 'Worker ID',
+      voiceBtn: '🎙️ Voice', listening: 'Listening...', matchForm: 'Form pre-filled! Please review and modify.'
+    },
+    ar:{
+      signIn: 'تسجيل الدخول', pin: 'رمز الموظف', incorrectPin: 'الرمز غير صحيح',
+      backToHome: 'العودة للرئيسية', earnings: 'الأرباح', signOut: 'خروج',
+      startOrder: '+ بدء طلب جديد', orderEntry: 'إدخال الطلب', back: 'رجوع',
+      vendor: 'المورد', addItem: '+ أضف كود تحت', saveItem: '+ إضافة منتج',
+      saving: 'جاري الحفظ…', saveChanges: 'حفظ التغييرات', review: 'مراجعة',
+      continueOrder: 'استمر في هذا الطلب — لم يُرسل بعد',
+      noOrders: 'لا توجد طلبات', loading: 'جاري التحميل…', settings: 'الإعدادات',
+      orderName: 'اسم الطلب', startDate: 'تاريخ البدء', orderType: 'نوع الطلب',
+      storeBuy: '🏪 للمتجر', onlineStore: '🌐 متجر إلكتروني', createOrder: 'بدء إضافة المنتجات ←',
+      orderNameRequired: 'اسم الطلب مطلوب', cannotContinue: 'لا يمكن الاستمرار',
+      couldNotStartOrder: 'لا يمكن بدء الطلب', swipeHelp: '← اسحب ليسار الطلب للخيارات',
+      deleteOrderTitle: 'حذف الطلب؟', deleteOrderConfirm: 'وجميع منتجاته سيتم حذفها نهائياً.',
+      orderDuplicated: 'تم نسخ الطلب', orderDeleted: 'تم حذف الطلب',
+      store: 'متجر', online: 'أونلاين', packs: 'حزم', variants: 'خيارات',
+      purchase: 'قيمة الشراء', ship: 'شحن', commission: 'عمولة', total: 'إجمالي',
+      closedImported: 'مغلق — تم استيراده للمبيعات', orderSummary: 'ملخص الطلب',
+      hideSummary: 'إخفاء الملخص', collapse: 'طي', noItems: 'لا توجد منتجات بعد',
+      totalOrderCost: 'إجمالي تكلفة الطلب', shippingCostLabel: 'تكلفة الشحن ($) — اختياري',
+      saveKeepOpen: 'حفظ وإبقاء مفتوح (للإضافة لاحقاً)', submitOrderBtn: 'إرسال الطلب',
+      downloadPdf: '⬇ تنزيل PDF', deleteEntireOrderBtn: 'حذف الطلب بأكمله',
+      deleteOrderWarning: 'وجميع منتجاته سيتم حذفها نهائياً.',
+      continueAddingEdit: 'الاستمرار في الإضافة / تعديل المنتجات', reviewSubmitOrder: 'مراجعة وإرسال الطلب',
+      noItemsYet: 'لا توجد منتجات بعد — اضغط + إضافة بالأسفل', orderSubmittedTitle: 'تم إرسال الطلب!',
+      backToOrders: 'العودة للطلبات', myEarnings: 'أرباحي', totalEarned: 'إجمالي الأرباح',
+      paid: 'مدفوع', pending: 'قيد الانتظار', paymentHistory: 'سجل المدفوعات',
+      pendingPayment: 'دفعات معلقة', noCommissionRecords: 'لا توجد سجلات عمولة بعد',
+      searchPlaceholder: 'البحث عن الطلبات، المنتجات، الأكواد...', success: 'نجاح',
+      confirm: 'تأكيد', cancel: 'إلغاء', delete: 'حذف', gotIt: 'حسناً',
+      photoRequiredError: 'الصورة مطلوبة لطلبات المتجر الإلكتروني',
+      itemSavedToast: 'تم حفظ المنتج', itemUpdatedToast: 'تم تحديث المنتج',
+      itemRemovedToast: 'تم إزالة المنتج', orderSubmittedToast: 'تم إرسال الطلب!',
+      packLabel: 'حزمة', packsLabel: 'حزم', itemsLabel: 'منتجات',
+      newPinInput: 'رمز جديد', changePIN: 'تغيير الرمز', workerID: 'معرّف الموظف',
+      voiceBtn: '🎙️ صوتي', listening: 'جاري الاستماع...', matchForm: 'تم ملء النموذج! يرجى المراجعة والتعديل.'
+    },
+    tr:{
+      signIn: 'Giriş yap', pin: 'Çalışan PIN', incorrectPin: 'Geçersiz PIN',
+      backToHome: 'Ana sayfaya dön', earnings: 'Kazanç', signOut: 'Çıkış',
+      startOrder: '+ Yeni sipariş', orderEntry: 'Sipariş Girişi', back: 'Geri',
+      vendor: 'Satıcı', addItem: '+ Ürün kodu ekle', saveItem: '+ Ürün ekle',
+      saving: 'Kaydediliyor…', saveChanges: 'Değişiklikleri kaydet', review: 'İncele',
+      continueOrder: 'Bu siparişe devam et — henüz gönderilmedi',
+      noOrders: 'Henüz sipariş yok', loading: 'Yükleniyor…', settings: 'Ayarlar',
+      orderName: 'Sipariş adı', startDate: 'Başlangıç tarihi', orderType: 'Sipariş türü',
+      storeBuy: '🏪 Mağaza için', onlineStore: '🌐 Online', createOrder: 'Ürün eklemeye başla →',
+      orderNameRequired: 'Sipariş adı gerekli', cannotContinue: 'Devam edilemiyor',
+      couldNotStartOrder: 'Sipariş başlatılamadı', swipeHelp: '← Seçenekleri görmek için siparişi sola kaydırın',
+      deleteOrderTitle: 'Sipariş silinsin mi?', deleteOrderConfirm: 've tüm ürünleri kalıcı olarak silinecektir.',
+      orderDuplicated: 'Sipariş kopyalandı', orderDeleted: 'Sipariş silindi',
+      store: 'Mağaza', online: 'Online', packs: 'seri', variants: 'varyant',
+      purchase: 'Satın alma', ship: 'Kargo', commission: 'Komisyon', total: 'Toplam',
+      closedImported: 'Kapalı — POS\'a aktarıldı', orderSummary: 'sipariş özeti',
+      hideSummary: 'özeti gizle', collapse: 'gizle', noItems: 'Henüz ürün yok',
+      totalOrderCost: 'Toplam sipariş maliyeti', shippingCostLabel: 'Kargo ücreti ($) — isteğe bağlı',
+      saveKeepOpen: 'Kaydet ve açık tut (sonra ekle)', submitOrderBtn: 'Siparişi gönder',
+      downloadPdf: '⬇ PDF İndir', deleteEntireOrderBtn: 'Tüm siparişi sil',
+      deleteOrderWarning: 've tüm ürünleri kalıcı olarak silinecektir.',
+      continueAddingEdit: 'Ürün eklemeye devam et / düzenle', reviewSubmitOrder: 'Siparişi incele ve gönder',
+      noItemsYet: 'Henüz ürün yok — alttaki + Ekle\'ye dokunun', orderSubmittedTitle: 'Sipariş gönderildi!',
+      backToOrders: 'Siparişlere dön', myEarnings: 'Kazançlarım', totalEarned: 'Toplam kazanç',
+      paid: 'Ödenen', pending: 'Bekleyen', paymentHistory: 'Ödeme geçmişi',
+      pendingPayment: 'Bekleyen ödeme', noCommissionRecords: 'Henüz komisyon kaydı yok',
+      searchPlaceholder: 'Sipariş, ürün veya kod ara...', success: 'Başarılı',
+      confirm: 'Onayla', cancel: 'İptal', delete: 'Sil', gotIt: 'Tamam',
+      photoRequiredError: 'Online mağaza siparişleri için fotoğraf gereklidir',
+      itemSavedToast: 'Ürün kaydedildi', itemUpdatedToast: 'Ürün güncellendi',
+      itemRemovedToast: 'Ürün silindi', orderSubmittedToast: 'Sipariş gönderildi!',
+      packLabel: 'seri', packsLabel: 'seri', itemsLabel: 'ürün',
+      newPinInput: 'Yeni PIN', changePIN: 'PIN Değiştir', workerID: 'Çalışan ID',
+      voiceBtn: '🎙️ Sesli', listening: 'Dinleniyor...', matchForm: 'Form dolduruldu! Lütfen kontrol edin.'
+    }
   };
   const t = (k:string) => T[lang]?.[k] || T.en[k] || k;
 
@@ -412,7 +621,66 @@ function FieldFastInner() {
   const [errorBox, setErrorBox] = useState<{title:string;items:string[]}|null>(null);
   const [confirmBox, setConfirmBox] = useState<{title:string;message:string;onConfirm:()=>void}|null>(null);
 
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('');
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+
   function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2000); }
+
+  function startVoiceRecognition() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Google Chrome or Safari.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = lang === 'ar' ? 'ar-EG' : lang === 'tr' ? 'tr-TR' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    setVoiceListening(true);
+    setVoiceStatus(lang === 'ar' ? 'جاري الاستماع...' : lang === 'tr' ? 'Dinleniyor...' : 'Listening...');
+    setVoiceTranscript('');
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setVoiceTranscript(transcript);
+      
+      const parsed = parseVoiceInput(transcript, vendors, categories);
+      
+      if (parsed.vendor) {
+        setVendor(parsed.vendor);
+        setCurrentVendor(parsed.vendor);
+      }
+      if (parsed.code) setCode(parsed.code);
+      if (parsed.category) setCategory(parsed.category);
+      if (parsed.price) setPrice(parsed.price);
+      
+      if (parsed.colors.length > 0) {
+        setColors(parsed.colors.map(col => ({ value: col, count: 1 })));
+      }
+      if (parsed.sizes.length > 0) {
+        setSizes(parsed.sizes.map(sz => ({ value: sz, count: 1 })));
+      }
+      
+      showToast(lang === 'ar' ? '✓ تم ملء النموذج!' : lang === 'tr' ? '✓ Form dolduruldu!' : '✓ Form pre-filled!');
+      setTimeout(() => setVoiceListening(false), 1200);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error(event.error);
+      setVoiceStatus(lang === 'ar' ? 'حدث خطأ في التعرف' : lang === 'tr' ? 'Hata oluştu' : 'Error: ' + event.error);
+      setTimeout(() => setVoiceListening(false), 2000);
+    };
+
+    recognition.onend = () => {
+      // recognition finished
+    };
+
+    recognition.start();
+  }
 
   useEffect(()=>{
     // Restore worker from session on page refresh
@@ -426,13 +694,17 @@ function FieldFastInner() {
         // Don't restore entry/setup/cart screens on refresh - go to orders list
         const safeScreen = ['orders','earnings'].includes(savedScreen) ? savedScreen : 'orders';
         setScreen(safeScreen as Screen);
+        
+        // Load language from worker settings
+        const ws = localStorage.getItem(`workerSettings_${w.id}`);
+        if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
       } catch{}
+    } else if (!savedWorker) {
+      const ws = localStorage.getItem('workerSettings_field');
+      if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
     }
     const saved = localStorage.getItem('darkMode_fieldfast');
     if(saved==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
-    // Load language from worker settings
-    const ws = localStorage.getItem('workerSettings');
-    if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry));
     });
@@ -487,6 +759,9 @@ function FieldFastInner() {
       setWorker(d.worker);
       sessionStorage.setItem('ff_worker', JSON.stringify(d.worker));
       sessionStorage.setItem('ff_screen', 'orders');
+      // Load user language immediately
+      const ws = localStorage.getItem(`workerSettings_${d.worker.id}`);
+      if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
       loadOrders(d.worker.id);
       goTo('orders');
     }
@@ -809,6 +1084,40 @@ function FieldFastInner() {
 
   const overlays=(
     <>
+      {voiceListening && (
+        <div className="confirm-overlay" style={{zIndex:100}}>
+          <div className="confirm-box" style={{textAlign:'center',padding:'30px 20px'}}>
+            <div style={{fontSize:48,animation:'pulse 1.5s infinite',marginBottom:16}}>🎙️</div>
+            <div className="confirm-title" style={{marginBottom:10}}>{voiceStatus}</div>
+            <div style={{fontSize:13,color:'var(--text-3)',lineHeight:1.6,marginBottom:20}}>
+              {lang === 'ar' ? (
+                <>
+                  تحدث الآن بوضوح لملء الاستمارة تلقائياً.<br/>
+                  <strong>مثال:</strong> "سيدار كود 8855 جينز السعر 15 ألوان أسود مقاس ميديام لارج"
+                </>
+              ) : lang === 'tr' ? (
+                <>
+                  Formu otomatik doldurmak için konuşun.<br/>
+                  <strong>Örnek:</strong> "SAW kod 8855 kot fiyat 15 renk siyah beden M L"
+                </>
+              ) : (
+                <>
+                  Speak clearly to fill form automatically.<br/>
+                  <strong>Example:</strong> "SAW code 8855 jeans price 15 colors black size medium large"
+                </>
+              )}
+            </div>
+            {voiceTranscript && (
+              <div style={{background:'var(--surface-2)',padding:12,borderRadius:8,fontSize:14,fontStyle:'italic',color:'var(--text-2)',marginBottom:20}}>
+                "{voiceTranscript}"
+              </div>
+            )}
+            <button className="btn" style={{width:'100%',height:42}} onClick={() => setVoiceListening(false)}>
+              {lang === 'ar' ? 'إلغاء' : lang === 'tr' ? 'İptal' : 'Cancel'}
+            </button>
+          </div>
+        </div>
+      )}
       {errorBox&&(
         <div className="confirm-overlay" onClick={()=>setErrorBox(null)}>
           <div className="confirm-box" onClick={e=>e.stopPropagation()}>
@@ -855,14 +1164,14 @@ function FieldFastInner() {
             <label className="label">{t('pin')}</label>
             <input type="password" inputMode="numeric" value={pin} autoFocus
               onChange={e=>{setPin(e.target.value);setPinError(false);}}
-              onKeyDown={e=>e.key==='Enter'&&verifyPin()} placeholder="Enter your PIN"/>
-            {pinError&&<div className="field-error">Incorrect PIN</div>}
+              onKeyDown={e=>e.key==='Enter'&&verifyPin()} placeholder={t('newPinInput')}/>
+            {pinError&&<div className="field-error">{t('incorrectPin')}</div>}
           </div>
           <button className="btn btn-primary" style={{width:'100%'}} onClick={verifyPin} disabled={pinLoading}>
             {pinLoading?t('saving'):t('signIn')}
           </button>
           <div style={{textAlign:'center',marginTop:16}}>
-            <a href="/" style={{fontSize:12,color:'var(--text-3)'}}>Back to home</a>
+            <a href="/" style={{fontSize:12,color:'var(--text-3)'}}>{t('backToHome')}</a>
           </div>
         </div>
       </div>
@@ -872,16 +1181,16 @@ function FieldFastInner() {
 
   // ── ORDERS LIST ──
   if(screen==='orders') return (
-    <div className="page">
+    <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner">
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{worker?.name}</div>
-            <div className="header-sub">Order Entry{location?` · ${location}`:''}</div></div>
+            <div className="header-sub">{t('orderEntry')}{location?` · ${location}`:''}</div></div>
         </div>
         <div style={{display:'flex',gap:6}}>
           <button className="btn btn-sm" onClick={()=>goTo('earnings')}>{t('earnings')}</button>
-          <a href={`/worker-settings?name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
+          <a href={`/worker-settings?id=${worker?.id || ''}&name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
           <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');goTo('login');}}>{t('signOut')}</button>
         </div>
       </div></div></div>
@@ -911,13 +1220,13 @@ function FieldFastInner() {
             onToggleExpand={()=>setExpandedOrders(p=>({...p,[order.id]:!p[order.id]}))}
             onOpen={()=>{ setOpenOrderId(null); if(order.status!=='imported'){ setRecentlyTouched(p=>({...p,[order.id]:Date.now()})); openExistingOrder(order); } }}
             onDelete={()=>{ setOpenOrderId(null); setConfirmBox({
-              title:'Delete order?',
-              message:`"${order.name}" and all its items will be permanently deleted.`,
+              title:t('deleteOrderTitle'),
+              message:`"${order.name}" ${t('deleteOrderConfirm')}`,
               onConfirm:async()=>{
                 await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
                   body:JSON.stringify({action:'delete',orderId:order.id})});
                 if(worker) loadOrders(worker.id);
-                showToast('Order deleted');
+                showToast(t('orderDeleted'));
               },
             });}}
             onEdit={()=>{ setOpenOrderId(null); openExistingOrder(order); }}
@@ -937,7 +1246,7 @@ function FieldFastInner() {
                       price:item.price,qty:item.qty,notes:item.notes||''})}).catch(()=>{});
                 }
                 if(worker) loadOrders(worker.id);
-                showToast('Order duplicated');
+                showToast(t('orderDuplicated'));
               }
             }}
             onAddMore={async()=>{
@@ -978,7 +1287,7 @@ function FieldFastInner() {
           </div>
         ))}
         <div style={{fontSize:11,color:'var(--text-3)',textAlign:'center',marginTop:12,opacity:.6}}>
-          ← Swipe left on an order to see options
+          {t('swipeHelp')}
         </div>
       </div>
       {overlays}
@@ -991,12 +1300,12 @@ function FieldFastInner() {
     const detailByVendor:Record<string,typeof cart>={};
     cart.forEach(i=>{ if(!detailByVendor[i.vendor]) detailByVendor[i.vendor]=[]; detailByVendor[i.vendor].push(i); });
     return (
-      <div className="page">
+      <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
         <div className="header"><div className="container"><div className="header-inner">
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
             <div><div className="header-title">{o.name}</div>
-              <div className="header-sub">{detailLoading?'Loading…':`${cart.length} packs · $${cartTotal.toFixed(2)}`}</div></div>
+              <div className="header-sub">{detailLoading?t('loading'):`${cart.length} ${cart.length===1?t('packLabel'):t('packsLabel')} · $${cartTotal.toFixed(2)}`}</div></div>
           </div>
           <button className="btn btn-sm" onClick={()=>goTo('orders')}>{t('back')}</button>
         </div></div></div>
@@ -1004,40 +1313,40 @@ function FieldFastInner() {
           <div className="card" style={{marginBottom:14}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <div style={{fontWeight:700,fontSize:16}}>{o.name}</div>
-              <span className={`badge ${o.status==='open'?'badge-pending':o.status==='submitted'?'badge-info':'badge-approved'}`}>{o.status}</span>
+              <span className={`badge ${o.status==='open'?'badge-pending':o.status==='submitted'?'badge-info':'badge-approved'}`}>{o.status==='open'?t('pending'):o.status==='submitted'?t('submitted'):t('approved')}</span>
             </div>
             <div style={{fontSize:13,color:'var(--text-3)',lineHeight:1.8}}>
-              <div>Type: {o.orderType==='online'?'🌐 Online':'🏪 Store'}</div>
-              <div>Started: {o.startDate}</div>
-              <div>Packs: <strong>{cart.length}</strong> · Variants: <strong>{cart.reduce((s,i)=>s+i.qty,0)}</strong></div>
-              <div>Purchase: <strong style={{color:'var(--text)'}}>${cartTotal.toFixed(2)}</strong></div>
-              <div>Commission (3%): <strong style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</strong></div>
+              <div>{t('orderType')}: {o.orderType==='online'?t('onlineStore'):t('storeBuy')}</div>
+              <div>{t('startDate')}: {o.startDate}</div>
+              <div>{t('packs')}: <strong>{cart.length}</strong> · {t('variants')}: <strong>{cart.reduce((s,i)=>s+i.qty,0)}</strong></div>
+              <div>{t('purchase')}: <strong style={{color:'var(--text)'}}>${cartTotal.toFixed(2)}</strong></div>
+              <div>{t('commission')} (3%): <strong style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</strong></div>
             </div>
           </div>
-          {detailLoading&&<div className="empty"><div className="empty-text">Loading items…</div></div>}
+          {detailLoading&&<div className="empty"><div className="empty-text">{t('loading')}</div></div>}
           {!detailLoading&&Object.entries(detailByVendor).map(([vendor,items])=>(
             <div key={vendor} className="card" style={{marginBottom:12}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingBottom:8,marginBottom:8,borderBottom:'2px solid var(--border)'}}>
                 <div style={{fontWeight:700,fontSize:15}}>{vendor}</div>
-                <div style={{fontSize:12,color:'var(--text-3)'}}>{items.length} pack{items.length!==1?'s':''} · ${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}</div>
+                <div style={{fontSize:12,color:'var(--text-3)'}}>{items.length} {items.length===1?t('packLabel'):t('packsLabel')} · ${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}</div>
               </div>
               {items.map(item=>renderItemRow(item))}
             </div>
           ))}
-          {!detailLoading&&cart.length===0&&<div className="empty"><div className="empty-text">No items yet</div></div>}
+          {!detailLoading&&cart.length===0&&<div className="empty"><div className="empty-text">{t('noItemsYet')}</div></div>}
           <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:16}}>
             <button className="btn btn-primary" style={{width:'100%',padding:14,fontSize:15}}
               onClick={()=>{ setCurrentVendor(''); setFormOpen(false); goTo('entry'); }}>
-              Continue adding / edit items
+              {t('continueAddingEdit')}
             </button>
             <button className="btn btn-success" style={{width:'100%',padding:14,fontSize:15}}
-              onClick={()=>goTo('cart')}>Review &amp; submit order</button>
+              onClick={()=>goTo('cart')}>{t('reviewSubmitOrder')}</button>
             <button className="btn" style={{width:'100%',padding:14,fontSize:15,borderColor:'var(--blue-border)',color:'var(--blue)'}}
-              onClick={()=>window.open(`/order-pdf?orderId=${o.id}`,'_blank')}>⬇ Download PDF</button>
+              onClick={()=>window.open(`/order-pdf?orderId=${o.id}`,'_blank')}>{t('downloadPdf')}</button>
             <button className="btn" style={{width:'100%',padding:14,fontSize:15,color:'var(--red)',borderColor:'var(--red-border)'}}
-              onClick={()=>setConfirmBox({title:'Delete this order?',
-                message:`"${o.name}" and all its ${cart.length} items will be permanently deleted.`,
-                onConfirm:()=>deleteWholeOrder(o)})}>Delete entire order</button>
+              onClick={()=>setConfirmBox({title:t('deleteOrderTitle'),
+                message:`"${o.name}" ${t('deleteOrderWarning')}`,
+                onConfirm:()=>deleteWholeOrder(o)})}>{t('deleteEntireOrderBtn')}</button>
           </div>
         </div>
         {overlays}
@@ -1052,23 +1361,23 @@ function FieldFastInner() {
     const totalPaid=myOrders.filter(o=>o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
     const totalUnpaid=myOrders.filter(o=>!o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
     return (
-      <div className="page">
+      <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
         <div className="header"><div className="container"><div className="header-inner">
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
-            <div><div className="header-title">My Earnings</div><div className="header-sub">{worker?.name}</div></div>
+            <div><div className="header-title">{t('myEarnings')}</div><div className="header-sub">{worker?.name}</div></div>
           </div>
-          <button className="btn btn-sm" onClick={()=>goTo('orders')}>Back</button>
+          <button className="btn btn-sm" onClick={()=>goTo('orders')}>{t('back')}</button>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}}>
-            <div className="stat-card"><div className="stat-val">${totalEarned.toFixed(2)}</div><div className="stat-lbl">Total earned</div></div>
-            <div className="stat-card"><div className="stat-val" style={{color:'var(--green)'}}>${totalPaid.toFixed(2)}</div><div className="stat-lbl">Paid</div></div>
-            <div className="stat-card"><div className="stat-val" style={{color:'var(--amber)'}}>${totalUnpaid.toFixed(2)}</div><div className="stat-lbl">Pending</div></div>
+            <div className="stat-card"><div className="stat-val">${totalEarned.toFixed(2)}</div><div className="stat-lbl">{t('totalEarned')}</div></div>
+            <div className="stat-card"><div className="stat-val" style={{color:'var(--green)'}}>${totalPaid.toFixed(2)}</div><div className="stat-lbl">{t('paid')}</div></div>
+            <div className="stat-card"><div className="stat-val" style={{color:'var(--amber)'}}>${totalUnpaid.toFixed(2)}</div><div className="stat-lbl">{t('pending')}</div></div>
           </div>
           {myOrders.filter(o=>!o.commissionPaid).length>0&&(
             <div className="card" style={{marginBottom:12,borderColor:'var(--amber-border)'}}>
-              <div className="card-title" style={{color:'var(--amber)'}}>Pending payment</div>
+              <div className="card-title" style={{color:'var(--amber)'}}>{t('pendingPayment')}</div>
               {myOrders.filter(o=>!o.commissionPaid).map(o=>(
                 <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
                   <div><div style={{fontWeight:600,fontSize:14}}>{o.name}</div>
@@ -1080,20 +1389,20 @@ function FieldFastInner() {
           )}
           {myOrders.filter(o=>o.commissionPaid).length>0&&(
             <div className="card">
-              <div className="card-title">Payment history</div>
+              <div className="card-title">{t('paymentHistory')}</div>
               {myOrders.filter(o=>o.commissionPaid).map(o=>(
                 <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
                   <div><div style={{fontWeight:600,fontSize:14}}>{o.name}</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>{o.startDate}</div></div>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span className="badge badge-approved">paid</span>
+                    <span className="badge badge-approved">{t('paid')}</span>
                     <span style={{fontWeight:700,fontSize:16,color:'var(--green)'}}>${o.workerCommission.toFixed(2)}</span>
                   </div>
                 </div>
               ))}
             </div>
           )}
-          {myOrders.length===0&&<div className="empty"><div className="empty-text">No commission records yet</div></div>}
+          {myOrders.length===0&&<div className="empty"><div className="empty-text">{t('noCommissionRecords')}</div></div>}
         </div>
         {overlays}
       </div>
@@ -1102,43 +1411,43 @@ function FieldFastInner() {
 
   // ── SETUP ──
   if(screen==='setup') return (
-    <div className="page">
+    <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner">
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
-          <div><div className="header-title">{worker?.name}</div><div className="header-sub">New order</div></div>
+          <div><div className="header-title">{worker?.name}</div><div className="header-sub">{t('startOrder')}</div></div>
         </div>
-        <button className="btn btn-sm" onClick={()=>goTo('orders')}>Back</button>
+        <button className="btn btn-sm" onClick={()=>goTo('orders')}>{t('back')}</button>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
         <div className="card">
-          <div className="card-title">Order details</div>
+          <div className="card-title">{t('orderEntry')}</div>
           <div className="field">
-            <label className="label">Order type</label>
+            <label className="label">{t('orderType')}</label>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
               <div onClick={()=>setOrderType('store')} style={{padding:14,borderRadius:'var(--r)',cursor:'pointer',textAlign:'center',
                 border:`2px solid ${orderType==='store'?'var(--green)':'var(--border)'}`,background:orderType==='store'?'var(--green-light)':'var(--surface)'}}>
-                <div style={{fontWeight:600,fontSize:13,color:orderType==='store'?'var(--green)':'var(--text)'}}>🏪 For Store</div>
+                <div style={{fontWeight:600,fontSize:13,color:orderType==='store'?'var(--green)':'var(--text)'}}>{t('storeBuy')}</div>
               </div>
               <div onClick={()=>setOrderType('online')} style={{padding:14,borderRadius:'var(--r)',cursor:'pointer',textAlign:'center',
                 border:`2px solid ${orderType==='online'?'var(--blue)':'var(--border)'}`,background:orderType==='online'?'var(--blue-light)':'var(--surface)'}}>
-                <div style={{fontWeight:600,fontSize:13,color:orderType==='online'?'var(--blue)':'var(--text)'}}>🌐 Online</div>
+                <div style={{fontWeight:600,fontSize:13,color:orderType==='online'?'var(--blue)':'var(--text)'}}>{t('onlineStore')}</div>
               </div>
             </div>
           </div>
           <div className="field">
-            <label className="label">Order name</label>
+            <label className="label">{t('orderName')}</label>
             <input type="text" placeholder="e.g. Summer 2026 Restock" value={orderName}
               onChange={e=>setOrderName(e.target.value)} autoFocus/>
           </div>
           <div className="field" style={{marginBottom:0}}>
-            <label className="label">Start date</label>
+            <label className="label">{t('startDate')}</label>
             <input type="date" value={orderDate} onChange={e=>setOrderDate(e.target.value)}/>
           </div>
         </div>
         <button className="btn btn-primary" style={{width:'100%',marginTop:16,padding:14,fontSize:15}}
           onClick={async()=>{
-            if(!orderName.trim()){ setErrorBox({title:'Cannot continue',items:['Order name is required']}); return; }
+            if(!orderName.trim()){ setErrorBox({title:t('cannotContinue'),items:[t('orderNameRequired')]}); return; }
             try {
               const res=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({action:'create',name:orderName.trim(),startDate:orderDate,
@@ -1146,9 +1455,9 @@ function FieldFastInner() {
               const d=await res.json();
               if(!d.order) throw new Error('Failed to create order');
               setLiveOrder(d.order); setEditingExisting(d.order);
-            } catch(e:any){ setErrorBox({title:'Could not start order',items:[e.message]}); return; }
+            } catch(e:any){ setErrorBox({title:t('couldNotStartOrder'),items:[e.message]}); return; }
             setCurrentVendor(''); setFormOpen(false); goTo('entry');
-          }}>Start adding items →</button>
+          }}>{t('createOrder')}</button>
       </div>
       {overlays}
     </div>
@@ -1156,15 +1465,15 @@ function FieldFastInner() {
 
   // ── SUCCESS ──
   if(screen==='success') return (
-    <div className="page">
+    <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="container" style={{paddingTop:80,textAlign:'center'}}>
         <div style={{fontSize:64,marginBottom:16}}>🎉</div>
-        <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>Order submitted!</div>
-        <div style={{fontSize:14,color:'var(--text-3)',marginBottom:32}}>&quot;{orderName}&quot; · {cart.length} packs</div>
+        <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>{t('orderSubmittedTitle')}</div>
+        <div style={{fontSize:14,color:'var(--text-3)',marginBottom:32}}>&quot;{orderName}&quot; · {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')}</div>
         <button className="btn btn-primary" style={{minWidth:200}} onClick={()=>{
           setCart([]); setOrderName(''); setShippingCost(''); setCurrentVendor('');
           setEditingExisting(null); resetItemForm(); goTo('orders');
-        }}>Back to orders</button>
+        }}>{t('backToOrders')}</button>
       </div>
       {overlays}
     </div>
@@ -1172,27 +1481,27 @@ function FieldFastInner() {
 
   // ── CART / REVIEW ──
   if(screen==='cart') return (
-    <div className="page">
+    <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner">
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
-          <div><div className="header-title">Review order</div>
-            <div className="header-sub">{orderName} · {cart.length} packs · ${cartTotal.toFixed(2)}</div></div>
+          <div><div className="header-title">{t('review')}</div>
+            <div className="header-sub">{orderName} · {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')} · ${cartTotal.toFixed(2)}</div></div>
         </div>
-        <button className="btn btn-sm" onClick={()=>goTo('entry')}>Edit</button>
+        <button className="btn btn-sm" onClick={()=>goTo('entry')}>{lang==='ar'?'تعديل':'Edit'}</button>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:120}}>
 
         {/* ORDER SUMMARY TABLE */}
         <div className="card" style={{marginBottom:16}}>
-          <div className="card-title">Order summary</div>
+          <div className="card-title">{t('orderSummary')}</div>
           {/* Header row */}
           <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:8,
             padding:'6px 0',borderBottom:'2px solid var(--border)',
             fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text-3)'}}>
-            <span>Vendor</span>
-            <span style={{textAlign:'center',minWidth:70}}>Packs / Variants</span>
-            <span style={{textAlign:'right',minWidth:70}}>Total</span>
+            <span>{t('vendor')}</span>
+            <span style={{textAlign:'center',minWidth:70}}>{t('packs')} / {t('variants')}</span>
+            <span style={{textAlign:'right',minWidth:70}}>{t('total')}</span>
           </div>
           {/* One row per vendor */}
           {Object.entries(cartByVendor).map(([vendor,items])=>{
@@ -1214,20 +1523,20 @@ function FieldFastInner() {
           {/* Totals */}
           <div style={{marginTop:8,paddingTop:8,borderTop:'2px solid var(--border)'}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
-              <span style={{color:'var(--text-3)'}}>Purchase value</span>
+              <span style={{color:'var(--text-3)'}}>{t('purchase')}</span>
               <strong>${cartTotal.toFixed(2)}</strong>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
-              <span style={{color:'var(--text-3)'}}>Shipping</span>
+              <span style={{color:'var(--text-3)'}}>{t('ship')}</span>
               <span>${Number(shippingCost||0).toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
-              <span style={{color:'var(--text-3)'}}>Commission (3%)</span>
+              <span style={{color:'var(--text-3)'}}>{t('commission')} (3%)</span>
               <span style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:15,fontWeight:700,
               padding:'6px 0',marginTop:4,borderTop:'1px solid var(--border)'}}>
-              <span>Total order cost</span>
+              <span>{t('totalOrderCost')}</span>
               <span style={{color:'var(--green)'}}>
                 ${(cartTotal+Number(shippingCost||0)+cartTotal*0.03).toFixed(2)}
               </span>
@@ -1242,8 +1551,8 @@ function FieldFastInner() {
               paddingBottom:8,marginBottom:4,borderBottom:'2px solid var(--border)'}}>
               <div style={{fontWeight:700,fontSize:15}}>{vendor}</div>
               <div style={{fontSize:11,color:'var(--text-3)',display:'flex',gap:8}}>
-                <span>{items.length} pack{items.length!==1?'s':''}</span>
-                <span>{items.reduce((s,i)=>s+i.qty,0)} variants</span>
+                <span>{items.length} {items.length===1?t('packLabel'):t('packsLabel')}</span>
+                <span>{items.reduce((s,i)=>s+i.qty,0)} {t('variants')}</span>
                 <span style={{color:'var(--green)',fontWeight:700}}>${items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
               </div>
             </div>
@@ -1254,23 +1563,23 @@ function FieldFastInner() {
         {/* SHIPPING + ACTION BUTTONS */}
         <div className="card" style={{marginBottom:12}}>
           <div className="field" style={{marginBottom:0}}>
-            <label className="label">Shipping cost ($) — optional</label>
+            <label className="label">{t('shippingCostLabel')}</label>
             <input type="number" step="0.01" placeholder="0.00" value={shippingCost} onChange={e=>setShippingCost(e.target.value)}/>
           </div>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           <button className="btn" style={{width:'100%',padding:14,fontSize:15,fontWeight:600,borderColor:'var(--green-border)',color:'var(--green)'}}
             onClick={saveAndKeepOpen} disabled={submitting}>
-            {submitting?'Saving...':'Save & keep open (add more later)'}
+            {submitting?t('saving'):t('saveKeepOpen')}
           </button>
           <button className="btn btn-success" style={{width:'100%',padding:16,fontSize:16,fontWeight:600}}
             onClick={submitOrder} disabled={submitting}>
-            {submitting?'Submitting...':`Submit order · ${cart.length} packs`}
+            {submitting?t('saving'):`${t('submitOrderBtn')} · ${cart.length} ${cart.length===1?t('packLabel'):t('packsLabel')}`}
           </button>
           {(editingExisting||liveOrder)&&(
             <button className="btn" style={{width:'100%',padding:12,fontSize:14,borderColor:'var(--blue-border)',color:'var(--blue)'}}
               onClick={()=>window.open(`/order-pdf?orderId=${(editingExisting||liveOrder)!.id}`,'_blank')}>
-              ⬇ Download PDF
+              {t('downloadPdf')}
             </button>
           )}
         </div>
@@ -1286,19 +1595,19 @@ function FieldFastInner() {
   const vendorItems = currentVendor ? (cartByVendor[currentVendor]||[]) : [];
 
   return (
-    <div className="page">
+    <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner">
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{orderName||'Order'}</div>
             <div className="header-sub">
-              {cart.length} pack{cart.length!==1?'s':''}
+              {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')}
               {cartTotal>0&&<span style={{marginLeft:6,color:'var(--green)',fontWeight:600}}>${cartTotal.toFixed(0)}</span>}
             </div></div>
         </div>
         <div style={{display:'flex',gap:6}}>
-          {editingExisting&&<button className="btn btn-sm" onClick={()=>goTo('detail')}>Detail</button>}
-          <button className="btn btn-sm btn-primary" onClick={()=>goTo('cart')}>Review ({cart.length})</button>
+          {editingExisting&&<button className="btn btn-sm" onClick={()=>goTo('detail')}>{lang==='ar'?'تفاصيل':'Detail'}</button>}
+          <button className="btn btn-sm btn-primary" onClick={()=>goTo('cart')}>{t('review')} ({cart.length})</button>
         </div>
       </div></div></div>
 
@@ -1318,17 +1627,22 @@ function FieldFastInner() {
             {!formOpen&&(
               <button className="btn btn-primary" style={{width:'100%',padding:13,fontSize:15,marginBottom:14}}
                 onClick={()=>{ resetItemForm(); setFormOpen(true); }}>
-                + Add item code under {currentVendor}
+                {t('addItem')} {currentVendor}
               </button>
             )}
             {formOpen&&(
               <div className="card" style={{marginBottom:14,borderColor:'var(--green-border)'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div className="card-title" style={{margin:0}}>{editingTempId?'Edit item':'New item'} · {currentVendor}</div>
-                  <button className="btn btn-sm btn-ghost" onClick={()=>{resetItemForm();setFormOpen(false);}}>✕</button>
+                  <div className="card-title" style={{margin:0}}>{editingTempId ? t('saveChanges') : t('saveItem')} · {currentVendor}</div>
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <button className="btn btn-sm" style={{padding:'4px 8px',display:'flex',alignItems:'center',gap:4,color:'var(--blue)',border:'1px solid var(--blue-border)',background:'var(--blue-light)'}} onClick={startVoiceRecognition}>
+                      {t('voiceBtn')}
+                    </button>
+                    <button className="btn btn-sm btn-ghost" onClick={()=>{resetItemForm();setFormOpen(false);}}>✕</button>
+                  </div>
                 </div>
                 <div className="field">
-                  <label className="label">Item code {editingTempId&&<span style={{fontSize:10,background:'var(--amber)',color:'#fff',borderRadius:4,padding:'1px 6px',marginLeft:6}}>editing</span>}</label>
+                  <label className="label">{lang==='ar'?'كود المنتج':'Item code'} {editingTempId&&<span style={{fontSize:10,background:'var(--amber)',color:'#fff',borderRadius:4,padding:'1px 6px',marginLeft:6}}>editing</span>}</label>
                   <input type="text" placeholder="e.g. 4567" value={code} onChange={e=>setCode(e.target.value)} autoFocus key={editingTempId||'new'}/>
                 </div>
                 <div className="field">
@@ -1394,11 +1708,11 @@ function FieldFastInner() {
                     </div>
                   )}
                 </div>
-                <div className="field">
-                  <label className="label">Sizes {sizes.length>0&&<span style={{color:'var(--green)'}}>({total(sizes)})</span>}</label>
+                 <div className="field">
+                  <label className="label">{t('sizes')} {sizes.length>0&&<span style={{color:'var(--green)'}}>({total(sizes)})</span>}</label>
                   <div style={{display:'flex',gap:6,marginBottom:8}}>
-                    <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`} onClick={()=>setSizeMode('letter')}>Letter</button>
-                    <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`} onClick={()=>setSizeMode('numeric')}>Numeric</button>
+                    <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`} onClick={()=>setSizeMode('letter')}>{lang==='ar'?'حروف':'Letter'}</button>
+                    <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`} onClick={()=>setSizeMode('numeric')}>{lang==='ar'?'أرقام':'Numeric'}</button>
                   </div>
                   <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
                     {(sizeMode==='letter'?LETTER_SIZES:NUMERIC_SIZES).map(s=>(
@@ -1407,7 +1721,7 @@ function FieldFastInner() {
                   </div>
                   {/* Custom size input */}
                   <div style={{display:'flex',gap:6,marginTop:8}}>
-                    <input type="text" placeholder="Custom size e.g. 29, XXS…" id="customSizeInput"
+                    <input type="text" placeholder={lang==='ar'?'مقاس مخصص مثل 29، XXS...':'Custom size e.g. 29, XXS…'} id="customSizeInput"
                       style={{flex:1,fontSize:13}}
                       onKeyDown={e=>{
                         if(e.key==='Enter'){
@@ -1418,7 +1732,7 @@ function FieldFastInner() {
                     <button className="btn btn-sm" onClick={()=>{
                       const el=document.getElementById('customSizeInput') as HTMLInputElement;
                       if(el?.value.trim()){ setSizes(prev=>addOrInc(prev,el.value.trim())); el.value=''; }
-                    }}>Add</button>
+                    }}>{lang==='ar'?'إضافة':'Add'}</button>
                   </div>
                   {sizes.length>0&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
@@ -1433,34 +1747,34 @@ function FieldFastInner() {
                   )}
                 </div>
                 <div className="field">
-                  <label className="label">Purchase price ($)</label>
+                  <label className="label">{t('unitPrice')}</label>
                   <input type="number" step="0.5" placeholder="0.00" value={price} onChange={e=>setPrice(e.target.value)}/>
                 </div>
                 {autoQty>0&&(
                   <div style={{background:'var(--green-light)',border:'1px solid var(--green-border)',borderRadius:'var(--r)',padding:'10px 14px',marginBottom:14,fontSize:13}}>
                     <strong style={{color:'var(--green)',fontSize:20}}>{autoQty}</strong>
-                    <span style={{color:'var(--text-3)',marginLeft:8}}>variants · {total(colors)} colors × {total(sizes)} sizes</span>
+                    <span style={{color:'var(--text-3)',marginLeft:8}}>{t('variants')} · {total(colors)} {t('colors').toLowerCase()} × {total(sizes)} {t('sizes').toLowerCase()}</span>
                   </div>
                 )}
                 <div className="field">
-                  <label className="label">Photo {orderType==='online'?<span style={{color:'var(--red)'}}>*required</span>:'(optional)'}</label>
+                  <label className="label">{lang==='ar'?'صورة القماش':'Photo'} {orderType==='online'?<span style={{color:'var(--red)'}}>{lang==='ar'?'*مطلوب':'*required'}</span>:<span>{lang==='ar'?'(اختياري)':'(optional)'}</span>}</label>
                   {photo?(
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      <img src={photo} alt="" style={{width:56,height:56,borderRadius:8,objectFit:'cover'}}/>
-                      <button className="btn btn-sm" onClick={()=>setPhoto('')}>Remove</button>
+                       <img src={photo} alt="" style={{width:56,height:56,borderRadius:8,objectFit:'cover'}}/>
+                       <button className="btn btn-sm" onClick={()=>setPhoto('')}>{lang==='ar'?'إزالة':'Remove'}</button>
                     </div>
                   ):(
-                    <label className="btn btn-sm" style={{cursor:'pointer'}}>Take / choose photo
+                    <label className="btn btn-sm" style={{cursor:'pointer'}}>{t('takePhoto')}
                       <input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={handlePhoto}/>
                     </label>
                   )}
                 </div>
                 <div className="field" style={{marginBottom:14}}>
-                  <label className="label">Note (optional)</label>
-                  <input type="text" placeholder="Any note..." value={notes} onChange={e=>setNotes(e.target.value)}/>
+                  <label className="label">{t('note')}</label>
+                  <input type="text" placeholder={lang==='ar'?'أي ملاحظة...':'Any note...'} value={notes} onChange={e=>setNotes(e.target.value)}/>
                 </div>
                 <button className="btn btn-primary" style={{width:'100%',padding:13,fontSize:15}} onClick={saveItem} disabled={savingItem}>
-                  {savingItem?t('saving'):editingTempId?t('saveChanges'):'+ Add item'}
+                  {savingItem?t('saving'):editingTempId?t('saveChanges'):t('saveItem')}
                 </button>
               </div>
             )}
@@ -1477,10 +1791,10 @@ function FieldFastInner() {
                   color:vendor===currentVendor?'var(--green)':'var(--text-3)',
                   padding:'6px 4px',marginBottom:4,borderBottom:'1px solid var(--border)',cursor:'pointer'}}
                   onClick={()=>{ setCurrentVendor(vendor); setFormOpen(false); resetItemForm(); }}>
-                  <span>{vendor} {vendor===currentVendor?'● active':''}</span>
+                  <span>{vendor} {vendor===currentVendor?(lang==='ar'?'● نشط':'● active'):''}</span>
                   <span style={{display:'flex',gap:10,alignItems:'center'}}>
-                    <span style={{fontWeight:500,fontSize:10}}>{cartByVendor[vendor].length} pack{cartByVendor[vendor].length!==1?'s':''}</span>
-                    <span style={{fontWeight:500,fontSize:10}}>{cartByVendor[vendor].reduce((s,i)=>s+i.qty,0)} variants</span>
+                    <span style={{fontWeight:500,fontSize:10}}>{cartByVendor[vendor].length} {cartByVendor[vendor].length===1?t('packLabel'):t('packsLabel')}</span>
+                    <span style={{fontWeight:500,fontSize:10}}>{cartByVendor[vendor].reduce((s,i)=>s+i.qty,0)} {t('variants')}</span>
                     <span style={{color:'var(--green)',fontWeight:700,fontSize:12}}>${cartByVendor[vendor].reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}</span>
                   </span>
                 </div>
@@ -1493,7 +1807,7 @@ function FieldFastInner() {
         {cart.length===0&&!currentVendor&&(
           <div className="empty" style={{marginTop:24}}>
             <div className="empty-icon">🛍️</div>
-            <div className="empty-text">Select a vendor above to start adding items</div>
+            <div className="empty-text">{t('noItems')}</div>
           </div>
         )}
       </div>
@@ -1505,7 +1819,7 @@ function FieldFastInner() {
           padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',
           boxShadow:'0 -4px 16px rgba(0,0,0,.08)',zIndex:50}}>
           <div style={{fontSize:12,color:'var(--text-3)'}}>
-            {cart.length} pack{cart.length!==1?'s':''} · {cart.reduce((s,i)=>s+i.qty,0)} variants · {allVendorsInCart.length} vendor{allVendorsInCart.length!==1?'s':''}
+            {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')} · {cart.reduce((s,i)=>s+i.qty,0)} {t('variants')} · {allVendorsInCart.length} {allVendorsInCart.length===1?t('vendor').toLowerCase():lang==='ar'?'موردين':lang==='tr'?'satıcı':'vendors'}
           </div>
           <div style={{fontWeight:700,fontSize:18,color:'var(--green)'}}>${cartTotal.toFixed(2)}</div>
         </div>
