@@ -7,48 +7,168 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
+// ── Swipeable item card for manager portal ──
+function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprove, onFlag, onEdit, onDelete }:{
+  item:any; cost:number; retail:number; variants:number; dupeInOrder:boolean;
+  onApprove:()=>void; onFlag:()=>void; onEdit:()=>void; onDelete:()=>void;
+}){
+  const [offset, setOffset] = React.useState(0);
+  const startX = React.useRef(0);
+  const touching = React.useRef(false);
+  const ACTION_W = 220;
+  const THRESHOLD = 70;
+
+  function onTS(e:React.TouchEvent){ touching.current=true; startX.current=e.touches[0].clientX; }
+  function onTM(e:React.TouchEvent){
+    if(!touching.current) return;
+    const dx=startX.current-e.touches[0].clientX;
+    if(Math.abs(dx)>6) e.preventDefault();
+    setOffset(Math.max(0,Math.min(ACTION_W, (offset>THRESHOLD?ACTION_W:0)+dx)));
+  }
+  function onTE(e:React.TouchEvent){
+    touching.current=false;
+    const dx=startX.current-(e.changedTouches[0]?.clientX||startX.current);
+    if(offset>THRESHOLD||dx>THRESHOLD) setOffset(ACTION_W);
+    else setOffset(0);
+  }
+  function close(){ setOffset(0); }
+
+  return (
+    <div style={{position:'relative',marginBottom:6,userSelect:'none',touchAction:'pan-y'}}>
+      {/* Actions */}
+      <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_W,
+        display:'flex',alignItems:'stretch',zIndex:1}}>
+        {[
+          {label:'Approve',icon:'✓',bg:'#16a34a',fn:onApprove},
+          {label:'Flag',icon:'⚑',bg:'#D97706',fn:onFlag},
+          {label:'Edit',icon:'✎',bg:'#3B82F6',fn:onEdit},
+          {label:'Delete',icon:'🗑',bg:'#EF4444',fn:onDelete},
+        ].map(({label,icon,bg,fn})=>(
+          <button key={label} style={{flex:1,background:bg,color:'#fff',border:'none',cursor:'pointer',
+            fontSize:10,fontWeight:700,display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',gap:2}}
+            onClick={()=>{close();fn();}}>
+            <span style={{fontSize:16}}>{icon}</span>{label}
+          </button>
+        ))}
+      </div>
+      {/* Card */}
+      <div style={{position:'relative',zIndex:2,
+        transform:`translateX(-${offset}px)`,
+        transition:touching.current?'none':'transform .2s ease',
+        background:'var(--surface)',border:'1px solid var(--border)',
+        borderLeft:`3px solid ${item.status==='approved'?'var(--green)':item.status==='flagged'?'var(--red)':'var(--amber-border)'}`,
+        borderRadius:'var(--r)',boxShadow:'var(--shadow-sm)',padding:'12px 14px'}}
+        onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
+        onClick={()=>{ if(offset>8) setOffset(0); }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:700,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
+            <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>{item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}</div>
+            <div style={{fontSize:11,color:'var(--text-2)'}}>Purchase: ${item.price} · Qty: {item.qty}</div>
+            {dupeInOrder&&<div style={{fontSize:10,color:'var(--amber)',fontWeight:600}}>⚠ Duplicate</div>}
+            {item.notes&&<div style={{fontSize:10,color:'var(--text-3)'}}>Note: {item.notes}</div>}
+            {item.ownerNote&&<div style={{fontSize:10,color:'var(--amber)'}}>Owner: {item.ownerNote}</div>}
+            <div style={{marginTop:6,display:'flex',gap:12,fontSize:11}}>
+              <span>Cost: <strong>${cost.toFixed(2)}</strong></span>
+              <span>Retail: <strong style={{color:'var(--green)'}}>${retail.toFixed(2)}</strong></span>
+              <span style={{color:'var(--text-4)'}}>{variants} var</span>
+            </div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6,flexShrink:0}}>
+            {item.photo&&<img src={item.photo} alt="" style={{width:44,height:44,borderRadius:6,objectFit:'cover'}}/>}
+            <span className={`badge badge-${item.status}`}>{item.status}</span>
+            <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>← swipe</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Price review row component
 function PriceRow({item, settings, onSave}: {
-  item: any; settings: any; onSave: (price:number)=>void;
+  item: any; settings: any; onSave: (price:number, sellPrice?:number)=>void;
 }) {
   const [price, setPrice] = React.useState(String(item.price));
+  const [sellMode, setSellMode] = React.useState<'calc'|'pack'|'variant'>('calc');
+  const [sellPrice, setSellPrice] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const numPrice = parseFloat(price) || item.price;
   const taxCost  = numPrice * (settings.tax/100);
   const weight   = ({'t-shirt':0.25,'t-shirts':0.25,'shirt':0.33,'shirts':0.33,'pants':0.55,'shorts':0.45,'jeans':0.8,'jacket':0.6,'hoodie':1.2,'sweater':0.8,'knitwear':0.95} as any)[item.category?.toLowerCase()] || 0.5;
   const shipCost = weight * settings.shipping;
   const unitCost = numPrice + taxCost + shipCost;
-  const retail   = Math.floor(unitCost * settings.markup) + 0.99;
-  const changed  = numPrice !== item.price;
+  const calcRetail = Math.floor(unitCost * settings.markup) + 0.99;
+
+  // Selling price derived from mode
+  const qty = item.qty || (item.colors?.length||1)*(item.sizes?.length||1);
+  const numSell = parseFloat(sellPrice)||0;
+  const finalRetail = sellMode==='calc' ? calcRetail
+    : sellMode==='pack' ? (numSell/qty)  // per-variant price from pack total
+    : numSell; // direct per-variant price
+  const displaySell = sellMode==='calc' ? calcRetail
+    : sellMode==='pack' ? numSell
+    : numSell*qty;
+
+  const changed = numPrice !== item.price || (sellMode!=='calc' && numSell>0);
 
   return (
     <div style={{background:'var(--surface)',border:`1px solid ${changed?'var(--amber-border)':'var(--border)'}`,
       borderRadius:'var(--r)',padding:'12px 14px',marginBottom:8,
       borderLeft:`3px solid ${changed?'var(--amber)':'var(--border)'}`}}>
-      <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+      <div style={{display:'flex',alignItems:'flex-start',gap:12,flexWrap:'wrap'}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontWeight:600}}>{item.vendor} · <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
           <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>{item.category} · {item.colors?.join(', ')} · {item.sizes?.join('/')}</div>
+          <div style={{fontSize:11,color:'var(--text-4)',marginTop:1}}>{qty} variants</div>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,flexWrap:'wrap'}}>
+          {/* Purchase price */}
           <div>
             <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Purchase $</div>
             <input type="number" value={price} step="0.5" min="0"
               onChange={e=>setPrice(e.target.value)}
-              style={{width:90,padding:'6px 8px',border:'1px solid var(--border-strong)',
-                borderRadius:'var(--r-sm)',fontSize:15,fontWeight:600,textAlign:'center'}}/>
+              style={{width:80,padding:'6px 8px',border:'1px solid var(--border-strong)',
+                borderRadius:'var(--r-sm)',fontSize:14,fontWeight:600,textAlign:'center'}}/>
           </div>
-          <div style={{textAlign:'center'}}>
-            <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Unit cost</div>
-            <div style={{fontSize:14,fontWeight:500,color:'var(--text-2)',padding:'6px 8px'}}>${unitCost.toFixed(2)}</div>
+          {/* Selling price mode */}
+          <div>
+            <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Selling price</div>
+            <div style={{display:'flex',gap:3,marginBottom:4}}>
+              {(['calc','variant','pack'] as const).map(m=>(
+                <button key={m} className={`btn btn-sm ${sellMode===m?'btn-primary':''}`}
+                  style={{fontSize:10,padding:'2px 7px'}}
+                  onClick={()=>setSellMode(m)}>
+                  {m==='calc'?'Auto':m==='variant'?'Per var':'Per pack'}
+                </button>
+              ))}
+            </div>
+            {sellMode!=='calc'?(
+              <input type="number" value={sellPrice} step="0.5" min="0"
+                placeholder={sellMode==='pack'?'Total pack $':'Per variant $'}
+                onChange={e=>setSellPrice(e.target.value)}
+                style={{width:110,padding:'6px 8px',border:'1px solid var(--green-border)',
+                  borderRadius:'var(--r-sm)',fontSize:14,fontWeight:600,textAlign:'center',
+                  background:'var(--green-light)'}}/>
+            ):(
+              <div style={{fontSize:16,fontWeight:700,color:'var(--green)',padding:'6px 8px'}}>${calcRetail.toFixed(2)}</div>
+            )}
           </div>
-          <div style={{textAlign:'center'}}>
-            <div style={{fontSize:10,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>Retail</div>
-            <div style={{fontSize:16,fontWeight:700,color:'var(--green)',padding:'6px 8px'}}>${retail.toFixed(2)}</div>
-          </div>
+          {/* Summary */}
+          {sellMode!=='calc'&&numSell>0&&(
+            <div style={{fontSize:12,color:'var(--green)',fontWeight:600,textAlign:'center'}}>
+              <div>Pack: ${displaySell.toFixed(2)}</div>
+              <div style={{fontSize:10,color:'var(--text-3)'}}>Var: ${(numSell/(sellMode==='pack'?qty:1)||0).toFixed(2)}</div>
+            </div>
+          )}
           {changed&&(
             <button className="btn btn-sm btn-primary" disabled={saving}
-              onClick={async()=>{setSaving(true);await onSave(numPrice);setSaving(false);}}>
+              onClick={async()=>{
+                setSaving(true);
+                await onSave(numPrice, sellMode!=='calc'&&numSell>0 ? finalRetail : undefined);
+                setSaving(false);
+              }}>
               {saving?'Saving...':'Save'}
             </button>
           )}
@@ -790,43 +910,16 @@ function OwnerPageInner() {
                             const dupeInOrder = vendorItems.filter(i=>i.code===item.code).length>1;
                             const variants = item.colors.length * item.sizes.length;
                             return (
-                              <div key={item.id} className="item-card" style={{
-                                borderLeft:`3px solid ${item.status==='approved'?'var(--green)':item.status==='flagged'?'var(--red)':'var(--amber-border)'}`
-                              }}>
-                                <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                                  <div style={{flex:1,minWidth:0}}>
-                                    <div style={{fontWeight:600,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
-                                    <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
-                                      {item.category} · {item.colors.join(', ')} · {item.sizes.join('/')}
-                                    </div>
-                                    <div style={{fontSize:12,color:'var(--text-2)'}}>Purchase: ${item.price}/unit · Qty: {item.qty} units</div>
-                                    {dupeInOrder&&<div style={{fontSize:11,color:'var(--amber)',fontWeight:600}}>⚠ Duplicate code in this order</div>}
-                                    {item.notes&&<div style={{fontSize:11,color:'var(--text-2)'}}>Note: {item.notes}</div>}
-                                    {item.ownerNote&&<div style={{fontSize:11,color:'var(--amber)'}}>Your note: {item.ownerNote}</div>}
-                                    {item.photo&&<img src={item.photo} alt="item" style={{width:60,height:60,objectFit:'cover',borderRadius:'var(--r-sm)',marginTop:6,cursor:'pointer'}} onClick={()=>window.open(item.photo)}/>}
-                                    <div style={{marginTop:6,padding:'6px 10px',background:'var(--bg)',borderRadius:6,display:'flex',gap:16,flexWrap:'wrap',fontSize:12}}>
-                                      <span>Unit cost: <strong>${cost.toFixed(2)}</strong></span>
-                                      <span>Retail: <strong style={{color:'var(--green)',fontSize:13}}>${retail.toFixed(2)}</strong></span>
-                                      <span style={{color:'var(--text-3)'}}>{variants} variant{variants!==1?'s':''}</span>
-                                    </div>
-                                  </div>
-                                  <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center',flexDirection:'column'}}>
-                                    <span className={`badge badge-${item.status}`}>{item.status}</span>
-                                    <div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
-                                      <button className="btn btn-sm btn-success" onClick={()=>updateItemStatus(item,'approved')} title="Approve">✓</button>
-                                      <button className="btn btn-sm" style={{borderColor:'var(--red-border)',color:'var(--red)'}}
-                                        onClick={()=>{setFlagModal({item});setFlagNote('');}} title="Flag">⚑</button>
-                                      <button className="btn btn-sm" onClick={()=>{
-                                        setEditModal({item});
-                                        setEditPrice(String(item.price));
-                                        setEditNotes(item.notes);
-                                        setEditOwnerNote(item.ownerNote);
-                                      }} title="Edit">✎ Edit</button>
-                                      <button className="btn btn-sm btn-ghost" onClick={()=>deleteItem(item.id)}>✕</button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                              <SwipeableItemCard
+                                key={item.id}
+                                item={item} cost={cost} retail={retail} variants={variants} dupeInOrder={dupeInOrder}
+                                onApprove={()=>updateItemStatus(item,'approved')}
+                                onFlag={()=>{setFlagModal({item});setFlagNote('');}}
+                                onEdit={()=>{ setEditModal({item}); setEditPrice(String(item.price)); setEditNotes(item.notes); setEditOwnerNote(item.ownerNote); }}
+                                onDelete={()=>{
+                                  showConfirmModal('🗑️','Delete item?',`${item.vendor} · ${item.code} will be permanently removed.`,'Delete',()=>deleteItem(item.id));
+                                }}
+                              />
                             );
                           })}
                         </div>
