@@ -73,7 +73,7 @@ function parseVoiceInput(transcript: string, vendors: string[], categories: stri
   // 3. Match code
   const numbers = text.match(/\b\d{3,6}\b/g) || [];
   if (numbers.length > 0) {
-    foundCode = numbers[0];
+    foundCode = numbers[0] || '';
   }
   const codeMatch = text.match(/(?:code|number|style|كود|رقم|kod|numara)\s+([a-z0-9-]+)/i);
   if (codeMatch && codeMatch[1]) {
