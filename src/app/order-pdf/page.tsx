@@ -187,6 +187,10 @@ function PDFInner() {
         <div className="doc-header">
           <div className="logo-block">
             <img src="/logo-choices.png" alt="Choices For You" className="logo-img"/>
+            <div style={{marginLeft:12}}>
+              <div style={{fontSize:20,fontWeight:900,letterSpacing:-0.5,color:'#1A1A1A',lineHeight:1.1}}>CHOICES<br/>FOR YOU</div>
+              <div style={{fontSize:10,color:'#888',letterSpacing:'.08em',textTransform:'uppercase',marginTop:3}}>USA · Retail Fashion</div>
+            </div>
           </div>
           <div className="doc-meta">
             <div className="doc-type">PURCHASE ORDER</div>

@@ -583,7 +583,6 @@ function FieldFastInner() {
             <div className="header-sub">Order Entry{location?` · ${location}`:''}</div></div>
         </div>
         <div style={{display:'flex',gap:6}}>
-          <button className="btn btn-sm" onClick={toggleDark}>{darkMode?'Light':'Dark'}</button>
           <button className="btn btn-sm" onClick={()=>setScreen('earnings')}>Earnings</button>
           <a href={`/worker-settings?name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
           <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');setScreen('login');}}>Sign out</button>
@@ -972,9 +971,31 @@ function FieldFastInner() {
                 </div>
                 <div className="field">
                   <label className="label">Category</label>
+                  {/* Search/add */}
                   <ComboBox options={categories} value={category}
                     onChange={v=>{ setCategory(v); if(!categories.includes(v)) setCategories(prev=>[...prev,v]); }}
-                    usage={usage.categories} placeholder="Type category..."/>
+                    usage={usage.categories} placeholder="Search or add category..."/>
+                  {/* Sticky strip — sorted by usage for current vendor first, then global */}
+                  <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,marginTop:8,scrollbarWidth:'none'}}>
+                    {(()=>{
+                      // Vendor-specific usage: count how many items in cart under this vendor use each category
+                      const vendorCatCount:Record<string,number> = {};
+                      (cartByVendor[currentVendor]||[]).forEach(i=>{
+                        vendorCatCount[i.category]=(vendorCatCount[i.category]||0)+1;
+                      });
+                      return [...categories].sort((a,b)=>{
+                        const vDiff=(vendorCatCount[b]||0)-(vendorCatCount[a]||0);
+                        if(vDiff!==0) return vDiff;
+                        return (usage.categories?.[b]||0)-(usage.categories?.[a]||0);
+                      });
+                    })().map(c=>(
+                      <div key={c} className="chip" style={{flexShrink:0,
+                        background:category===c?'var(--green)':'',
+                        color:category===c?'#fff':'',
+                        borderColor:category===c?'var(--green)':'',
+                      }} onClick={()=>setCategory(c)}>{c}</div>
+                    ))}
+                  </div>
                 </div>
                 <div className="field">
                   <label className="label">Colors {colors.length>0&&<span style={{color:'var(--green)'}}>({total(colors)})</span>}</label>
@@ -1021,6 +1042,21 @@ function FieldFastInner() {
                     {(sizeMode==='letter'?LETTER_SIZES:NUMERIC_SIZES).map(s=>(
                       <div key={s} className="chip" style={{flexShrink:0}} onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>
                     ))}
+                  </div>
+                  {/* Custom size input */}
+                  <div style={{display:'flex',gap:6,marginTop:8}}>
+                    <input type="text" placeholder="Custom size e.g. 29, XXS…" id="customSizeInput"
+                      style={{flex:1,fontSize:13}}
+                      onKeyDown={e=>{
+                        if(e.key==='Enter'){
+                          const v=(e.target as HTMLInputElement).value.trim();
+                          if(v){ setSizes(prev=>addOrInc(prev,v)); (e.target as HTMLInputElement).value=''; }
+                        }
+                      }}/>
+                    <button className="btn btn-sm" onClick={()=>{
+                      const el=document.getElementById('customSizeInput') as HTMLInputElement;
+                      if(el?.value.trim()){ setSizes(prev=>addOrInc(prev,el.value.trim())); el.value=''; }
+                    }}>Add</button>
                   </div>
                   {sizes.length>0&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>

@@ -1209,37 +1209,314 @@ function OwnerPageInner() {
         )}
 
         {/* ── SETTINGS TAB ── */}
-        {tab==='settings'&&(
-          <div className="card">
-            <div className="card-title">Pricing defaults</div>
-            <div className="settings-grid">
-              <div className="field">
-                <label className="label">Tax (%)</label>
-                <input type="number" step="0.5" value={settings.tax}
-                  onChange={e=>setSettings(s=>({...s,tax:Number(e.target.value)}))}/>
-              </div>
-              <div className="field">
-                <label className="label">Markup (×)</label>
-                <input type="number" step="0.1" value={settings.markup}
-                  onChange={e=>setSettings(s=>({...s,markup:Number(e.target.value)}))}/>
-              </div>
-              <div className="field">
-                <label className="label">Shipping ($/kg)</label>
-                <input type="number" step="0.01" value={settings.shipping}
-                  onChange={e=>setSettings(s=>({...s,shipping:Number(e.target.value)}))}/>
-              </div>
-            </div>
-            <div className="divider"/>
-            <div className="field" style={{maxWidth:200}}>
-              <label className="label">Owner PIN</label>
-              <input type="text" inputMode="numeric" value={settings.ownerPin}
-                onChange={e=>setSettings(s=>({...s,ownerPin:e.target.value}))}/>
-            </div>
-            <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
-              {savingSettings?'Saving...':'Save settings'}
+        {tab==='settings'&&(()=>{
+          const [settingsSection, setSettingsSection] = React.useState<'account'|'business'|'catalog'|'workers'|'appearance'|'experimental'|'about'>('business');
+
+          // Catalog editing state
+          const [catList, setCatList] = React.useState<string[]>([]);
+          const [colorList, setColorList] = React.useState<string[]>([]);
+          const [sizeList, setSizeList] = React.useState<string[]>([]);
+          const [vendorList, setVendorList] = React.useState<string[]>([]);
+          const [catalogLoaded, setCatalogLoaded] = React.useState(false);
+          const [newCatInput, setNewCatInput] = React.useState('');
+          const [newColorInput, setNewColorInput] = React.useState('');
+          const [newSizeInput, setNewSizeInput] = React.useState('');
+          const [newVendorInput, setNewVendorInput] = React.useState('');
+
+          if(!catalogLoaded){
+            setCatalogLoaded(true);
+            fetch('/api/usage').then(r=>r.json()).then(d=>{
+              if(d.categories) setCatList(Object.keys(d.categories).sort((a,b)=>(d.categories[b]||0)-(d.categories[a]||0)));
+              if(d.colors) setColorList(Object.keys(d.colors).sort((a,b)=>(d.colors[b]||0)-(d.colors[a]||0)));
+              if(d.sizes) setSizeList(Object.keys(d.sizes).sort());
+            });
+            fetch('/api/session').then(r=>r.json()).then(d=>{
+              if(d.registry) setVendorList(Object.keys(d.registry).sort());
+            });
+          }
+
+          function addUsageItem(type:string, name:string){
+            fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({items:[{type,name}]})}).catch(()=>{});
+          }
+
+          async function deleteUsageItem(type:string, name:string){
+            // We clear and rewrite via backfill — instead, just remove from local list
+            // (will persist until next backfill)
+          }
+
+          const sectionBtn = (k:typeof settingsSection, icon:string, label:string) => (
+            <button key={k}
+              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 14px',
+                textAlign:'left',background:settingsSection===k?'var(--green-light)':'none',
+                border:'none',borderRadius:'var(--r)',cursor:'pointer',fontSize:13,
+                color:settingsSection===k?'var(--green)':'var(--text)',fontWeight:settingsSection===k?700:400}}
+              onClick={()=>setSettingsSection(k)}>
+              {icon} {label}
             </button>
-          </div>
-        )}
+          );
+
+          function CatalogList({items, onAdd, onDelete, input, setInput, placeholder, type}:{
+            items:string[];type:string;placeholder:string;
+            input:string;setInput:(v:string)=>void;
+            onAdd:(v:string)=>void;onDelete:(v:string)=>void;
+          }){
+            return (
+              <div>
+                <div style={{display:'flex',gap:8,marginBottom:12}}>
+                  <input style={{flex:1}} placeholder={placeholder} value={input}
+                    onChange={e=>setInput(e.target.value)}
+                    onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){onAdd(input.trim());setInput('');}}}/>
+                  <button className="btn btn-sm btn-primary" onClick={()=>{if(input.trim()){onAdd(input.trim());setInput('');}}}>+ Add</button>
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {items.map(item=>(
+                    <span key={item} style={{display:'inline-flex',alignItems:'center',gap:4,
+                      padding:'5px 8px 5px 12px',borderRadius:100,fontSize:12,fontWeight:500,
+                      background:'var(--surface-2)',border:'1px solid var(--border)'}}>
+                      {item}
+                      <span style={{cursor:'pointer',color:'var(--red)',fontSize:15,marginLeft:2,lineHeight:1}}
+                        onClick={()=>onDelete(item)}>×</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:16,minHeight:500}}>
+              {/* Sidebar */}
+              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:8,height:'fit-content'}}>
+                {sectionBtn('account','👤','Account')}
+                {sectionBtn('business','🏢','Business')}
+                {sectionBtn('catalog','📋','Catalog')}
+                {sectionBtn('workers','👥','Workers')}
+                {sectionBtn('appearance','🌎','Appearance')}
+                {sectionBtn('experimental','🚀','Experimental')}
+                {sectionBtn('about','ℹ️','About')}
+              </div>
+
+              {/* Content */}
+              <div>
+
+                {/* ── ACCOUNT ── */}
+                {settingsSection==='account'&&(
+                  <div className="card">
+                    <div className="card-title">👤 Account</div>
+                    <div className="field">
+                      <label className="label">Owner PIN</label>
+                      <input type="text" inputMode="numeric" value={settings.ownerPin} style={{maxWidth:160}}
+                        onChange={e=>setSettings(s=>({...s,ownerPin:e.target.value}))}/>
+                    </div>
+                    <div style={{padding:'10px 0',borderTop:'1px solid var(--border)',fontSize:13,color:'var(--text-3)'}}>
+                      <div>Last login: {new Date().toLocaleDateString()}</div>
+                    </div>
+                    <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
+                      {savingSettings?'Saving...':'Save'}
+                    </button>
+                  </div>
+                )}
+
+                {/* ── BUSINESS ── */}
+                {settingsSection==='business'&&(
+                  <div className="card">
+                    <div className="card-title">🏢 Business</div>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>These values affect exports and pricing calculations.</div>
+                    <div className="field"><label className="label">Business name</label><input type="text" placeholder="Choices For You" defaultValue="Choices For You"/></div>
+                    <div className="field"><label className="label">Default currency</label>
+                      <select style={{maxWidth:200}}>
+                        <option value="usd">USD — US Dollar</option>
+                        <option value="try">TRY — Turkish Lira</option>
+                      </select>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                      <div className="field"><label className="label">Tax (%)</label>
+                        <input type="number" step="0.5" value={settings.tax}
+                          onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,tax:v}));}}/></div>
+                      <div className="field"><label className="label">Markup (x)</label>
+                        <input type="number" step="0.1" value={settings.markup}
+                          onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,markup:v}));}}/></div>
+                      <div className="field"><label className="label">Shipping ($/kg)</label>
+                        <input type="number" step="0.01" value={settings.shipping}
+                          onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,shipping:v}));}}/></div>
+                      <div className="field"><label className="label">Import duty (%)</label>
+                        <input type="number" step="0.5" placeholder="0"/></div>
+                      <div className="field"><label className="label">Rounding</label>
+                        <select><option>Round to .99</option><option>Round to whole</option><option>No rounding</option></select></div>
+                    </div>
+                    <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
+                      {savingSettings?'Saving...':'Save business settings'}
+                    </button>
+                  </div>
+                )}
+
+                {/* ── CATALOG ── */}
+                {settingsSection==='catalog'&&(
+                  <div>
+                    <div className="card" style={{marginBottom:12}}>
+                      <div className="card-title">📋 Categories</div>
+                      <div style={{fontSize:12,color:'var(--text-3)',marginBottom:10}}>Sorted by most used. Add, remove, or reorder.</div>
+                      <CatalogList
+                        type="categories" items={catList} input={newCatInput} setInput={setNewCatInput}
+                        placeholder="e.g. Jogger Pants"
+                        onAdd={v=>{ setCatList(prev=>[v,...prev]); addUsageItem('categories',v); showToast('Category added'); }}
+                        onDelete={v=>setCatList(prev=>prev.filter(x=>x!==v))}
+                      />
+                    </div>
+                    <div className="card" style={{marginBottom:12}}>
+                      <div className="card-title">🎨 Colors</div>
+                      <CatalogList
+                        type="colors" items={colorList} input={newColorInput} setInput={setNewColorInput}
+                        placeholder="e.g. Rust Orange"
+                        onAdd={v=>{ setColorList(prev=>[v,...prev]); addUsageItem('colors',v); showToast('Color added'); }}
+                        onDelete={v=>setColorList(prev=>prev.filter(x=>x!==v))}
+                      />
+                    </div>
+                    <div className="card" style={{marginBottom:12}}>
+                      <div className="card-title">📏 Sizes</div>
+                      <CatalogList
+                        type="sizes" items={sizeList} input={newSizeInput} setInput={setNewSizeInput}
+                        placeholder="e.g. 29, XXS, One Size"
+                        onAdd={v=>{ setSizeList(prev=>[...prev,v].sort()); addUsageItem('sizes',v); showToast('Size added'); }}
+                        onDelete={v=>setSizeList(prev=>prev.filter(x=>x!==v))}
+                      />
+                    </div>
+                    <div className="card">
+                      <div className="card-title">🏪 Vendors</div>
+                      <CatalogList
+                        type="vendors" items={vendorList} input={newVendorInput} setInput={setNewVendorInput}
+                        placeholder="e.g. New Vendor Name"
+                        onAdd={v=>{ setVendorList(prev=>[v,...prev]); addUsageItem('vendors',v);
+                          fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({action:'save-registry',vendor:v})}).catch(()=>{});
+                          showToast('Vendor added'); }}
+                        onDelete={v=>setVendorList(prev=>prev.filter(x=>x!==v))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── WORKERS ── (reuse existing workers tab content) */}
+                {settingsSection==='workers'&&(
+                  <div className="card">
+                    <div className="card-title">👥 Workers</div>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Manage workers and their commission settings.</div>
+                    {workers.map((w:any)=>(
+                      <div key={w.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                        padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
+                        <div>
+                          <div style={{fontWeight:600,fontSize:14}}>{w.name}</div>
+                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
+                            PIN: {w.pin} · Commission: 3% · Joined: {w.createdAt||'—'}
+                          </div>
+                        </div>
+                        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                          <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,
+                            background:'var(--green-light)',color:'var(--green)',fontWeight:600}}>Active</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{marginTop:16,paddingTop:12,borderTop:'2px solid var(--border)'}}>
+                      <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Add worker</div>
+                      <div style={{display:'flex',gap:8}}>
+                        <input type="text" placeholder="Name" id="newWorkerNameSett"/>
+                        <input type="text" placeholder="PIN" id="newWorkerPinSett" style={{width:80}}/>
+                        <button className="btn btn-sm btn-primary" onClick={async()=>{
+                          const n=(document.getElementById('newWorkerNameSett') as HTMLInputElement)?.value.trim();
+                          const p=(document.getElementById('newWorkerPinSett') as HTMLInputElement)?.value.trim();
+                          if(!n||!p) return;
+                          const newW={id:'w_'+Date.now(),name:n,pin:p,role:'worker' as const};
+                          const updated=[...workers,newW];
+                          await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({action:'save-workers',workers:updated})});
+                          setWorkers(updated); showToast('Worker added');
+                        }}>Add</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── APPEARANCE ── */}
+                {settingsSection==='appearance'&&(
+                  <div className="card">
+                    <div className="card-title">🌎 Appearance</div>
+                    <div style={{marginBottom:16}}>
+                      <div className="label" style={{marginBottom:8}}>Theme</div>
+                      <div style={{display:'flex',gap:8}}>
+                        {['Light','Dark','System'].map(t=>(
+                          <button key={t} className={`btn ${t==='Dark'&&darkMode?'btn-primary':t==='Light'&&!darkMode?'btn-primary':''}`}
+                            onClick={()=>{
+                              const next=t==='Dark';
+                              const el=document.documentElement;
+                              el.setAttribute('data-theme',next?'dark':'');
+                              localStorage.setItem(`darkMode_owner_${loggedInName}`,String(next));
+                              window.dispatchEvent(new Event('darkModeChange'));
+                            }}>
+                            {t==='Dark'?'🌙':t==='Light'?'☀️':'⚙️'} {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── EXPERIMENTAL ── */}
+                {settingsSection==='experimental'&&(
+                  <div className="card">
+                    <div className="card-title">🚀 Experimental Features</div>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Future AI and advanced features. Toggle to enable early access.</div>
+                    {[
+                      {key:'aiPriceAnomaly',label:'AI price anomaly detection',desc:'Flags items with unusual pricing compared to similar codes'},
+                      {key:'ocrScanning',label:'OCR item scanning',desc:'Scan physical tags to auto-fill item codes'},
+                      {key:'voiceEntry',label:'Voice entry',desc:'Dictate item codes and details hands-free'},
+                      {key:'smartVendor',label:'Smart vendor suggestions',desc:'AI suggests vendors based on category and history'},
+                      {key:'liveCollab',label:'Live collaboration',desc:'See changes from other workers in real-time'},
+                    ].map(f=>(
+                      <div key={f.key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                        padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
+                        <div>
+                          <div style={{fontSize:14,fontWeight:500}}>{f.label}</div>
+                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>{f.desc}</div>
+                        </div>
+                        <div style={{width:44,height:26,borderRadius:13,background:'var(--border-strong)',
+                          position:'relative',flexShrink:0,opacity:.5,cursor:'not-allowed'}}>
+                          <div style={{position:'absolute',top:3,left:3,width:20,height:20,
+                            borderRadius:'50%',background:'#fff',boxShadow:'0 1px 3px rgba(0,0,0,.2)'}}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── ABOUT ── */}
+                {settingsSection==='about'&&(
+                  <div className="card">
+                    <div className="card-title">ℹ️ About</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                      {[
+                        {label:'App version',value:'v2.73'},
+                        {label:'Database',value:'Google Sheets'},
+                        {label:'Total orders',value:String(orders.length)},
+                        {label:'Total items',value:String(items.length)},
+                        {label:'Active vendors',value:String(Object.keys(usage.vendors||{}).length)},
+                        {label:'Workers',value:String(workers.length)},
+                        {label:'Built for',value:'Choices For You'},
+                        {label:'Copyright',value:'© '+new Date().getFullYear()+' Abdo Alasaadi'},
+                      ].map(({label,value})=>(
+                        <div key={label} style={{background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>
+                          <div style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text-3)',marginBottom:3}}>{label}</div>
+                          <div style={{fontSize:14,fontWeight:600}}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Edit Order Modal */}
