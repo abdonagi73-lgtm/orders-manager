@@ -22,7 +22,7 @@ function ExpandPanel({ open, children }:{ open:boolean; children:React.ReactNode
 function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, onCopy, selectedOrder, summary, expanded, onToggleExpand }:{
   order:any; onSelect:()=>void; onEdit:()=>void; onImport?:()=>void;
   onPDF:()=>void; onDelete:()=>void; onCopy?:()=>void;
-  selectedOrder:any; summary:{vendor:string;items:number;total:number}[]|null;
+  selectedOrder:any; summary:{vendor:string;packs:number;variants:number;total:number}[]|null;
   expanded:boolean; onToggleExpand:()=>void;
 }){
   const [offset, setOffset] = React.useState(0);
@@ -131,13 +131,13 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
               cursor:'pointer',color:'var(--text-4)',fontSize:11,gap:4}}>
             <span style={{fontSize:13,transition:'transform .25s',
               display:'inline-block',transform:expanded?'rotate(180deg)':'rotate(0deg)'}}>▾</span>
-            <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'vendor summary'}</span>
+            <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'order summary'}</span>
           </div>
         </div>
       </div>
 
-      {/* Vendor summary panel */}
-{expanded&&(
+      {/* Order summary panel */}
+      {expanded&&(
 
         <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',
           borderTop:'none',borderRadius:'0 0 var(--r) var(--r)',
@@ -149,24 +149,27 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
             <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'6px 0'}}>No items</div>
           ):(
             <>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',
+              <div style={{display:'grid',gridTemplateColumns:'1fr 55px 65px 75px',
                 fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',
                 color:'var(--text-4)',paddingBottom:6,borderBottom:'1px solid var(--border)'}}>
                 <span>Vendor</span>
-                <span style={{textAlign:'center'}}>Items</span>
+                <span style={{textAlign:'center'}}>Packs</span>
+                <span style={{textAlign:'center'}}>Variants</span>
                 <span style={{textAlign:'right'}}>Total</span>
               </div>
               {summary.map(row=>(
-                <div key={row.vendor} style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',
+                <div key={row.vendor} style={{display:'grid',gridTemplateColumns:'1fr 55px 65px 75px',
                   padding:'5px 0',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
                   <span style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.vendor}</span>
-                  <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.items}</span>
+                  <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.packs}</span>
+                  <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.variants}</span>
                   <span style={{fontSize:12,fontWeight:700,color:'var(--green)',textAlign:'right'}}>${row.total.toFixed(2)}</span>
                 </div>
               ))}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',padding:'6px 0 0',alignItems:'center'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 55px 65px 75px',padding:'6px 0 0',alignItems:'center'}}>
                 <span style={{fontSize:11,fontWeight:700,color:'var(--text-3)'}}>TOTAL</span>
-                <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.items,0)}</span>
+                <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.packs,0)}</span>
+                <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.variants,0)}</span>
                 <span style={{fontSize:13,fontWeight:800,color:'var(--green)',textAlign:'right'}}>${summary.reduce((s,r)=>s+r.total,0).toFixed(2)}</span>
               </div>
               <div style={{textAlign:'center',marginTop:10}}>
@@ -431,7 +434,7 @@ function OwnerPageInner() {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
-  const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;items:number;total:number}[]>>({});
+  const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;packs:number;variants:number;total:number}[]>>({});
   const [expandedOrders, setExpandedOrders] = useState<Record<string,boolean>>({});
   const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp
   const [loggedInName, setLoggedInName] = useState('');
@@ -579,14 +582,17 @@ function OwnerPageInner() {
         try {
           const ir=await fetch(`/api/items?orderId=${order.id}`);
           const id=await ir.json();
-          const byV:Record<string,{items:number;total:number}>={};
+          const byV:Record<string,{packs:number;variants:number;total:number}>={};
           (id.items||[]).forEach((i:any)=>{
-            if(!byV[i.vendor]) byV[i.vendor]={items:0,total:0};
-            byV[i.vendor].items++;
+            if(!byV[i.vendor]) byV[i.vendor]={packs:0,variants:0,total:0};
+            byV[i.vendor].packs++;
+            const colorsCount = Array.isArray(i.colors) ? i.colors.length : 0;
+            const sizesCount = Array.isArray(i.sizes) ? i.sizes.length : 0;
+            byV[i.vendor].variants += colorsCount * sizesCount;
             byV[i.vendor].total+=(Number(i.price)||0)*(Number(i.qty)||1);
           });
           setOrderSummaries(prev=>({...prev,[order.id]:
-            Object.entries(byV).map(([vendor,{items,total}])=>({vendor,items,total}))
+            Object.entries(byV).map(([vendor,{packs,variants,total}])=>({vendor,packs,variants,total}))
           }));
         } catch {}
       });
@@ -640,6 +646,31 @@ function OwnerPageInner() {
     },30000);
     return ()=>clearInterval(iv);
   },[authed]);
+
+  // Sync current order summary dynamically when items change in manager dashboard
+  useEffect(() => {
+    if (selectedOrder && items) {
+      const byV: Record<string, { packs: number; variants: number; total: number }> = {};
+      items.forEach((i) => {
+        if (!byV[i.vendor]) byV[i.vendor] = { packs: 0, variants: 0, total: 0 };
+        byV[i.vendor].packs++;
+        const colorsCount = Array.isArray(i.colors) ? i.colors.length : 0;
+        const sizesCount = Array.isArray(i.sizes) ? i.sizes.length : 0;
+        byV[i.vendor].variants += colorsCount * sizesCount;
+        byV[i.vendor].total += (Number(i.price) || 0) * (Number(i.qty) || 1);
+      });
+      const updatedSummary = Object.entries(byV).map(([vendor, { packs, variants, total }]) => ({
+        vendor,
+        packs,
+        variants,
+        total,
+      }));
+      setOrderSummaries((prev) => ({
+        ...prev,
+        [selectedOrder.id]: updatedSummary,
+      }));
+    }
+  }, [items, selectedOrder]);
 
   async function selectOrder(order: Order) {
     setSelectedOrder(order);
