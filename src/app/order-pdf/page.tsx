@@ -161,16 +161,6 @@ function PDFInner() {
         .total-label { color: #555; }
         .total-val { font-weight: 600; color: #1A1A1A; }
 
-        /* ── SIGNATURES ── */
-        .signatures {
-          display: grid; grid-template-columns: 1fr 1fr 1fr;
-          gap: 20px; margin-top: 32px; padding-top: 16px;
-          border-top: 1px solid #e0e0e0;
-        }
-        .sig-block { }
-        .sig-line { border-bottom: 1px solid #999; height: 30px; margin-bottom: 6px; }
-        .sig-label { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: .06em; }
-
         /* ── FOOTER ── */
         .doc-footer {
           margin-top: 28px; padding-top: 12px;
@@ -197,14 +187,16 @@ function PDFInner() {
         <div className="doc-header">
           <div className="logo-block">
             <img src="/logo-choices.png" alt="Choices For You" className="logo-img"/>
-            <div>
-              <div className="brand-name">CHOICES<br/>FOR YOU</div>
-              <div className="brand-sub">USA · Retail Fashion</div>
-            </div>
           </div>
           <div className="doc-meta">
             <div className="doc-type">PURCHASE ORDER</div>
-            <div className="doc-ref">Ref: {docRef}</div>
+            {/* BARCODE via barcode API */}
+            <div style={{marginTop:6}}>
+              <img src={`https://barcodeapi.org/api/128/${docRef}`} alt={docRef}
+                style={{height:40,maxWidth:180,display:'block'}}
+                onError={(e)=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+              <div style={{fontSize:9,fontFamily:'monospace',color:'#999',marginTop:2,letterSpacing:'.1em'}}>{docRef}</div>
+            </div>
             <div className="doc-date">Generated: {generatedDate} at {generatedTime}</div>
             <div style={{marginTop:6}}>
               <span style={{
@@ -371,22 +363,6 @@ function PDFInner() {
               <span>TOTAL ORDER COST</span>
               <span>${totalOrderCost.toFixed(2)}</span>
             </div>
-          </div>
-        </div>
-
-        {/* ── SIGNATURES ── */}
-        <div className="signatures">
-          <div className="sig-block">
-            <div className="sig-line"/>
-            <div className="sig-label">Buyer / Worker: {order.workerName}</div>
-          </div>
-          <div className="sig-block">
-            <div className="sig-line"/>
-            <div className="sig-label">Reviewed by (Owner)</div>
-          </div>
-          <div className="sig-block">
-            <div className="sig-line"/>
-            <div className="sig-label">Date</div>
           </div>
         </div>
 

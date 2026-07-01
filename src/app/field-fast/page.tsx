@@ -97,7 +97,15 @@ function FieldFastInner() {
   const location = searchParams.get('location') || '';
 
   type Screen = 'login'|'orders'|'detail'|'setup'|'entry'|'cart'|'success'|'earnings';
-  const [screen, setScreen] = useState<Screen>('login');
+  const [screen, setScreen] = useState<Screen>(()=>{
+    // Restore screen on refresh (if worker was logged in)
+    if(typeof window !== 'undefined'){
+      const saved = sessionStorage.getItem('ff_screen') as Screen|null;
+      const savedWorker = sessionStorage.getItem('ff_worker');
+      if(saved && savedWorker && saved !== 'login') return saved;
+    }
+    return 'login';
+  });
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
@@ -147,6 +155,19 @@ function FieldFastInner() {
   function showToast(msg:string){ setToast(msg); setTimeout(()=>setToast(''),2000); }
 
   useEffect(()=>{
+    // Restore worker from session on page refresh
+    const savedWorker = sessionStorage.getItem('ff_worker');
+    const savedScreen = sessionStorage.getItem('ff_screen') as Screen|null;
+    if(savedWorker && savedScreen && savedScreen !== 'login'){
+      try{
+        const w = JSON.parse(savedWorker);
+        setWorker(w);
+        loadOrders(w.id);
+        // Don't restore entry/setup/cart screens on refresh - go to orders list
+        const safeScreen = ['orders','earnings'].includes(savedScreen) ? savedScreen : 'orders';
+        setScreen(safeScreen as Screen);
+      } catch{}
+    }
     const saved = localStorage.getItem('darkMode_fieldfast');
     if(saved==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
     fetch('/api/session').then(r=>r.json()).then(d=>{
@@ -177,7 +198,13 @@ function FieldFastInner() {
       body:JSON.stringify({action:'verify-worker',pin})});
     const d = await res.json();
     setPinLoading(false);
-    if(d.ok && d.worker){ setWorker(d.worker); loadOrders(d.worker.id); setScreen('orders'); }
+    if(d.ok && d.worker){
+      setWorker(d.worker);
+      sessionStorage.setItem('ff_worker', JSON.stringify(d.worker));
+      sessionStorage.setItem('ff_screen', 'orders');
+      loadOrders(d.worker.id);
+      setScreen('orders');
+    }
     else setPinError(true);
   }
 
@@ -471,6 +498,12 @@ function FieldFastInner() {
     reader.readAsDataURL(file);
   }
 
+  // Wrapped setScreen that also persists to sessionStorage
+  function goTo(s:Screen){
+    sessionStorage.setItem('ff_screen', s);
+    setScreen(s);
+  }
+
   function toggleDark(){
     const next=!darkMode; setDarkMode(next);
     localStorage.setItem('darkMode_fieldfast',String(next));
@@ -531,6 +564,9 @@ function FieldFastInner() {
           <button className="btn btn-primary" style={{width:'100%'}} onClick={verifyPin} disabled={pinLoading}>
             {pinLoading?'Checking...':'Sign in'}
           </button>
+          <div style={{textAlign:'center',marginTop:16}}>
+            <a href="/" style={{fontSize:12,color:'var(--text-3)'}}>Back to home</a>
+          </div>
         </div>
       </div>
       {overlays}
@@ -549,7 +585,8 @@ function FieldFastInner() {
         <div style={{display:'flex',gap:6}}>
           <button className="btn btn-sm" onClick={toggleDark}>{darkMode?'Light':'Dark'}</button>
           <button className="btn btn-sm" onClick={()=>setScreen('earnings')}>Earnings</button>
-          <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');setScreen('login')}}>Sign out</button>
+          <a href={`/worker-settings?name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
+          <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');setScreen('login');}}>Sign out</button>
         </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
@@ -600,7 +637,7 @@ function FieldFastInner() {
             <div><div className="header-title">{o.name}</div>
               <div className="header-sub">{detailLoading?'Loading…':`${cart.length} packs · $${cartTotal.toFixed(2)}`}</div></div>
           </div>
-          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
+          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>Back</button>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
           <div className="card" style={{marginBottom:14}}>
@@ -660,7 +697,7 @@ function FieldFastInner() {
             <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
             <div><div className="header-title">My Earnings</div><div className="header-sub">{worker?.name}</div></div>
           </div>
-          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
+          <button className="btn btn-sm" onClick={()=>setScreen('orders')}>Back</button>
         </div></div></div>
         <div className="container" style={{paddingTop:16,paddingBottom:40}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}}>
@@ -710,7 +747,7 @@ function FieldFastInner() {
           <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
           <div><div className="header-title">{worker?.name}</div><div className="header-sub">New order</div></div>
         </div>
-        <button className="btn btn-sm" onClick={()=>setScreen('orders')}>← Back</button>
+        <button className="btn btn-sm" onClick={()=>setScreen('orders')}>Back</button>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
         <div className="card">
@@ -781,7 +818,7 @@ function FieldFastInner() {
           <div><div className="header-title">Review order</div>
             <div className="header-sub">{orderName} · {cart.length} packs · ${cartTotal.toFixed(2)}</div></div>
         </div>
-        <button className="btn btn-sm" onClick={()=>setScreen('entry')}>← Edit</button>
+        <button className="btn btn-sm" onClick={()=>setScreen('entry')}>Edit</button>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:120}}>
 
@@ -899,7 +936,7 @@ function FieldFastInner() {
             </div></div>
         </div>
         <div style={{display:'flex',gap:6}}>
-          {editingExisting&&<button className="btn btn-sm" onClick={()=>setScreen('detail')}>← Detail</button>}
+          {editingExisting&&<button className="btn btn-sm" onClick={()=>setScreen('detail')}>Detail</button>}
           <button className="btn btn-sm btn-primary" onClick={()=>setScreen('cart')}>Review ({cart.length})</button>
         </div>
       </div></div></div>
@@ -941,9 +978,27 @@ function FieldFastInner() {
                 </div>
                 <div className="field">
                   <label className="label">Colors {colors.length>0&&<span style={{color:'var(--green)'}}>({total(colors)})</span>}</label>
+                  {/* Searchable color input */}
                   <ComboBox options={colorOptions} value=""
                     onChange={v=>{ setColors(prev=>addOrInc(prev,v)); if(!colorOptions.includes(v)) setColorOptions(prev=>[...prev,v]); }}
-                    usage={usage.colors} placeholder="Type color..."/>
+                    usage={usage.colors} placeholder="Search or add color..."/>
+                  {/* Sticky color strip */}
+                  <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,marginTop:8,scrollbarWidth:'none'}}>
+                    {[...colorOptions].sort((a,b)=>(usage.colors?.[b]||0)-(usage.colors?.[a]||0)).map(c=>(
+                      <div key={c} className="chip" style={{flexShrink:0,
+                        background:colors.find(x=>x.value===c)?'var(--blue)':'',
+                        color:colors.find(x=>x.value===c)?'#fff':'',
+                        borderColor:colors.find(x=>x.value===c)?'var(--blue)':'',
+                      }}
+                        onClick={()=>setColors(prev=>addOrInc(prev,c))}>
+                        {c}{colors.find(x=>x.value===c)&&colors.find(x=>x.value===c)!.count>1&&
+                          <span style={{marginLeft:3,fontSize:9,background:'rgba(255,255,255,.3)',borderRadius:8,padding:'0 4px'}}>
+                            ×{colors.find(x=>x.value===c)!.count}
+                          </span>}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Selected colors chips */}
                   {colors.length>0&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
                       {colors.map(c=>(
