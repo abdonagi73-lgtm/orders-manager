@@ -282,15 +282,18 @@ input[type=number]::-webkit-inner-spin-button { opacity: .5; }
 .stat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin-top: 4px; }
 
 /* ── Tabs ── */
-.tabs { display: flex; gap: 2px; margin-bottom: 20px; background: var(--surface-2); padding: 3px; border-radius: var(--r-sm); border: 1px solid var(--border); width: fit-content; }
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; background: var(--surface-2); padding: 3px; border-radius: var(--r-sm); border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; width: 100%; }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
-  padding: 6px 16px;
+  padding: 6px 14px;
   border-radius: 3px;
   border: none;
   background: transparent;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   font-family: inherit;
   transition: all .12s;
   color: var(--text-3);
@@ -597,3 +600,84 @@ input[type=number]::-webkit-inner-spin-button { opacity: .5; }
 
 /* ── Monospace for codes ── */
 .mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Confirm / Success Modal ── */
+.confirm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem; z-index: 500;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+.confirm-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 24px;
+  width: 100%; max-width: 380px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  animation: slideUp .18s ease;
+}
+@keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+
+.confirm-icon { font-size: 44px; margin-bottom: 12px; line-height: 1; }
+.confirm-title { font-size: 18px; font-weight: 700; letter-spacing:-.02em; margin-bottom: 6px; }
+.confirm-msg { font-size: 13px; color: var(--text-3); line-height: 1.5; margin-bottom: 22px; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-actions .btn { flex: 1; height: 42px; font-size: 14px; }
+
+/* ── Horizontal scroll strip ── */
+.scroll-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-strip::-webkit-scrollbar { display: none; }
+.scroll-strip .chip { flex-shrink: 0; }
+
+/* ── Dark Mode ── */
+[data-theme="dark"] {
+  --bg:           #0F0F0E;
+  --surface:      #1A1A19;
+  --surface-2:    #242422;
+  --border:       #2E2E2C;
+  --border-strong:#3E3E3C;
+  --text:         #F2F1EF;
+  --text-2:       #C8C5BE;
+  --text-3:       #7A776F;
+  --text-4:       #4A4845;
+  --green-light:  #0D2E1A;
+  --green-border: #1A5C3A;
+  --amber-light:  #2A1E08;
+  --amber-border: #6B4A0A;
+  --red-light:    #2A0E0A;
+  --red-border:   #8A2A20;
+  --blue-light:   #0A1628;
+  --blue-border:  #1B3A6A;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow:    0 2px 8px rgba(0,0,0,.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+}
+[data-theme="dark"] .login-form { background: var(--surface); }
+[data-theme="dark"] .role-card { background: var(--surface); }
+[data-theme="dark"] .item-card { background: var(--surface); }
+[data-theme="dark"] .card { background: var(--surface); }
+[data-theme="dark"] .header { background: var(--surface); }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background: var(--surface-2); color: var(--text);
+}
+[data-theme="dark"] .btn { background: var(--surface-2); color: var(--text-2); border-color: var(--border-strong); }
+[data-theme="dark"] .btn:hover { background: var(--surface); }
+[data-theme="dark"] .btn-primary { background: var(--green); color: #fff; border-color: var(--green); }
+[data-theme="dark"] .btn-success { background: var(--green); color: #fff; }
+[data-theme="dark"] .tabs { background: var(--surface-2); border-color: var(--border); }
+[data-theme="dark"] .tab.active { background: var(--surface); }
+[data-theme="dark"] .chip { background: var(--surface-2); border-color: var(--border-strong); color: var(--text-2); }
+[data-theme="dark"] .home-page { background: var(--bg); }

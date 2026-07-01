@@ -65,19 +65,49 @@ export async function saveWorkers(workers: Worker[]): Promise<void> {
 export async function getAllOrders(): Promise<Order[]> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:J`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:O`,
   });
-  return (res.data.values ?? []).filter(r => r[0]).map(r => ({
-    id: r[0], name: r[1] ?? '', startDate: r[2] ?? '',
-    workerId: r[3] ?? '', workerName: r[4] ?? '',
-    status: (r[5] ?? 'open') as Order['status'],
-    shippingCost: parseFloat(r[6]) || 0,
-    workerCommission: parseFloat(r[7]) || 0,
-    totalOrderCost: parseFloat(r[8]) || 0,
-    createdAt: r[9] ?? '', closedAt: r[10] ?? '',
-    itemCount: parseInt(r[11]) || 0,
-    totalValue: parseFloat(r[12]) || 0,
-  }));
+  return (res.data.values ?? []).filter(r => r[0]).map(r => {
+    // Detect column layout by inspecting key positions:
+    // The sheet headers tell us exactly: commissionPaid is col 9, then either
+    // orderType (store/online) at col 10, or createdAt (ISO date) at col 10.
+    // We detect by checking if r[10] is 'store' or 'online'.
+
+    const r9  = String(r[9]  ?? '');
+    const r10 = String(r[10] ?? '');
+    const r11 = String(r[11] ?? '');
+
+    // Is col 9 a boolean? (commissionPaid)
+    const hasCommPaid = r9 === 'true' || r9 === 'false' || r9 === '0' || r9 === '1';
+    // Is col 10 an orderType? (store/online)
+    const hasOrderType = hasCommPaid && (r10 === 'store' || r10 === 'online');
+
+    // createdAt base index
+    let base: number;
+    if (!hasCommPaid)               base = 9;  // v1: no commissionPaid
+    else if (!hasOrderType)         base = 10; // v2: commissionPaid, no orderType
+    else                            base = 11; // v3: commissionPaid + orderType
+
+    // Detect orderType from wherever it is
+    let orderType: 'store'|'online' = 'store';
+    if (hasOrderType) orderType = r10 === 'online' ? 'online' : 'store';
+    else if (!hasCommPaid && (r9 === 'store' || r9 === 'online')) orderType = r9 === 'online' ? 'online' : 'store';
+
+    return {
+      id: r[0], name: r[1] ?? '', startDate: r[2] ?? '',
+      workerId: r[3] ?? '', workerName: r[4] ?? '',
+      status: (r[5] ?? 'open') as Order['status'],
+      shippingCost: parseFloat(r[6]) || 0,
+      workerCommission: parseFloat(r[7]) || 0,
+      totalOrderCost: parseFloat(r[8]) || 0,
+      commissionPaid: hasCommPaid ? (r9 === 'true' || r9 === '1') : false,
+      orderType,
+      createdAt: r[base] ?? '',
+      closedAt: r[base + 1] ?? '',
+      itemCount: parseInt(r[base + 2]) || 0,
+      totalValue: parseFloat(r[base + 3]) || 0,
+    };
+  });
 }
 
 export async function getOrdersByWorker(workerId: string): Promise<Order[]> {
@@ -87,8 +117,13 @@ export async function getOrdersByWorker(workerId: string): Promise<Order[]> {
 
 export async function createOrder(order: Order): Promise<void> {
   const sheets = await getSheets();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:M`,
+  const colA = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+  });
+  const nextRow = (colA.data.values ?? []).length + 1;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_ORDERS}!A${nextRow}:O${nextRow}`,
     valueInputOption: 'RAW',
     requestBody: { values: [orderToRow(order)] },
   });
@@ -96,25 +131,38 @@ export async function createOrder(order: Order): Promise<void> {
 
 export async function updateOrder(order: Order): Promise<void> {
   const sheets = await getSheets();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
-  });
-  const ids = (res.data.values ?? []).map(r => r[0]);
-  const rowIndex = ids.findIndex(id => id === order.id);
-  if (rowIndex < 1) throw new Error('Order not found');
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID,
-    range: `${TAB_ORDERS}!A${rowIndex + 1}:M${rowIndex + 1}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [orderToRow(order)] },
-  });
+
+  async function findAndUpdate(): Promise<boolean> {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+    });
+    const ids = (res.data.values ?? []).map(r => r[0]);
+    const rowIndex = ids.findIndex(id => id === order.id);
+    if (rowIndex < 1) return false;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${TAB_ORDERS}!A${rowIndex + 1}:O${rowIndex + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [orderToRow(order)] },
+    });
+    return true;
+  }
+
+  // Try once, then retry after 1.5s if not found yet (e.g. just created)
+  const found = await findAndUpdate();
+  if (!found) {
+    await new Promise(r => setTimeout(r, 1500));
+    const retry = await findAndUpdate();
+    if (!retry) throw new Error(`Order not found after retry: ${order.id}`);
+  }
 }
 
 function orderToRow(o: Order): string[] {
   return [
     o.id, o.name, o.startDate, o.workerId, o.workerName,
     o.status, String(o.shippingCost), String(o.workerCommission || 0),
-    String(o.totalOrderCost || 0), o.createdAt, o.closedAt,
+    String(o.totalOrderCost || 0), String(o.commissionPaid || false),
+    o.orderType || 'store', o.createdAt, o.closedAt,
     String(o.itemCount), String(o.totalValue),
   ];
 }
@@ -129,7 +177,7 @@ export async function getItemsByOrder(orderId: string): Promise<OrderItem[]> {
 export async function getAllItems(): Promise<OrderItem[]> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A2:M`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A2:N`,
   });
   return (res.data.values ?? []).filter(r => r[0]).map(r => ({
     id: r[0], orderId: r[1] ?? '', vendor: r[2] ?? '',
@@ -139,13 +187,22 @@ export async function getAllItems(): Promise<OrderItem[]> {
     notes: r[9] ?? '', ownerNote: r[10] ?? '',
     status: (r[11] ?? 'pending') as OrderItem['status'],
     createdAt: r[12] ?? new Date().toISOString(),
+    photo: r[13] ?? '',
   }));
 }
 
 export async function appendItem(item: OrderItem): Promise<void> {
   const sheets = await getSheets();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:M`,
+  // ROBUST: find the actual last used row in column A, then write to next row explicitly.
+  // Google Sheets append can misplace data if any cell outside column A has stale content.
+  const colA = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A:A`,
+  });
+  const lastRow = (colA.data.values ?? []).length; // includes header row
+  const nextRow = lastRow + 1; // next empty row (1-indexed)
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_ITEMS}!A${nextRow}:N${nextRow}`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -160,10 +217,10 @@ export async function updateItem(item: OrderItem): Promise<void> {
   });
   const ids = (res.data.values ?? []).map(r => r[0]);
   const rowIndex = ids.findIndex(id => id === item.id);
-  if (rowIndex < 1) throw new Error('Item not found');
+  if (rowIndex < 1) throw new Error(`Item not found: ${item.id}`);
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ITEMS}!A${rowIndex + 1}:M${rowIndex + 1}`,
+    range: `${TAB_ITEMS}!A${rowIndex + 1}:N${rowIndex + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: [itemToRow(item)] },
   });
@@ -201,6 +258,7 @@ function itemToRow(i: OrderItem): string[] {
     JSON.stringify(i.colors), JSON.stringify(i.sizes),
     String(i.price), String(i.qty), i.notes, i.ownerNote,
     i.status, i.createdAt,
+    // photo stored separately in Photos tab due to Sheets 50K cell limit
   ];
 }
 
@@ -273,7 +331,7 @@ export async function initSheet(): Promise<void> {
   const sheets = await getSheets();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const existing = meta.data.sheets?.map(s => s.properties?.title) ?? [];
-  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY]
+  const toCreate = [TAB_WORKERS, TAB_ORDERS, TAB_ITEMS, TAB_SETTINGS, TAB_REGISTRY, 'Photos', 'Usage', 'Timeline']
     .filter(t => !existing.includes(t));
 
   if (toCreate.length) {
@@ -290,14 +348,14 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: [['id','name','pin']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:M1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:O1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','createdAt','closedAt','itemCount','totalValue']] },
+    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','commissionPaid','orderType','createdAt','closedAt','itemCount','totalValue']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:M1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:N1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt']] },
+    requestBody: { values: [['id','orderId','vendor','code','category','colors','sizes','price','qty','notes','ownerNote','status','createdAt','photo']] },
   });
 
   // Seed workers: Morad + Abdo
@@ -331,3 +389,191 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: vendors.map(([n,c]) => [n, String(c)]) },
   });
 }
+
+// ── PHOTOS ─────────────────────────────────────────────────────────────────
+// Stored in separate tab due to Sheets 50K character cell limit
+
+const TAB_PHOTOS = 'Photos';
+
+export async function savePhoto(itemId: string, photoBase64: string): Promise<void> {
+  const sheets = await getSheets();
+  // Check if photo already exists for this item
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_PHOTOS}!A:A`,
+  });
+  const ids = (res.data.values ?? []).map(r => r[0]);
+  const rowIndex = ids.findIndex(id => id === itemId);
+  
+  if (rowIndex > 0) {
+    // Update existing
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${TAB_PHOTOS}!A${rowIndex + 1}:B${rowIndex + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[itemId, photoBase64]] },
+    });
+  } else {
+    // Append new
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID, range: `${TAB_PHOTOS}!A:B`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[itemId, photoBase64]] },
+    });
+  }
+}
+
+export async function getPhotos(itemIds: string[]): Promise<Record<string, string>> {
+  if (!itemIds.length) return {};
+  try {
+    const sheets = await getSheets();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_PHOTOS}!A:B`,
+    });
+    const photos: Record<string, string> = {};
+    (res.data.values ?? []).forEach(r => {
+      if (r[0] && itemIds.includes(r[0])) photos[r[0]] = r[1] ?? '';
+    });
+    return photos;
+  } catch { return {}; }
+}
+
+// ── DELETE ORDER ──────────────────────────────────────────────────────────
+
+export async function deleteOrder(orderId: string): Promise<void> {
+  const sheets = await getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A:A`,
+  });
+  const rows = res.data.values ?? [];
+  const rowIndex = rows.findIndex(r => r[0] === orderId);
+  if (rowIndex < 1) throw new Error('Order not found');
+
+  // Get sheet ID for Orders tab
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const sheet = meta.data.sheets?.find(s => s.properties?.title === TAB_ORDERS);
+  const sheetId = sheet?.properties?.sheetId ?? 0;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    requestBody: {
+      requests: [{
+        deleteDimension: {
+          range: { sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 }
+        }
+      }]
+    }
+  });
+}
+
+// ── USAGE TRACKING ────────────────────────────────────────────────────────
+
+const TAB_USAGE = 'Usage';
+
+export async function getUsageData(): Promise<{vendors:Record<string,number>,categories:Record<string,number>,colors:Record<string,number>,sizes:Record<string,number>}> {
+  try {
+    const sheets = await getSheets();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_USAGE}!A:C`,
+    });
+    const data: any = { vendors:{}, categories:{}, colors:{}, sizes:{} };
+    (res.data.values ?? []).filter(r=>r[0]).forEach(r => {
+      const [type, name, count] = r;
+      if(data[type] !== undefined) data[type][name] = parseInt(count)||0;
+    });
+    return data;
+  } catch { return { vendors:{}, categories:{}, colors:{}, sizes:{} }; }
+}
+
+export async function incrementUsage(items: {type:string, name:string}[]): Promise<void> {
+  if(!items.length) return;
+  try {
+    const sheets = await getSheets();
+    // Read current
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_USAGE}!A:C`,
+    });
+    const rows = res.data.values ?? [];
+    const updates: any[] = [];
+    const newRows: string[][] = [];
+
+    for(const {type, name} of items) {
+      const idx = rows.findIndex(r => r[0]===type && r[1]===name);
+      if(idx >= 0) {
+        const newCount = (parseInt(rows[idx][2])||0) + 1;
+        updates.push({ range: `${TAB_USAGE}!C${idx+1}`, values: [[String(newCount)]] });
+      } else {
+        newRows.push([type, name, '1']);
+      }
+    }
+
+    if(updates.length) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: { valueInputOption: 'RAW', data: updates }
+      });
+    }
+    if(newRows.length) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID, range: `${TAB_USAGE}!A:C`,
+        valueInputOption: 'RAW',
+        requestBody: { values: newRows }
+      });
+    }
+  } catch(e) { console.error('Usage tracking error:', e); }
+}
+
+// ── MANAGERS ──────────────────────────────────────────────────────────────
+
+export async function getManagers(): Promise<{id:string;name:string;pin:string}[]> {
+  try {
+    const sheets = await getSheets();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: `${TAB_SETTINGS}!A5:B5`,
+    });
+    const row = (res.data.values ?? [])[0];
+    if (row && row[0] === 'managers') return JSON.parse(row[1] || '[]');
+    return [];
+  } catch { return []; }
+}
+
+export async function saveManagers(managers: {id:string;name:string;pin:string}[]): Promise<void> {
+  const sheets = await getSheets();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID, range: `${TAB_SETTINGS}!A5:B5`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [['managers', JSON.stringify(managers)]] },
+  });
+}
+
+// ── NOTIFICATIONS ──────────────────────────────────────────────────────────
+
+export async function addNotification(
+  type: string, forWho: string, workerId: string,
+  workerName: string, orderId: string, orderName: string,
+  itemId: string, itemCode: string, message: string
+): Promise<void> {
+  try {
+    const sheets = await getSheets();
+    // ROBUST: explicit row targeting to avoid column misalignment
+    const colA = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'Notifications!A:A',
+    });
+    const nextRow = (colA.data.values ?? []).length + 1;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Notifications!A${nextRow}:L${nextRow}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[
+          'n_' + Date.now(), type, forWho,
+          workerId, workerName, orderId, orderName,
+          itemId, itemCode, message, 'false',
+          new Date().toISOString()
+        ]]
+      },
+    });
+  } catch(e) {
+    console.error('Notification write error:', e);
+  }
+}
+// force redeploy Sun Jun 28 23:21:41 UTC 2026

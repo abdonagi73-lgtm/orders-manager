@@ -37,79 +37,112 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
-        <div id="install-banner" style={{
-          display: 'none',
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
-          background: '#000', color: '#fff',
-          padding: '14px 16px',
-          alignItems: 'center', gap: '12px',
-          boxShadow: '0 -2px 20px rgba(0,0,0,.3)',
+
+        {/* iOS install banner - shown on Safari only */}
+        <div id="ios-banner" style={{
+          display:'none',position:'fixed',bottom:0,left:0,right:0,
+          background:'#1A1A1A',color:'#fff',padding:'14px 16px 28px',
+          zIndex:9999,boxShadow:'0 -2px 20px rgba(0,0,0,.3)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon-192.png" alt="logo" style={{width:44,height:44,borderRadius:10,flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:600,fontSize:14}}>Install Orders Manager</div>
+              <div style={{fontSize:12,opacity:.7,marginTop:2}}>Add to your home screen for quick access</div>
+            </div>
+            <button id="ios-dismiss" style={{
+              background:'transparent',border:'none',color:'#fff',
+              fontSize:22,cursor:'pointer',padding:'0 4px',opacity:.7,
+            }}>×</button>
+          </div>
+          <div style={{background:'rgba(255,255,255,.1)',borderRadius:8,padding:'10px 14px',fontSize:13}}>
+            Tap <strong>Share</strong> <span style={{fontSize:16}}>⬆️</span> then <strong>"Add to Home Screen"</strong>
+          </div>
+        </div>
+
+        {/* Android install banner */}
+        <div id="android-banner" style={{
+          display:'none',position:'fixed',bottom:0,left:0,right:0,
+          background:'#1A1A1A',color:'#fff',padding:'14px 16px',
+          zIndex:9999,boxShadow:'0 -2px 20px rgba(0,0,0,.3)',
+          alignItems:'center',gap:12,
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-192.png" alt="logo" style={{width:44,height:44,borderRadius:10,flexShrink:0}} />
+          <img src="/icon-192.png" alt="logo" style={{width:44,height:44,borderRadius:10,flexShrink:0}}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontWeight:600,fontSize:14}}>Orders Manager</div>
-            <div style={{fontSize:12,opacity:.7,marginTop:2}}>Add to home screen for quick access</div>
+            <div style={{fontSize:12,opacity:.7,marginTop:2}}>Add to home screen</div>
           </div>
-          <button id="install-btn" style={{
+          <button id="android-install" style={{
             background:'#fff',color:'#000',border:'none',
-            borderRadius:8,padding:'8px 16px',fontWeight:600,
-            fontSize:13,cursor:'pointer',flexShrink:0
+            borderRadius:8,padding:'8px 18px',fontWeight:600,
+            fontSize:13,cursor:'pointer',flexShrink:0,
           }}>Install</button>
-          <button id="dismiss-btn" style={{
-            background:'transparent',color:'#fff',border:'none',
+          <button id="android-dismiss" style={{
+            background:'transparent',border:'none',color:'#fff',
             fontSize:22,cursor:'pointer',padding:'0 4px',flexShrink:0,
-            lineHeight:1
           }}>×</button>
         </div>
+
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var deferredPrompt = null;
-            var banner = null;
+            var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+              || window.navigator.standalone;
+            var dismissed = sessionStorage.getItem('install-dismissed');
 
-            function getBanner() {
-              if (!banner) banner = document.getElementById('install-banner');
-              return banner;
-            }
+            if(isStandalone || dismissed) return;
 
-            if ('serviceWorker' in navigator) {
+            if('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js');
               });
             }
 
+            // iOS - show manual instructions after 2s
+            if(isIOS) {
+              setTimeout(function() {
+                var b = document.getElementById('ios-banner');
+                if(b) b.style.display = 'block';
+                var d = document.getElementById('ios-dismiss');
+                if(d) d.addEventListener('click', function() {
+                  b.style.display = 'none';
+                  sessionStorage.setItem('install-dismissed','1');
+                });
+              }, 2000);
+              return;
+            }
+
+            // Android - beforeinstallprompt
             window.addEventListener('beforeinstallprompt', function(e) {
               e.preventDefault();
               deferredPrompt = e;
-              if (!window.matchMedia('(display-mode: standalone)').matches) {
-                setTimeout(function() {
-                  var b = getBanner();
-                  if (b) b.style.display = 'flex';
-                }, 2000);
-              }
+              setTimeout(function() {
+                var b = document.getElementById('android-banner');
+                if(b) b.style.display = 'flex';
+              }, 2000);
             });
 
             window.addEventListener('DOMContentLoaded', function() {
-              var installBtn = document.getElementById('install-btn');
-              var dismissBtn = document.getElementById('dismiss-btn');
-              if (installBtn) {
-                installBtn.addEventListener('click', function() {
-                  if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then(function() {
-                      deferredPrompt = null;
-                      var b = getBanner();
-                      if (b) b.style.display = 'none';
-                    });
-                  }
-                });
-              }
-              if (dismissBtn) {
-                dismissBtn.addEventListener('click', function() {
-                  var b = getBanner();
-                  if (b) b.style.display = 'none';
-                });
-              }
+              var installBtn = document.getElementById('android-install');
+              var dismissBtn = document.getElementById('android-dismiss');
+              if(installBtn) installBtn.addEventListener('click', function() {
+                if(deferredPrompt) {
+                  deferredPrompt.prompt();
+                  deferredPrompt.userChoice.then(function() {
+                    deferredPrompt = null;
+                    var b = document.getElementById('android-banner');
+                    if(b) b.style.display = 'none';
+                  });
+                }
+              });
+              if(dismissBtn) dismissBtn.addEventListener('click', function() {
+                var b = document.getElementById('android-banner');
+                if(b) b.style.display = 'none';
+                sessionStorage.setItem('install-dismissed','1');
+              });
             });
           })();
         `}} />

@@ -1,6 +1,5 @@
-// src/app/api/notifications/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getSettings } from '@/lib/sheets';
+import { addNotification } from '@/lib/sheets';
 import { google } from 'googleapis';
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
@@ -10,7 +9,7 @@ function getAuth() {
   return new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
@@ -19,59 +18,39 @@ async function getSheets() {
   return google.sheets({ version: 'v4', auth: getAuth() });
 }
 
-export interface Notification {
-  id: string;
-  type: 'order_started' | 'order_submitted' | 'item_flagged';
-  for: 'owner' | 'worker';
-  workerId?: string;
-  workerName?: string;
-  orderId?: string;
-  orderName?: string;
-  itemId?: string;
-  itemCode?: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-}
-
-async function ensureTab() {
-  const sheets = await getSheets();
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-  const exists = meta.data.sheets?.some(s => s.properties?.title === TAB);
-  if (!exists) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SHEET_ID,
-      requestBody: { requests: [{ addSheet: { properties: { title: TAB } } }] },
-    });
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `${TAB}!A1:J1`,
-      valueInputOption: 'RAW',
-      requestBody: { values: [['id','type','for','workerId','workerName','orderId','orderName','itemId','itemCode','message','read','createdAt']] },
-    });
-  }
-}
-
 export async function GET(req: NextRequest) {
   try {
-    await ensureTab();
     const sheets = await getSheets();
     const forWho = req.nextUrl.searchParams.get('for');
     const workerId = req.nextUrl.searchParams.get('workerId');
+
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: `${TAB}!A2:L`,
+      spreadsheetId: SHEET_ID,
+      range: `${TAB}!A:L`,
     });
-    let rows = (res.data.values ?? []).filter(r => r[0]);
-    if (forWho === 'owner') rows = rows.filter(r => r[2] === 'owner');
-    if (forWho === 'worker' && workerId) rows = rows.filter(r => r[2] === 'worker' && r[3] === workerId);
-    const notifications: Notification[] = rows.map(r => ({
-      id: r[0], type: r[1] as Notification['type'], for: r[2] as 'owner'|'worker',
-      workerId: r[3], workerName: r[4], orderId: r[5], orderName: r[6],
-      itemId: r[7], itemCode: r[8], message: r[9],
-      read: r[10] === 'true', createdAt: r[11],
+
+    // Filter out header row and empty rows
+    // A valid data row starts with 'n_' (our notification ID format)
+    let rows = (res.data.values ?? []).filter((r: string[]) =>
+      r[0] && r[0].toString().startsWith('n_')
+    );
+
+    if (forWho === 'owner') rows = rows.filter((r: string[]) => r[2] === 'owner');
+    if (forWho === 'worker' && workerId) rows = rows.filter((r: string[]) =>
+      r[2] === 'worker' && r[3] === workerId
+    );
+
+    const notifications = rows.map((r: string[]) => ({
+      id: r[0], type: r[1], for: r[2],
+      workerId: r[3], workerName: r[4],
+      orderId: r[5], orderName: r[6],
+      itemId: r[7], itemCode: r[8],
+      message: r[9], read: r[10] === 'true',
+      createdAt: r[11],
     }));
-    const unread = notifications.filter(n => !n.read).length;
-    return NextResponse.json({ notifications: notifications.reverse(), unread });
+
+    const unread = notifications.filter((n: any) => !n.read).length;
+    return NextResponse.json({ notifications: [...notifications].reverse(), unread });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -79,46 +58,32 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await ensureTab();
     const body = await req.json();
-    const sheets = await getSheets();
 
     if (body.action === 'create') {
-      const n: Notification = {
-        id: 'n_' + Date.now(),
-        type: body.type,
-        for: body.for,
-        workerId: body.workerId || '',
-        workerName: body.workerName || '',
-        orderId: body.orderId || '',
-        orderName: body.orderName || '',
-        itemId: body.itemId || '',
-        itemCode: body.itemCode || '',
-        message: body.message,
-        read: false,
-        createdAt: new Date().toISOString(),
-      };
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: SHEET_ID, range: `${TAB}!A:L`,
-        valueInputOption: 'RAW',
-        requestBody: { values: [[n.id,n.type,n.for,n.workerId,n.workerName,n.orderId,n.orderName,n.itemId,n.itemCode,n.message,String(n.read),n.createdAt]] },
-      });
-      return NextResponse.json({ ok: true, notification: n });
+      await addNotification(
+        body.type, body.for,
+        body.workerId || '', body.workerName || '',
+        body.orderId || '', body.orderName || '',
+        body.itemId || '', body.itemCode || '',
+        body.message
+      );
+      return NextResponse.json({ ok: true });
     }
 
     if (body.action === 'mark-read') {
-      // Find and update all unread for this recipient
+      const sheets = await getSheets();
       const res = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID, range: `${TAB}!A:L`,
       });
       const rows = res.data.values ?? [];
       const updates: any[] = [];
-      rows.forEach((row, i) => {
-        if (i === 0) return;
+      rows.forEach((row: string[], i: number) => {
+        if (!row[0]?.toString().startsWith('n_')) return;
         const matchOwner = body.for === 'owner' && row[2] === 'owner';
         const matchWorker = body.for === 'worker' && row[2] === 'worker' && row[3] === body.workerId;
         if ((matchOwner || matchWorker) && row[10] !== 'true') {
-          updates.push({ range: `${TAB}!K${i+1}`, values: [['true']] });
+          updates.push({ range: `${TAB}!K${i + 1}`, values: [['true']] });
         }
       });
       if (updates.length > 0) {
@@ -129,6 +94,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ ok: true });
     }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
