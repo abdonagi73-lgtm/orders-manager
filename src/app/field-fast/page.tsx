@@ -93,7 +93,7 @@ function ItemMenu({ item, onEdit, onDelete, onDuplicate }:{
 }
 
 // ── Swipeable order card ──
-function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel, isOpen, onSwipeOpen, onSwipeClose }:{
+function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAddMore, continueLabel, isOpen, onSwipeOpen, onSwipeClose, onExpand, summary }:{
   order:Order;
   onOpen:()=>void;
   onDelete:()=>void;
@@ -101,129 +101,215 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
   onDuplicate:()=>void;
   onAddMore:()=>void;
   continueLabel:string;
-  isOpen:boolean;          // controlled by parent — true = actions revealed
-  onSwipeOpen:()=>void;    // tell parent this card opened
-  onSwipeClose:()=>void;   // tell parent this card closed
+  isOpen:boolean;
+  onSwipeOpen:()=>void;
+  onSwipeClose:()=>void;
+  onExpand:()=>void;  // called when card is expanded so parent can load summary
+  summary:{vendor:string;packs:number;total:number}[]|null; // null = not loaded yet
 }){
   const [offset, setOffset] = useState(0);
+  const [expanded, setExpanded] = useState(false); // slide-down summary
   const startX = useRef(0);
+  const startY = useRef(0);
   const isDragging = useRef(false);
+  const dragDir = useRef<'h'|'v'|null>(null); // lock direction after 10px
   const mouseDown = useRef(false);
   const ACTION_WIDTH = 240;
   const THRESHOLD = 60;
+  const V_THRESHOLD = 40; // vertical drag to expand
 
-  // Sync offset when parent closes us (another card was swiped open)
-  useEffect(()=>{
-    if(!isOpen) setOffset(0);
-  },[isOpen]);
+  useEffect(()=>{ if(!isOpen) setOffset(0); },[isOpen]);
 
-  function handleDragMove(dx:number){
-    if(isOpen){
-      // Already open — allow swiping back right to close
-      const newOffset = Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH - dx < 0 ? 0 : ACTION_WIDTH + dx));
-      // dx>0 means moving right (closing), dx<0 means opening more
-      setOffset(Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH - Math.max(0,dx))));
-    } else {
-      if(dx>0) setOffset(Math.min(dx, ACTION_WIDTH));
+  function handleMove(dx:number, dy:number){
+    // Lock direction on first significant move
+    if(!dragDir.current){
+      if(Math.abs(dx)>10 || Math.abs(dy)>10){
+        dragDir.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+      }
+    }
+    if(dragDir.current==='v'){
+      // Vertical swipe — ignore horizontal
+    } else if(dragDir.current==='h'){
+      if(isOpen){
+        setOffset(Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH - Math.max(0,dx))));
+      } else {
+        if(dx>0) setOffset(Math.min(dx, ACTION_WIDTH));
+      }
     }
   }
 
-  function handleDragEnd(dx:number){
-    isDragging.current=false;
-    mouseDown.current=false;
-    if(isOpen){
-      if(dx > THRESHOLD){ setOffset(0); onSwipeClose(); }
-      else { setOffset(ACTION_WIDTH); }
+  function handleEnd(dx:number, dy:number){
+    isDragging.current=false; mouseDown.current=false;
+    const dir = dragDir.current;
+    dragDir.current=null;
+
+    if(dir==='v'){
+      // Swipe down to expand, swipe up to collapse
+      if(dy > V_THRESHOLD){ setExpanded(true); onExpand(); }
+      else if(dy < -V_THRESHOLD) setExpanded(false);
+    } else if(dir==='h'){
+      if(isOpen){
+        if(dx > THRESHOLD){ setOffset(0); onSwipeClose(); }
+        else setOffset(ACTION_WIDTH);
+      } else {
+        if(offset > THRESHOLD){ setOffset(ACTION_WIDTH); onSwipeOpen(); }
+        else setOffset(0);
+      }
     } else {
-      if(offset>THRESHOLD){ setOffset(ACTION_WIDTH); onSwipeOpen(); }
-      else { setOffset(0); }
+      // Very short movement — treat as tap
+      setOffset(0);
     }
   }
 
   // Touch
-  function onTouchStart(e:React.TouchEvent){ startX.current=e.touches[0].clientX; isDragging.current=true; }
+  function onTouchStart(e:React.TouchEvent){
+    startX.current=e.touches[0].clientX;
+    startY.current=e.touches[0].clientY;
+    isDragging.current=true;
+    dragDir.current=null;
+  }
   function onTouchMove(e:React.TouchEvent){
     if(!isDragging.current) return;
-    handleDragMove(startX.current-e.touches[0].clientX);
+    handleMove(
+      startX.current-e.touches[0].clientX,
+      e.touches[0].clientY-startY.current // positive = down
+    );
   }
   function onTouchEnd(e:React.TouchEvent){
-    handleDragEnd(startX.current - (e.changedTouches[0]?.clientX||startX.current));
+    handleEnd(
+      startX.current-(e.changedTouches[0]?.clientX||startX.current),
+      (e.changedTouches[0]?.clientY||startY.current)-startY.current
+    );
   }
 
   // Mouse
-  function onMouseDown(e:React.MouseEvent){ mouseDown.current=true; startX.current=e.clientX; }
+  function onMouseDown(e:React.MouseEvent){ mouseDown.current=true; startX.current=e.clientX; startY.current=e.clientY; dragDir.current=null; }
   function onMouseMove(e:React.MouseEvent){
     if(!mouseDown.current) return;
-    handleDragMove(startX.current-e.clientX);
+    handleMove(startX.current-e.clientX, e.clientY-startY.current);
   }
   function onMouseUp(e:React.MouseEvent){
     if(!mouseDown.current) return;
-    handleDragEnd(startX.current-e.clientX);
+    handleEnd(startX.current-e.clientX, e.clientY-startY.current);
   }
 
   function close(){ setOffset(0); onSwipeClose(); }
   const imported = order.status==='imported';
 
   return (
-    <div style={{position:'relative',marginBottom:8,borderRadius:'var(--r)',overflow:'hidden',userSelect:'none'}}>
-      {/* Action buttons */}
-      <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_WIDTH,
-        display:'flex',alignItems:'stretch',zIndex:1}}>
-        <button style={{flex:1,background:'#3B82F6',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
-          onClick={()=>{close();onAddMore();}}>
-          <span style={{fontSize:22}}>+</span>Add
-        </button>
-        <button style={{flex:1,background:'#F59E0B',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
-          onClick={()=>{close();onEdit();}}>
-          <span style={{fontSize:22}}>✎</span>Edit
-        </button>
-        <button style={{flex:1,background:'#8B5CF6',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
-          onClick={()=>{close();onDuplicate();}}>
-          <span style={{fontSize:22}}>⧉</span>Copy
-        </button>
-        <button style={{flex:1,background:'#EF4444',color:'#fff',border:'none',cursor:'pointer',
-          fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
-          onClick={()=>{close();onDelete();}}>
-          <span style={{fontSize:22}}>🗑</span>Delete
-        </button>
-      </div>
+    <div style={{marginBottom:8,userSelect:'none'}}>
+      <div style={{position:'relative',borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',overflow:'hidden'}}>
+        {/* Action buttons */}
+        <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_WIDTH,
+          display:'flex',alignItems:'stretch',zIndex:1}}>
+          <button style={{flex:1,background:'#3B82F6',color:'#fff',border:'none',cursor:'pointer',
+            fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
+            onClick={()=>{close();onAddMore();}}>
+            <span style={{fontSize:22}}>+</span>Add
+          </button>
+          <button style={{flex:1,background:'#F59E0B',color:'#fff',border:'none',cursor:'pointer',
+            fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
+            onClick={()=>{close();onEdit();}}>
+            <span style={{fontSize:22}}>✎</span>Edit
+          </button>
+          <button style={{flex:1,background:'#8B5CF6',color:'#fff',border:'none',cursor:'pointer',
+            fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
+            onClick={()=>{close();onDuplicate();}}>
+            <span style={{fontSize:22}}>⧉</span>Copy
+          </button>
+          <button style={{flex:1,background:'#EF4444',color:'#fff',border:'none',cursor:'pointer',
+            fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3}}
+            onClick={()=>{close();onDelete();}}>
+            <span style={{fontSize:22}}>🗑</span>Delete
+          </button>
+        </div>
 
-      {/* Sliding card */}
-      <div
-        style={{position:'relative',zIndex:2,
-          transform:`translateX(-${offset}px)`,
-          transition:isDragging.current||mouseDown.current?'none':'transform .22s ease',
-          background:'var(--surface)',border:'1px solid var(--border)',
-          borderRadius:'var(--r)',
-          borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent',
-          opacity:imported?.7:1,
-          boxShadow:'var(--shadow-sm)',cursor:imported?'default':'pointer'}}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-        onClick={()=>{ if(offset>4){close();return;} if(!imported) onOpen(); }}>
-        <div style={{padding:'14px 16px'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
-              {order.status==='open'&&(
-                <div style={{fontSize:11,fontWeight:700,color:'var(--amber)',marginBottom:3}}>{continueLabel}</div>
-              )}
-              <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
-                {order.itemCount} pack{order.itemCount!==1?'s':''} · <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
+        {/* Sliding card */}
+        <div
+          style={{position:'relative',zIndex:2,
+            transform:`translateX(-${offset}px)`,
+            transition:isDragging.current||mouseDown.current?'none':'transform .22s ease',
+            background:'var(--surface)',border:'1px solid var(--border)',
+            borderRadius:expanded?'var(--r) var(--r) 0 0':'var(--r)',
+            borderLeft:order.status==='open'?'3px solid var(--amber)':'3px solid transparent',
+            borderBottom:expanded?'none':'',
+            opacity:imported?.7:1,
+            boxShadow:expanded?'none':'var(--shadow-sm)',cursor:imported?'default':'pointer'}}
+          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+          onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+          onClick={()=>{ if(offset>4){close();return;} if(!imported) onOpen(); }}>
+          <div style={{padding:'14px 16px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
+                {order.status==='open'&&(
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--amber)',marginBottom:3}}>{continueLabel}</div>
+                )}
+                <div style={{fontSize:12,color:'var(--text-3)',marginTop:3}}>
+                  {order.itemCount} pack{order.itemCount!==1?'s':''} · <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
+                </div>
+                {order.totalOrderCost>0&&<div style={{fontSize:12,fontWeight:600,color:'var(--green)',marginTop:2}}>Total: ${order.totalOrderCost.toFixed(2)}</div>}
               </div>
-              {order.totalOrderCost>0&&<div style={{fontSize:12,fontWeight:600,color:'var(--green)',marginTop:2}}>Total: ${order.totalOrderCost.toFixed(2)}</div>}
-            </div>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
-              <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>{order.status}</span>
-              <div style={{fontSize:11,color:'var(--text-3)'}}>{order.startDate}</div>
-              {!imported&&!isOpen&&<div style={{fontSize:9,color:'var(--text-4)',marginTop:1,opacity:.6}}>← swipe</div>}
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
+                <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>{order.status}</span>
+                <div style={{fontSize:11,color:'var(--text-3)'}}>{order.startDate}</div>
+                <div style={{fontSize:9,color:'var(--text-4)',opacity:.6}}>
+                  {!isOpen&&!expanded&&'← swipe'}
+                  {expanded&&'↑ swipe up to close'}
+                  {!expanded&&!isOpen&&<span style={{marginLeft:4}}>↓ summary</span>}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── SLIDE-DOWN SUMMARY PANEL ── */}
+      {expanded&&(
+        <div style={{
+          background:'var(--surface-2)',
+          border:'1px solid var(--border)',borderTop:'none',
+          borderRadius:'0 0 var(--r) var(--r)',
+          padding:'10px 16px 12px',
+          boxShadow:'var(--shadow-sm)',
+        }}>
+          {summary===null?(
+            <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'4px 0'}}>Loading…</div>
+          ):summary.length===0?(
+            <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'4px 0'}}>No items yet</div>
+          ):(
+            <>
+              {/* Header row */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',gap:6,
+                fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',
+                color:'var(--text-4)',paddingBottom:6,borderBottom:'1px solid var(--border)'}}>
+                <span>Vendor</span>
+                <span style={{textAlign:'center'}}>Packs</span>
+                <span style={{textAlign:'right'}}>Total</span>
+              </div>
+              {summary.map(row=>(
+                <div key={row.vendor} style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',gap:6,
+                  padding:'5px 0',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
+                  <span style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.vendor}</span>
+                  <span style={{fontSize:11,color:'var(--text-3)',textAlign:'center'}}>{row.packs}</span>
+                  <span style={{fontSize:12,fontWeight:700,color:'var(--green)',textAlign:'right'}}>${row.total.toFixed(2)}</span>
+                </div>
+              ))}
+              {/* Total row */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 50px 70px',gap:6,
+                padding:'6px 0 0',alignItems:'center'}}>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--text-3)'}}>TOTAL</span>
+                <span style={{fontSize:11,fontWeight:700,textAlign:'center'}}>{summary.reduce((s,r)=>s+r.packs,0)}</span>
+                <span style={{fontSize:13,fontWeight:800,color:'var(--green)',textAlign:'right'}}>${summary.reduce((s,r)=>s+r.total,0).toFixed(2)}</span>
+              </div>
+              <div style={{textAlign:'center',marginTop:8}}>
+                <button style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:'var(--text-4)'}}
+                  onClick={()=>setExpanded(false)}>▲ collapse</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -308,6 +394,7 @@ function FieldFastInner() {
   const [submitting, setSubmitting] = useState(false);
   const [shippingCost, setShippingCost] = useState('');
   const [openOrderId, setOpenOrderId] = useState<string|null>(null); // tracks which swipe card is open
+  const [orderSummaries, setOrderSummaries] = useState<Record<string,{vendor:string;packs:number;total:number}[]>>({}); // cache
 
   const [toast, setToast] = useState('');
   const [errorBox, setErrorBox] = useState<{title:string;items:string[]}|null>(null);
@@ -765,6 +852,27 @@ function FieldFastInner() {
             isOpen={openOrderId===order.id}
             onSwipeOpen={()=>setOpenOrderId(order.id)}
             onSwipeClose={()=>setOpenOrderId(null)}
+            onExpand={async()=>{
+              if(orderSummaries[order.id]) return; // already cached
+              setOrderSummaries(prev=>({...prev,[order.id]:[]})); // mark as loading
+              try {
+                const res = await fetch(`/api/items?orderId=${order.id}`);
+                const d = await res.json();
+                const items:(typeof d.items) = d.items||[];
+                const byVendor:Record<string,{packs:number;total:number}> = {};
+                items.forEach((i:any)=>{
+                  const v = i.vendor||'Unknown';
+                  if(!byVendor[v]) byVendor[v]={packs:0,total:0};
+                  byVendor[v].packs++;
+                  byVendor[v].total += (Number(i.price)||0)*(Number(i.qty)||1);
+                });
+                setOrderSummaries(prev=>({...prev,[order.id]:
+                  Object.entries(byVendor).map(([vendor,{packs,total}])=>({vendor,packs,total}))
+                }));
+              } catch {
+                setOrderSummaries(prev=>({...prev,[order.id]:[]}));
+              }
+            }}
             onOpen={()=>{ setOpenOrderId(null); order.status!=='imported'&&openExistingOrder(order); }}
             onDelete={()=>{ setOpenOrderId(null); setConfirmBox({
               title:'Delete order?',
@@ -827,6 +935,7 @@ function FieldFastInner() {
                 })));
               } finally { setDetailLoading(false); }
             }}
+            summary={orderSummaries[order.id]??null}
             continueLabel={t('continueOrder')}
           />
         ))}
