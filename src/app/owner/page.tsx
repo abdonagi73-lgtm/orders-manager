@@ -14,7 +14,7 @@ type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelli
 function FingerPanel({ open, onOpen, onClose, children }:{
   open:boolean; onOpen:()=>void; onClose:()=>void; children:React.ReactNode;
 }){
-  const innerRef = React.React.useRef<HTMLDivElement>(null);
+  const innerRef = React.useRef<HTMLDivElement>(null);
   const startY = React.useRef(0);
   const wasDragging = React.useRef(false);
   const [drag, setDrag] = React.useState(0);
