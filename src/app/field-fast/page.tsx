@@ -161,7 +161,7 @@ function SwipeableOrderCard({ order, onOpen, onDelete, onEdit, onDuplicate, onAd
   const imported=order.status==='imported';
 
   return (
-    <div style={{marginBottom:8,userSelect:'none',touchAction:'none'}}>
+    <div style={{marginBottom:8,userSelect:'none',touchAction:'pan-y'}}>
       <div style={{position:'relative',borderRadius:'var(--r)',overflow:'hidden'}}>
         <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_WIDTH,
           display:'flex',alignItems:'stretch',zIndex:1}}>
