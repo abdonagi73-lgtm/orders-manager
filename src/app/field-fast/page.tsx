@@ -993,8 +993,8 @@ function FieldFastInner() {
                   <button className="btn btn-sm btn-ghost" onClick={()=>{resetItemForm();setFormOpen(false);}}>✕</button>
                 </div>
                 <div className="field">
-                  <label className="label">Item code</label>
-                  <input type="text" placeholder="e.g. 4567" value={code} onChange={e=>setCode(e.target.value)} autoFocus/>
+                  <label className="label">Item code {editingTempId&&<span style={{fontSize:10,background:'var(--amber)',color:'#fff',borderRadius:4,padding:'1px 6px',marginLeft:6}}>editing</span>}</label>
+                  <input type="text" placeholder="e.g. 4567" value={code} onChange={e=>setCode(e.target.value)} autoFocus key={editingTempId||'new'}/>
                 </div>
                 <div className="field">
                   <label className="label">Category</label>

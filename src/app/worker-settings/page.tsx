@@ -194,7 +194,25 @@ function WorkerSettingsInner(){
         {/* PROFILE */}
         <Section icon="👤" title={t.profile}>
           <SettingsRow label={t.changePIN}>
-            <button className="btn btn-sm" onClick={()=>{}}>›</button>
+            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+              <input type="password" inputMode="numeric" placeholder="New PIN"
+                id="newPinInput" style={{width:100,fontSize:13}}/>
+              <button className="btn btn-sm btn-primary" onClick={async()=>{
+                const el=document.getElementById('newPinInput') as HTMLInputElement;
+                const newPin=el?.value.trim();
+                if(!newPin||newPin.length<4){ alert('PIN must be at least 4 digits'); return; }
+                const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({action:'verify-worker',pin:newPin})});
+                const d=await res.json();
+                if(d.ok){ alert('This PIN is already in use'); return; }
+                // Save new PIN
+                const ws=JSON.parse(localStorage.getItem('workerSettings')||'{}');
+                ws.pin=newPin;
+                localStorage.setItem('workerSettings',JSON.stringify(ws));
+                el.value='';
+                alert('PIN updated — ask your manager to update it in the system too');
+              }}>Update</button>
+            </div>
           </SettingsRow>
           <SettingsRow label={t.workerID} desc={workerName||'—'}>
             <span style={{fontSize:12,color:'var(--text-3)',fontFamily:'monospace'}}>
@@ -296,9 +314,21 @@ function WorkerSettingsInner(){
 
         {/* HELP */}
         <Section icon="❓" title={t.help}>
-          <SettingsRow label={t.help}>
-            <button className="btn btn-sm">›</button>
-          </SettingsRow>
+          <div style={{padding:'10px 0'}}>
+            {[
+              {q:'How do I add an item?', a:'Pick a vendor → tap "+ Add item code" → fill in category, colors, sizes and price → tap "+ Add item". It saves instantly.'},
+              {q:'Can I go back to an order later?', a:'Yes. Unsubmitted orders show "Continue this order" on your orders list. Tap to reopen and keep adding items across multiple days.'},
+              {q:'What are packs vs variants?', a:'A pack is one item code (one line). Variants are the total individual units — e.g. 3 colors × 4 sizes = 12 variants.'},
+              {q:'How do I edit an item I already added?', a:'Tap the ··· menu on any item row and choose Edit. The form opens pre-filled — change whatever you need and tap Save.'},
+              {q:'How do I download the order as PDF?', a:'Open the order → tap "⬇ Download PDF". A print-ready purchase order opens in a new tab.'},
+              {q:'Something is wrong — who do I contact?', a:'Contact Abdo directly. He can view and repair all orders from the Management portal.'},
+            ].map(({q,a},i)=>(
+              <div key={i} style={{padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                <div style={{fontWeight:600,fontSize:13,marginBottom:4}}>{q}</div>
+                <div style={{fontSize:12,color:'var(--text-3)',lineHeight:1.6}}>{a}</div>
+              </div>
+            ))}
+          </div>
         </Section>
 
         {/* ABOUT */}
@@ -306,9 +336,16 @@ function WorkerSettingsInner(){
           <SettingsRow label={t.version} desc="Orders Manager — Choices For You">
             <span style={{fontSize:12,fontFamily:'monospace',color:'var(--text-3)',fontWeight:600}}>{APP_VERSION}</span>
           </SettingsRow>
-          <SettingsRow label={t.privacy}>
-            <button className="btn btn-sm">›</button>
-          </SettingsRow>
+          <div style={{padding:'10px 0',borderTop:'1px solid var(--border)'}}>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{t.privacy}</div>
+            <div style={{fontSize:12,color:'var(--text-3)',lineHeight:1.7}}>
+              <p>Orders Manager is a private business tool used exclusively by Choices For You employees.</p>
+              <p style={{marginTop:8}}>All order data (vendor names, item codes, prices, photos) is stored securely in a private Google Sheet accessible only to authorized staff.</p>
+              <p style={{marginTop:8}}>No personal data is shared with third parties. Photos you take are compressed and stored only for order review purposes.</p>
+              <p style={{marginTop:8}}>Your PIN is used for authentication only and is not stored in plain text in any external service.</p>
+              <p style={{marginTop:8}}>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</p>
+            </div>
+          </div>
         </Section>
 
         <div style={{textAlign:'center',fontSize:11,color:'var(--text-4)',marginTop:20}}>

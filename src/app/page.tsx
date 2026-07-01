@@ -21,14 +21,6 @@ export default function Home() {
           <div style={{marginLeft:'auto',color:'var(--text-4)',fontSize:18}}>›</div>
         </Link>
 
-        <Link href={`/field?location=${location}`} className="role-card">
-          <div className="role-icon" style={{background:'#F0EEE9'}}>📝</div>
-          <div>
-            <div className="role-title">Order Entry (Classic)</div>
-            <div className="role-desc">Original one-item-at-a-time flow</div>
-          </div>
-          <div style={{marginLeft:'auto',color:'var(--text-4)',fontSize:18}}>›</div>
-        </Link>
 
         <Link href={`/owner?location=${location}`} className="role-card">
           <div className="role-icon" style={{background:'#EBF2FB'}}>🖥️</div>

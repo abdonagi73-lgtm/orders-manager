@@ -1234,14 +1234,27 @@ function OwnerPageInner() {
         {/* ── SETTINGS TAB ── */}
         {tab==='settings'&&(()=>{
 
-          function addUsageItem(type:string, name:string){
-            fetch('/api/usage',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({items:[{type,name}]})}).catch(()=>{});
+          function saveCatalog(type:string, list:string[]){
+            // Write the full list for this type to the Usage sheet
+            fetch('/api/catalog',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({type, items:list.map(name=>({name,count:usage[type]?.[name]||1}))})
+            }).catch(()=>{});
           }
 
-          async function deleteUsageItem(type:string, name:string){
-            // We clear and rewrite via backfill — instead, just remove from local list
-            // (will persist until next backfill)
+          function addCatalogItem(type:string, name:string, setList:React.Dispatch<React.SetStateAction<string[]>>, getList:()=>string[]){
+            setList(prev=>{
+              const next=[name,...prev.filter(x=>x!==name)];
+              saveCatalog(type, next);
+              return next;
+            });
+          }
+
+          function deleteCatalogItem(type:string, name:string, setList:React.Dispatch<React.SetStateAction<string[]>>, getList:()=>string[]){
+            setList(prev=>{
+              const next=prev.filter(x=>x!==name);
+              saveCatalog(type, next);
+              return next;
+            });
           }
 
           const sectionBtn = (k:typeof settingsSection, icon:string, label:string) => (
@@ -1359,8 +1372,8 @@ function OwnerPageInner() {
                       <CatalogList
                         type="categories" items={catList} input={newCatInput} setInput={setNewCatInput}
                         placeholder="e.g. Jogger Pants"
-                        onAdd={v=>{ setCatList(prev=>[v,...prev]); addUsageItem('categories',v); showToast('Category added'); }}
-                        onDelete={v=>setCatList(prev=>prev.filter(x=>x!==v))}
+                        onAdd={v=>{ addCatalogItem('categories',v,setCatList,()=>catList); showToast('Category added — visible to all workers'); }}
+                        onDelete={v=>{ deleteCatalogItem('categories',v,setCatList,()=>catList); }}
                       />
                     </div>
                     <div className="card" style={{marginBottom:12}}>
@@ -1368,8 +1381,8 @@ function OwnerPageInner() {
                       <CatalogList
                         type="colors" items={colorList} input={newColorInput} setInput={setNewColorInput}
                         placeholder="e.g. Rust Orange"
-                        onAdd={v=>{ setColorList(prev=>[v,...prev]); addUsageItem('colors',v); showToast('Color added'); }}
-                        onDelete={v=>setColorList(prev=>prev.filter(x=>x!==v))}
+                        onAdd={v=>{ addCatalogItem('colors',v,setColorList,()=>colorList); showToast('Color added — visible to all workers'); }}
+                        onDelete={v=>{ deleteCatalogItem('colors',v,setColorList,()=>colorList); }}
                       />
                     </div>
                     <div className="card" style={{marginBottom:12}}>
@@ -1377,8 +1390,8 @@ function OwnerPageInner() {
                       <CatalogList
                         type="sizes" items={sizeList} input={newSizeInput} setInput={setNewSizeInput}
                         placeholder="e.g. 29, XXS, One Size"
-                        onAdd={v=>{ setSizeList(prev=>[...prev,v].sort()); addUsageItem('sizes',v); showToast('Size added'); }}
-                        onDelete={v=>setSizeList(prev=>prev.filter(x=>x!==v))}
+                        onAdd={v=>{ addCatalogItem('sizes',v,setSizeList,()=>sizeList); showToast('Size added — visible to all workers'); }}
+                        onDelete={v=>{ deleteCatalogItem('sizes',v,setSizeList,()=>sizeList); }}
                       />
                     </div>
                     <div className="card">
