@@ -651,7 +651,6 @@ function FieldFastInner() {
       const parsed = parseVoiceInput(transcript, vendors, categories);
       
       if (parsed.vendor) {
-        setVendor(parsed.vendor);
         setCurrentVendor(parsed.vendor);
       }
       if (parsed.code) setCode(parsed.code);
