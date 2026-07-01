@@ -961,7 +961,7 @@ function OwnerPageInner() {
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
                 Refresh
               </button>
-              <a href="/" className="btn btn-sm" style={{fontWeight:500}}>Home</a>
+              <button className="btn btn-sm" onClick={()=>window.location.href='/'} style={{fontWeight:500}}>← Back</button>
               <button className="btn btn-sm"
                 style={{borderColor:'var(--border-strong)',color:'var(--text-2)',fontWeight:500}}
                 onClick={()=>setAuthed(false)}>Sign out</button>
@@ -1063,7 +1063,6 @@ function OwnerPageInner() {
             })()}
           </>
         )}
-
         {/* ── ITEMS TAB ── */}
         {tab==='items'&&(
           <>
@@ -1073,6 +1072,9 @@ function OwnerPageInner() {
               <>
                 {/* Status badges + filter */}
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
+                  <button className="btn btn-sm" onClick={()=>{ setSelectedOrder(null); setTab('orders'); }} style={{fontWeight:500}}>
+                    ← Back to orders
+                  </button>
                   {selectedOrder.orderType==='online'
                     ? <span className="badge badge-info">🌐 Online</span>
                     : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)'}}>🏪 Store</span>}

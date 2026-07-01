@@ -1197,11 +1197,6 @@ function FieldFastInner() {
   if(screen==='login') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="login-wrap">
-        {/* Navigation / Refresh Bar */}
-        <div style={{display:'flex',justifyContent:'space-between',marginBottom:16,width:'100%',maxWidth:360,margin:'0 auto'}}>
-          <button className="btn btn-sm" onClick={()=>window.location.href='/'}>🏠 {t('back')}</button>
-          <button className="btn btn-sm" onClick={()=>window.location.reload()}>↻ {lang==='ar'?'تحديث':'Refresh'}</button>
-        </div>
         <div className="login-form">
           <Image src="/logo.png" alt="logo" width={56} height={56} style={{borderRadius:12,margin:'0 auto 16px',display:'block'}}/>
           <div className="login-brand" style={{textAlign:'center'}}>{t('orderEntry')}</div>
