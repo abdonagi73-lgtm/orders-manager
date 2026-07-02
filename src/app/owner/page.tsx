@@ -896,74 +896,81 @@ function OwnerPageInner() {
     </main>
   );
 
+  const visibleNotifs = notifList.filter((n: any) => !n.read).slice(0, 20);
+
   return (
     <div className="page">
-      <div className="header">
+      <div className="header" style={{boxShadow:'0 1px 3px rgba(0,0,0,.05)',borderBottom:'1px solid var(--border)'}}>
         <div className="container-wide">
-          <div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}}>
-              <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6,flexShrink:0}} /></a>
+          <div className="header-inner" style={{height:'auto',minHeight:64,padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+              <a href="/"><Image src="/logo.png" alt="logo" width={32} height={32} style={{borderRadius:8,flexShrink:0}} /></a>
               <div style={{minWidth:0}}>
-                <div className="header-title" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                <div className="header-title" style={{fontSize:16,fontWeight:700,letterSpacing:'-.01em',color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                   {loggedInName || 'Management'}
                 </div>
-                <div className="header-sub" style={{whiteSpace:'nowrap'}}>Orders Manager{location ? ' · '+location : ''}</div>
+                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>Orders Manager{location ? ' · '+location : ''}</div>
               </div>
             </div>
-            <div style={{display:'flex',gap:5,alignItems:'center',flexShrink:0}}>
-              {unreadNotifs>0&&(
-                <div style={{position:'relative'}}>
-                  <button className="btn btn-sm"
-                    style={{background:'var(--red)',color:'#fff',borderColor:'var(--red)',fontWeight:600,whiteSpace:'nowrap'}}
-                    onClick={()=>setNotifPanelOpen(p=>!p)}>
-                    {unreadNotifs} new
-                  </button>
-                  {notifPanelOpen&&(
-                    <div style={{position:'fixed',top:60,right:12,width:320,maxHeight:400,overflowY:'auto',
-                      background:'var(--surface)',border:'1px solid var(--border-strong)',
-                      borderRadius:'var(--r)',boxShadow:'var(--shadow-lg)',zIndex:200}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-                        padding:'12px 14px',borderBottom:'1px solid var(--border)',fontWeight:600,fontSize:14}}>
-                        <span>Notifications</span>
-                        <div style={{display:'flex',gap:8}}>
-                          <button className="btn btn-sm" style={{fontSize:11}} onClick={async()=>{
-                            await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
-                              body:JSON.stringify({action:'mark-read',for:'owner'})});
-                            setUnreadNotifs(0); setNotifPanelOpen(false);
-                          }}>Mark all read</button>
-                          <button className="btn btn-sm btn-ghost" onClick={()=>setNotifPanelOpen(false)}>✕</button>
+            <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0,flexWrap:'wrap'}}>
+              <div style={{position:'relative'}}>
+                <button className="btn btn-sm btn-ghost" 
+                  style={{fontSize:16,padding:'6px 10px',position:'relative'}} 
+                  onClick={()=>setNotifPanelOpen(p=>!p)}
+                  title="Notifications">
+                  🔔
+                  {unreadNotifs > 0 && (
+                    <span style={{
+                      position:'absolute',top:-2,right:-2,
+                      background:'var(--red)',color:'#fff',
+                      fontSize:9,fontWeight:700,
+                      borderRadius:'50%',width:16,height:16,
+                      display:'flex',alignItems:'center',justifyContent:'center'
+                    }}>
+                      {unreadNotifs}
+                    </span>
+                  )}
+                </button>
+                {notifPanelOpen && (
+                  <div style={{position:'fixed',top:60,right:12,width:320,maxHeight:400,overflowY:'auto',
+                    background:'var(--surface)',border:'1px solid var(--border-strong)',
+                    borderRadius:'var(--r)',boxShadow:'var(--shadow-lg)',zIndex:200}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                      padding:'12px 14px',borderBottom:'1px solid var(--border)',fontWeight:600,fontSize:14}}>
+                      <span>Notifications</span>
+                      <div style={{display:'flex',gap:8}}>
+                        <button className="btn btn-sm" style={{fontSize:11}} onClick={async()=>{
+                          await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({action:'mark-read',for:'owner'})});
+                          setUnreadNotifs(0); setNotifPanelOpen(false);
+                          loadNotifs();
+                        }}>Mark all read</button>
+                        <button className="btn btn-sm btn-ghost" onClick={()=>setNotifPanelOpen(false)}>✕</button>
+                      </div>
+                    </div>
+                    {visibleNotifs.length===0?(
+                      <div style={{padding:16,fontSize:13,color:'var(--text-3)'}}>No notifications</div>
+                    ):visibleNotifs.map((n:any,i:number)=>(
+                      <div key={i} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',
+                        background:'var(--amber-light)'}}>
+                        <div style={{fontSize:13,fontWeight:500}}>{n.message||n[9]||'New notification'}</div>
+                        <div style={{fontSize:11,color:'var(--text-3)',marginTop:3}}>
+                          {n.type||n[1]} · {n.workerName||n[4]||''} · {(n.createdAt||n[11]||'').slice(0,10)}
                         </div>
                       </div>
-                      {notifList.length===0?(
-                        <div style={{padding:16,fontSize:13,color:'var(--text-3)'}}>No notifications</div>
-                      ):notifList.map((n:any,i:number)=>(
-                        <div key={i} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',
-                          background:n.read==='false'||n.read===false?'var(--amber-light)':'transparent'}}>
-                          <div style={{fontSize:13,fontWeight:500}}>{n.message||n[9]||'New notification'}</div>
-                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:3}}>
-                            {n.type||n[1]} · {n.workerName||n[4]||''} · {(n.createdAt||n[11]||'').slice(0,10)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <button className="btn btn-sm" style={{fontWeight:500}}
-                onClick={()=>{
-                  const next=!darkMode; setDarkMode(next);
-                  localStorage.setItem(`darkMode_owner_${loggedInName}`, String(next));
-                  document.documentElement.setAttribute('data-theme', next?'dark':'');
-                }}>
-                {darkMode?'Light':'Dark'}
-              </button>
-              <button className="btn btn-sm" style={{fontWeight:500}}
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button className="btn btn-sm btn-primary" style={{fontWeight:600}}
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
-                Refresh
+                ↻ Refresh
               </button>
-              <button className="btn btn-sm" onClick={()=>window.location.href='/'} style={{fontWeight:500}}>← Back</button>
+              <button className="btn btn-sm btn-secondary" onClick={()=>window.location.href='/'} style={{fontWeight:600}}>
+                ← Back
+              </button>
               <button className="btn btn-sm"
-                style={{borderColor:'var(--border-strong)',color:'var(--text-2)',fontWeight:500}}
+                style={{borderColor:'var(--red-border)',background:'var(--red-light)',color:'var(--red)',fontWeight:600}}
                 onClick={()=>setAuthed(false)}>Sign out</button>
             </div>
           </div>

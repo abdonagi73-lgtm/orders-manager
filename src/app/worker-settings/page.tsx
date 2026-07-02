@@ -167,7 +167,10 @@ function WorkerSettingsInner(){
       keepVendor, autoFocus, showTotal, autoSave, collapseItems, notifEnabled,
     }));
     setSavedMsg(true);
-    setTimeout(()=>setSavedMsg(false), 2000);
+    setTimeout(()=>{
+      setSavedMsg(false);
+      window.location.href = '/field-fast';
+    }, 800);
   }
 
   const langNames:{[k:string]:string} = { en:'English', ar:'العربية', tr:'Türkçe' };
@@ -179,7 +182,7 @@ function WorkerSettingsInner(){
         <div className="container">
           <div className="header-inner">
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <button className="btn btn-sm" onClick={()=>router.back()}
+              <button className="btn btn-sm" onClick={()=>window.location.href='/field-fast'}
                 style={{fontSize:13}}>{t.back}</button>
               <div className="header-title">⚙️ {t.settings}</div>
             </div>
