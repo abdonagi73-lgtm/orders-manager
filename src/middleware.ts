@@ -36,8 +36,8 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 3. /flowriq-console — founder-only, requires super_admin
-  if (pathname.startsWith('/flowriq-console')) {
+  // 3. /Flowxiq-console — founder-only, requires super_admin
+  if (pathname.startsWith('/Flowxiq-console')) {
     if (session.role !== 'super_admin') {
       return NextResponse.redirect(new URL('/app', request.url));
     }
@@ -96,5 +96,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo-flowriq\\.png|logo\\.png|icon.*\\.png|manifest\\.json|sw\\.js).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo-Flowxiq\\.png|logo\\.png|icon.*\\.png|manifest\\.json|sw\\.js).*)'],
 };

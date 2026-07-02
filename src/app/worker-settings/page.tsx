@@ -115,7 +115,7 @@ function WorkerSettingsInner(){
   const [theme, setTheme] = useState<'light'|'dark'|'system'>('light');
   const [photoQuality, setPhotoQuality] = useState<'high'|'medium'|'low'>('high');
   const [currency, setCurrency] = useState<'usd'|'try'>('usd');
-  const [companyName, setCompanyName] = useState('Flowriq');
+  const [companyName, setCompanyName] = useState('Flowxiq');
 
   // Data entry toggles
   const [keepVendor, setKeepVendor] = useState(true);
@@ -352,13 +352,13 @@ function WorkerSettingsInner(){
               <p style={{marginTop:8}}>All order data (vendor names, item codes, prices, photos) is stored securely in a private local database schema isolated by brand workspace.</p>
               <p style={{marginTop:8}}>No personal data is shared with third parties. Photos you take are compressed and stored only for order review purposes.</p>
               <p style={{marginTop:8}}>Your PIN is used for authentication only and is not stored in plain text in any external service.</p>
-              <p style={{marginTop:8}}>© {new Date().getFullYear()} Flowriq. All rights reserved.</p>
+              <p style={{marginTop:8}}>© {new Date().getFullYear()} Flowxiq. All rights reserved.</p>
             </div>
           </div>
         </Section>
 
         <div style={{textAlign:'center',fontSize:11,color:'var(--text-4)',marginTop:20}}>
-          {APP_VERSION} · © {new Date().getFullYear()} Flowriq
+          {APP_VERSION} · © {new Date().getFullYear()} Flowxiq
         </div>
       </div>
     </div>

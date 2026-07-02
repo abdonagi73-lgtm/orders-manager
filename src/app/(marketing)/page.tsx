@@ -2,8 +2,8 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Flowriq — Purchasing Workflow Software for Retail',
-  description: 'Flowriq streamlines vendor purchasing for retail businesses. Capture items, approve orders, track commissions, and export to Square — all offline-capable.',
+  title: 'Flowxiq — Purchasing Workflow Software for Retail',
+  description: 'Flowxiq streamlines vendor purchasing for retail businesses. Capture items, approve orders, track commissions, and export to Square — all offline-capable.',
 };
 
 export default function HomePage() {
@@ -280,7 +280,7 @@ export default function HomePage() {
             <em>retail purchasing workflows</em>
           </h1>
           <p className="hero-sub">
-            Flowriq gives your team a fast, offline-capable system to capture items at vendor warehouses, approve purchase orders, track commissions, and export directly to Square POS — all from a single platform.
+            Flowxiq gives your team a fast, offline-capable system to capture items at vendor warehouses, approve purchase orders, track commissions, and export directly to Square POS — all from a single platform.
           </p>
           <div className="hero-ctas">
             <Link href="/request-access" className="cta-primary">Request Access →</Link>
@@ -293,7 +293,7 @@ export default function HomePage() {
               <div className="mockup-dot" style={{background:'#FF5F56'}} />
               <div className="mockup-dot" style={{background:'#FFBD2E'}} />
               <div className="mockup-dot" style={{background:'#27C93F'}} />
-              <span style={{marginLeft:16,fontSize:12,color:'var(--mk-text3)',fontFamily:'monospace'}}>flowriq.app / owner dashboard</span>
+              <span style={{marginLeft:16,fontSize:12,color:'var(--mk-text3)',fontFamily:'monospace'}}>Flowxiq.app / owner dashboard</span>
             </div>
             <div className="mockup-screen">
               <div className="mockup-col">
@@ -369,7 +369,7 @@ export default function HomePage() {
       <section className="section" id="workflow">
         <span className="section-label">How It Works</span>
         <h2 className="section-h">From vendor visit to purchase order in minutes</h2>
-        <p className="section-sub">Flowriq replaces the WhatsApp-and-Excel stack with a purpose-built workflow that follows your team from the warehouse to your POS system.</p>
+        <p className="section-sub">Flowxiq replaces the WhatsApp-and-Excel stack with a purpose-built workflow that follows your team from the warehouse to your POS system.</p>
         <div className="workflow-steps">
           {[
             { n:1, title:'Vendor Visit', desc:'Workers check in at the vendor warehouse using the mobile app. No paper. No signal needed — fully offline.' },
@@ -465,7 +465,7 @@ export default function HomePage() {
       <div style={{padding:'0 24px 96px',maxWidth:1200,margin:'0 auto'}}>
         <div className="cta-banner">
           <h2>Ready to fix your purchasing workflow?</h2>
-          <p>Join retail businesses already using Flowriq to cut order capture time by 70% and eliminate manual data entry entirely.</p>
+          <p>Join retail businesses already using Flowxiq to cut order capture time by 70% and eliminate manual data entry entirely.</p>
           <div className="cta-banner-actions">
             <Link href="/request-access" className="cta-primary">Request Access — It&apos;s Free to Apply</Link>
             <Link href="/app" className="cta-secondary">Already have an account? Login →</Link>

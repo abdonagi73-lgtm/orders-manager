@@ -919,7 +919,7 @@ function OwnerPageInner() {
             <div style={{width:72,height:72,background:'var(--surface-2)',borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:32}}>📦</div>
           )}
           <div className="login-brand">Orders Manager</div>
-          <div className="login-sub">Management · {company?.name || 'Flowriq'}</div>
+          <div className="login-sub">Management · {company?.name || 'Flowxiq'}</div>
         </div>
         <div className="login-form">
           <div className="field">
@@ -973,7 +973,7 @@ function OwnerPageInner() {
                 <div className="header-title" style={{fontSize:16,fontWeight:700,letterSpacing:'-.01em',color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                   {loggedInName || 'Management'}
                 </div>
-                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>{company?.name || 'Flowriq'}{location ? ' · '+location : ''}</div>
+                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>{company?.name || 'Flowxiq'}{location ? ' · '+location : ''}</div>
               </div>
             </div>
             <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0,flexWrap:'wrap'}}>
@@ -1759,7 +1759,7 @@ function OwnerPageInner() {
                   <div className="card">
                     <div className="card-title">🏢 Business</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>These values affect exports and pricing calculations.</div>
-                    <div className="field"><label className="label">Business name</label><input type="text" placeholder={company?.name || 'Flowriq'} defaultValue={company?.name || 'Flowriq'}/></div>
+                    <div className="field"><label className="label">Business name</label><input type="text" placeholder={company?.name || 'Flowxiq'} defaultValue={company?.name || 'Flowxiq'}/></div>
                     <div className="field"><label className="label">Default currency</label>
                       <select style={{maxWidth:200}}>
                         <option value="usd">USD — US Dollar</option>
@@ -1937,7 +1937,7 @@ function OwnerPageInner() {
                         {label:'Total items',value:String(items.length)},
                         {label:'Active vendors',value:String(Object.keys(usage.vendors||{}).length)},
                         {label:'Workers',value:String(workers.length)},
-                        {label:'Built for',value:company?.name || 'Flowriq'},
+                        {label:'Built for',value:company?.name || 'Flowxiq'},
                         {label:'Copyright',value:'© '+new Date().getFullYear()+' Abdo Alasaadi'},
                       ].map(({label,value})=>(
                         <div key={label} style={{background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>

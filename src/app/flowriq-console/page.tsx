@@ -42,7 +42,7 @@ type Tab = 'requests' | 'businesses';
 const fmt = (n: number, currency = 'USD') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
 
-export default function FlowriqConsolePage() {
+export default function FlowxiqConsolePage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('requests');
   const [requests, setRequests] = useState<AccessRequest[]>([]);
@@ -274,9 +274,9 @@ export default function FlowriqConsolePage() {
           <div className="fc-hdr-inner">
             <div className="fc-brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-flowriq.png" alt="Flowriq" />
+              <img src="/logo-flowriq.png" alt="Flowxiq" />
               <div>
-                <div className="fc-brand-text">Flowriq</div>
+                <div className="fc-brand-text">Flowxiq</div>
                 <div className="fc-brand-sub">Founder Console</div>
               </div>
             </div>

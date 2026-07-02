@@ -463,7 +463,7 @@ function FieldFastInner() {
   const [worker, setWorker] = useState<Worker|null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [lang, setLang] = useState<'en'|'ar'|'tr'>('en');
-  const [companyName, setCompanyName] = useState('Flowriq');
+  const [companyName, setCompanyName] = useState('Flowxiq');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   // Comprehensive translations for worker portal

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Determine company context
-    let company = { id: '', name: 'Flowriq', logo_url: null as string | null, currency: 'USD', commission_rate: 0.03 };
+    let company = { id: '', name: 'Flowxiq', logo_url: null as string | null, currency: 'USD', commission_rate: 0.03 };
     if (companyId) {
       const companyList = await db.select().from(companies).where(eq(companies.id, companyId));
       if (companyList[0]) {
