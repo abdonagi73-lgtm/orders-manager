@@ -16,7 +16,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/request-access') ||
     pathname === '/app' ||         // PIN selector (app login)
     pathname === '/signup' ||
-    pathname.startsWith('/api/access-requests') && request.method === 'POST'; // public POST only
+    pathname.startsWith('/onboard') ||         // Client onboarding wizard
+    pathname.startsWith('/api/onboard') ||     // Onboarding API (token validation)
+    (pathname.startsWith('/api/access-requests') && request.method === 'POST'); // public POST only
 
   if (isPublic) {
     return NextResponse.next();
