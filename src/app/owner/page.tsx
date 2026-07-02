@@ -672,6 +672,51 @@ function OwnerPageInner() {
     }
   }, [items, selectedOrder]);
 
+  // Synchronize state with history back/forward buttons (phone back button fix)
+  useEffect(() => {
+    if (!authed) return;
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      if (state) {
+        setTab(state.tab || 'orders');
+        if (state.orderId) {
+          const found = orders.find(o => o.id === state.orderId);
+          if (found) {
+            setSelectedOrder(found);
+            // Load items for this order
+            fetch(`/api/items?orderId=${found.id}`).then(r=>r.json()).then(d => {
+              const loadedItems = d.items ?? [];
+              if(loadedItems.length > 0) {
+                const ids = loadedItems.map((i: OrderItem) => i.id).join(',');
+                fetch(`/api/photos?ids=${ids}`).then(r=>r.json()).then(pd=>{
+                  if(pd.photos) {
+                    setItems(loadedItems.map((i: OrderItem) => ({
+                      ...i, photo: pd.photos[i.id] || ''
+                    })));
+                  }
+                }).catch(()=>setItems(loadedItems));
+              } else {
+                setItems(loadedItems);
+              }
+            });
+          }
+        } else {
+          setSelectedOrder(null);
+        }
+      } else {
+        setTab('orders');
+        setSelectedOrder(null);
+      }
+    };
+    
+    if (!window.history.state) {
+      window.history.replaceState({ tab: 'orders', orderId: '' }, '', window.location.search || '?tab=orders');
+    }
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [authed, orders]);
+
   async function selectOrder(order: Order) {
     setSelectedOrder(order);
     setItemFilterStatus('');
@@ -692,6 +737,7 @@ function OwnerPageInner() {
       setItems(loadedItems);
     }
     setTab('items');
+    window.history.pushState({ tab: 'items', orderId: order.id }, '', `?tab=items&orderId=${order.id}`);
   }
 
   async function updateItemStatus(item: OrderItem, status: OrderItem['status'], ownerNote='') {
@@ -980,7 +1026,11 @@ function OwnerPageInner() {
       <div className="container-wide" style={{paddingTop:16,paddingBottom:40}}>
         <div className="tabs">
           {(['orders','items','prices','analytics','commission','intelligence','timeline','workers','settings'] as Tab[]).map(t=>(
-            <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
+            <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>{
+              setTab(t);
+              const oId = (t === 'items' && selectedOrder) ? selectedOrder.id : '';
+              window.history.pushState({ tab: t, orderId: oId }, '', `?tab=${t}${oId ? '&orderId='+oId : ''}`);
+            }}>
               {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t==='intelligence'?'Vendors':t==='timeline'?'Timeline':t.charAt(0).toUpperCase()+t.slice(1)}
               {t==='items'&&selectedOrder&&` — ${selectedOrder.name}`}
               {t==='commission'&&orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length>0&&
@@ -1079,7 +1129,11 @@ function OwnerPageInner() {
               <>
                 {/* Status badges + filter */}
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
-                  <button className="btn btn-sm" onClick={()=>{ setSelectedOrder(null); setTab('orders'); }} style={{fontWeight:500}}>
+                  <button className="btn btn-sm" onClick={()=>{
+                    setSelectedOrder(null);
+                    setTab('orders');
+                    window.history.pushState({ tab: 'orders', orderId: '' }, '', `?tab=orders`);
+                  }} style={{fontWeight:500}}>
                     ← Back to orders
                   </button>
                   {selectedOrder.orderType==='online'
