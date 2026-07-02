@@ -185,7 +185,7 @@ function PDFInner() {
               <div style={{width: 64, height: 64, background: '#000', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#fff'}}>📦</div>
             )}
             <div style={{marginLeft:12}}>
-              <div className="brand-name">{company?.name?.toUpperCase() || 'FLOWRIQ'}</div>
+              <div className="brand-name">{company?.name?.toUpperCase() || 'Flowxiq'}</div>
               <div className="brand-sub">Orders Manager PO · {order.orderType === 'online' ? 'Online Store' : 'Store Buy'}</div>
             </div>
           </div>
@@ -289,7 +289,7 @@ function PDFInner() {
           <div style={{flex:1,paddingRight:40}}>
             <div style={{fontSize:10,fontWeight:700,color:'#555',textTransform:'uppercase',letterSpacing:0.5,marginBottom:6}}>DOCUMENT SUMMARY</div>
             <div style={{color:'#666',lineHeight:1.6}}>
-              This purchase order document was generated dynamically by Flowriq.
+              This purchase order document was generated dynamically by Flowxiq.
               All prices shown are purchase costs as registered by the field worker.
               <div>Order ID: <span style={{fontFamily:'monospace',fontSize:9}}>{order.id}</span></div>
             </div>
@@ -316,7 +316,7 @@ function PDFInner() {
 
         {/* ── FOOTER ── */}
         <div className="doc-footer">
-          <span>{company?.name || 'Flowriq'}</span>
+          <span>{company?.name || 'Flowxiq'}</span>
           <span>Ref: {docRef} · Generated {generatedDate}</span>
           <span>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</span>
         </div>

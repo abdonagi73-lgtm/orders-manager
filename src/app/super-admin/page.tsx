@@ -138,7 +138,7 @@ export default function SuperAdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center font-mono text-xs tracking-tighter text-zinc-500">
-        LOADING FLOWRIQ MASTER CONSOLE...
+        LOADING Flowxiq MASTER CONSOLE...
       </div>
     );
   }
@@ -151,16 +151,16 @@ export default function SuperAdminPage() {
           <div className="max-h-9 max-w-24 overflow-hidden border border-zinc-800 p-0.5 bg-zinc-950 flex items-center justify-center">
             <img
               src="/logo-flowriq.png"
-              alt="Flowriq"
+              alt="Flowxiq"
               className="max-h-8 max-w-full object-contain"
             />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tighter leading-none uppercase">
-              FLOWRIQ MASTER CONSOLE
+              Flowxiq MASTER CONSOLE
             </h1>
             <p className="text-zinc-600 font-mono text-[9px] mt-1 tracking-widest uppercase">
-              FLOWRIQ PLATFORM MASTER CONTROL
+              Flowxiq PLATFORM MASTER CONTROL
             </p>
           </div>
         </div>

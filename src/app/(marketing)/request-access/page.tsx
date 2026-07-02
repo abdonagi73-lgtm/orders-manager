@@ -137,7 +137,7 @@ export default function RequestAccessPage() {
               <div className="ra-success-icon">✓</div>
               <h2>Request received!</h2>
               <p>
-                Thank you for your interest in Flowriq. We review every request manually
+                Thank you for your interest in Flowxiq. We review every request manually
                 to ensure the platform is a good fit for your operation.<br /><br />
                 We&apos;ll reach out to you at the email provided within 1–2 business days
                 with next steps and your onboarding link.
@@ -155,7 +155,7 @@ export default function RequestAccessPage() {
               <span className="ra-label">Access Request</span>
               <h1 className="ra-h">Apply for workspace access</h1>
               <p className="ra-sub">
-                Flowriq is currently invite-only. Fill in the form below and our team will review your request within 1–2 business days. No credit card required.
+                Flowxiq is currently invite-only. Fill in the form below and our team will review your request within 1–2 business days. No credit card required.
               </p>
 
               <form className="ra-form" onSubmit={onSubmit} noValidate>

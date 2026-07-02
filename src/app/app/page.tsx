@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 export default function Home() {
   const location = 'USA';
-  const [companyName, setCompanyName] = useState('Flowriq');
+  const [companyName, setCompanyName] = useState('Flowxiq');
   const [logoUrl, setLogoUrl] = useState<string | null>('/logo-flowriq.png');
 
   useEffect(() => {
@@ -61,8 +61,8 @@ export default function Home() {
         </Link>
       </div>
 
-      <div className="home-credit" style={{marginTop: 24}}>Developed by Flowriq</div>
-      <div className="home-credit" style={{marginTop:4}}>© {new Date().getFullYear()} Flowriq. All rights reserved.</div>
+      <div className="home-credit" style={{marginTop: 24}}>Developed by Flowxiq</div>
+      <div className="home-credit" style={{marginTop:4}}>© {new Date().getFullYear()} Flowxiq. All rights reserved.</div>
       <div className="home-credit" style={{marginTop:8,fontSize:11,letterSpacing:'.05em',color:'var(--text-4)'}}>
         v2.73 · build {process.env.NEXT_PUBLIC_BUILD_HASH || 'dev'}
       </div>
