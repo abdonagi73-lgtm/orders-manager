@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Orders Manager — Choices For You',
+  title: 'Orders Manager — Flowriq',
   description: 'Vendor order entry and Square POS export system',
   manifest: '/manifest.json',
   appleWebApp: {

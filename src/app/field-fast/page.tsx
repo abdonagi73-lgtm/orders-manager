@@ -463,6 +463,8 @@ function FieldFastInner() {
   const [worker, setWorker] = useState<Worker|null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [lang, setLang] = useState<'en'|'ar'|'tr'>('en');
+  const [companyName, setCompanyName] = useState('Flowriq');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   // Comprehensive translations for worker portal
   const T:{[k:string]:{[k:string]:string}} = {
@@ -721,13 +723,26 @@ function FieldFastInner() {
     if(saved==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry));
+      if(d.company && d.company.name !== 'System Administration') {
+        setCompanyName(d.company.name);
+        setLogoUrl(d.company.logoUrl);
+      }
     });
     fetch('/api/usage').then(r=>r.json()).then(d=>{
       if(d.vendors){
         setUsage(d);
-        setVendors(prev=>[...new Set([...prev,...Object.keys(d.vendors)])]);
-        setCategories(prev=>[...new Set([...prev,...Object.keys(d.categories||{})])]);
-        setColorOptions(prev=>[...new Set([...prev,...Object.keys(d.colors||{})])]);
+        setVendors(prev => {
+          const merged = prev.concat(Object.keys(d.vendors));
+          return merged.filter((v, i) => merged.indexOf(v) === i);
+        });
+        setCategories(prev => {
+          const merged = prev.concat(Object.keys(d.categories || {}));
+          return merged.filter((c, i) => merged.indexOf(c) === i);
+        });
+        setColorOptions(prev => {
+          const merged = prev.concat(Object.keys(d.colors || {}));
+          return merged.filter((co, i) => merged.indexOf(co) === i);
+        });
       }
     });
   },[]);
@@ -771,6 +786,8 @@ function FieldFastInner() {
     setPinLoading(false);
     if(d.ok && d.worker){
       setWorker(d.worker);
+      if(d.worker.companyName) setCompanyName(d.worker.companyName);
+      if(d.worker.logoUrl) setLogoUrl(d.worker.logoUrl);
       sessionStorage.setItem('ff_worker', JSON.stringify(d.worker));
       sessionStorage.setItem('ff_screen', 'orders');
       // Load user language immediately
@@ -1198,9 +1215,13 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="login-wrap">
         <div className="login-form">
-          <Image src="/logo.png" alt="logo" width={56} height={56} style={{borderRadius:12,margin:'0 auto 16px',display:'block'}}/>
+          {logoUrl ? (
+            <img src={logoUrl} alt="logo" style={{width:56,height:56,borderRadius:12,margin:'0 auto 16px',display:'block',objectFit:'contain'}}/>
+          ) : (
+            <div style={{width:56,height:56,background:'var(--surface-2)',borderRadius:12,margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📦</div>
+          )}
           <div className="login-brand" style={{textAlign:'center'}}>{t('orderEntry')}</div>
-          <div className="login-sub" style={{textAlign:'center'}}>Choices For You{location?` · ${location}`:''}</div>
+          <div className="login-sub" style={{textAlign:'center'}}>{companyName}{location?` · ${location}`:''}</div>
           <div className="field" style={{marginTop:20}}>
             <label className="label">{t('pin')}</label>
             <input type="password" inputMode="numeric" value={pin} autoFocus
@@ -1225,12 +1246,18 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+          <a href="/">
+            {logoUrl ? (
+              <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain'}}/>
+            ) : (
+              <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📦</div>
+            )}
+          </a>
           <div><div className="header-title">{worker?.name}</div>
             <div className="header-sub">{t('orderEntry')}{location?` · ${location}`:''}</div></div>
         </div>
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
-          <button className="btn btn-sm" onClick={()=>window.location.href='/'} title="Back to home">🏠</button>
+          <button className="btn btn-sm" onClick={()=>window.location.href='/app'} title="Back to home">🏠</button>
           <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           <button className="btn btn-sm" onClick={()=>goTo('earnings')}>{t('earnings')}</button>
           <a href={`/worker-settings?id=${worker?.id || ''}&name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
@@ -1346,7 +1373,13 @@ function FieldFastInner() {
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
         <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+            <a href="/">
+              {logoUrl ? (
+                <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain'}}/>
+              ) : (
+                <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📦</div>
+              )}
+            </a>
             <div><div className="header-title">{o.name}</div>
               <div className="header-sub">{detailLoading?t('loading'):`${cart.length} ${cart.length===1?t('packLabel'):t('packsLabel')} · $${cartTotal.toFixed(2)}`}</div></div>
           </div>

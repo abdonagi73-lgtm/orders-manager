@@ -56,8 +56,8 @@ export interface SquareRow {
   'Option Value 2': string;
   'Default Vendor Name': string;
   'Default Vendor Code': string;
-  'New Quantity Choices For You': string;
-  'Stock Alert Enabled Choices For You': string;
+  'New Quantity': string;
+  'Stock Alert Enabled': string;
 }
 
 export function itemToSquareRows(
@@ -109,8 +109,8 @@ export function itemToSquareRows(
         'Option Value 2':                     size,
         'Default Vendor Name':                item.vendor,
         'Default Vendor Code':                String(vendorCode),
-        'New Quantity Choices For You':       String(variantQty),
-        'Stock Alert Enabled Choices For You':'N',
+        'New Quantity':                       String(variantQty),
+        'Stock Alert Enabled':                'N',
       });
     }
   }
