@@ -409,6 +409,7 @@ function OwnerPageInner() {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
+  const [company, setCompany] = useState<{name:string; logoUrl:string|null} | null>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order|null>(null);
@@ -502,6 +503,7 @@ function OwnerPageInner() {
         const mgr = managers.find((m:any)=>m.pin===pin);
         setLoggedInName(mgr?.name || 'Manager');
       }
+      if(sessionRes.company) setCompany(sessionRes.company);
       setAuthed(true); loadAll(); loadNotifs();
     } else setPinError(true);
   }
@@ -556,7 +558,7 @@ function OwnerPageInner() {
       });
 
       setMgmtResults(Object.entries(matchMap).map(([orderId,matches])=>({
-        orderId, matches:[...new Set(matches)]
+        orderId, matches:matches.filter((m, i) => matches.indexOf(m) === i)
       })));
     } finally { setMgmtSearching(false); }
   }
@@ -601,6 +603,7 @@ function OwnerPageInner() {
     if(sessionRes.registry) setRegistry(sessionRes.registry);
     if(sessionRes.workers) setWorkers(sessionRes.workers);
     if(sessionRes.managers) setManagers(sessionRes.managers);
+    if(sessionRes.company) setCompany(sessionRes.company);
   },[]);
 
   // Live search debounce
@@ -716,6 +719,12 @@ function OwnerPageInner() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [authed, orders]);
+
+  useEffect(() => {
+    fetch('/api/session').then(r=>r.json()).then(d=>{
+      if(d.company && d.company.name !== 'System Administration') setCompany(d.company);
+    });
+  }, []);
 
   async function selectOrder(order: Order) {
     setSelectedOrder(order);
@@ -904,10 +913,13 @@ function OwnerPageInner() {
     <main className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <Image src="/logo.png" alt="Choices For You" width={72} height={72}
-            style={{borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16}} />
+          {company?.logoUrl ? (
+            <img src={company.logoUrl} alt="logo" style={{width:72,height:72,borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16,objectFit:'contain'}} />
+          ) : (
+            <div style={{width:72,height:72,background:'var(--surface-2)',borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:32}}>📦</div>
+          )}
           <div className="login-brand">Orders Manager</div>
-          <div className="login-sub">Management · Choices For You</div>
+          <div className="login-sub">Management · {company?.name || 'Flowriq'}</div>
         </div>
         <div className="login-form">
           <div className="field">
@@ -950,12 +962,18 @@ function OwnerPageInner() {
         <div className="container-wide">
           <div className="header-inner" style={{height:'auto',minHeight:64,padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
             <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
-              <a href="/"><Image src="/logo.png" alt="logo" width={32} height={32} style={{borderRadius:8,flexShrink:0}} /></a>
+              <a href="/">
+                {company?.logoUrl ? (
+                  <img src={company.logoUrl} alt="logo" style={{width:32,height:32,borderRadius:8,flexShrink:0,objectFit:'contain'}} />
+                ) : (
+                  <div style={{width:32,height:32,background:'var(--surface-2)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>📦</div>
+                )}
+              </a>
               <div style={{minWidth:0}}>
                 <div className="header-title" style={{fontSize:16,fontWeight:700,letterSpacing:'-.01em',color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                   {loggedInName || 'Management'}
                 </div>
-                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>Orders Manager{location ? ' · '+location : ''}</div>
+                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>{company?.name || 'Flowriq'}{location ? ' · '+location : ''}</div>
               </div>
             </div>
             <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0,flexWrap:'wrap'}}>
@@ -1012,7 +1030,7 @@ function OwnerPageInner() {
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
                 ↻ Refresh
               </button>
-              <button className="btn btn-sm btn-secondary" onClick={()=>window.location.href='/'} style={{fontWeight:600}}>
+              <button className="btn btn-sm btn-secondary" onClick={()=>window.location.href='/app'} style={{fontWeight:600}}>
                 ← Back
               </button>
               <button className="btn btn-sm"
@@ -1741,7 +1759,7 @@ function OwnerPageInner() {
                   <div className="card">
                     <div className="card-title">🏢 Business</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>These values affect exports and pricing calculations.</div>
-                    <div className="field"><label className="label">Business name</label><input type="text" placeholder="Choices For You" defaultValue="Choices For You"/></div>
+                    <div className="field"><label className="label">Business name</label><input type="text" placeholder={company?.name || 'Flowriq'} defaultValue={company?.name || 'Flowriq'}/></div>
                     <div className="field"><label className="label">Default currency</label>
                       <select style={{maxWidth:200}}>
                         <option value="usd">USD — US Dollar</option>
@@ -1919,7 +1937,7 @@ function OwnerPageInner() {
                         {label:'Total items',value:String(items.length)},
                         {label:'Active vendors',value:String(Object.keys(usage.vendors||{}).length)},
                         {label:'Workers',value:String(workers.length)},
-                        {label:'Built for',value:'Choices For You'},
+                        {label:'Built for',value:company?.name || 'Flowriq'},
                         {label:'Copyright',value:'© '+new Date().getFullYear()+' Abdo Alasaadi'},
                       ].map(({label,value})=>(
                         <div key={label} style={{background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>

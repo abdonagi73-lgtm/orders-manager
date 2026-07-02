@@ -115,6 +115,7 @@ function WorkerSettingsInner(){
   const [theme, setTheme] = useState<'light'|'dark'|'system'>('light');
   const [photoQuality, setPhotoQuality] = useState<'high'|'medium'|'low'>('high');
   const [currency, setCurrency] = useState<'usd'|'try'>('usd');
+  const [companyName, setCompanyName] = useState('Flowriq');
 
   // Data entry toggles
   const [keepVendor, setKeepVendor] = useState(true);
@@ -153,6 +154,12 @@ function WorkerSettingsInner(){
     const dm = localStorage.getItem('darkMode_fieldfast');
     if(dm==='true') setTheme('dark');
   },[workerId]);
+
+  useEffect(() => {
+    fetch('/api/session').then(r=>r.json()).then(d=>{
+      if(d.company && d.company.name !== 'System Administration') setCompanyName(d.company.name);
+    });
+  }, []);
 
   function applyTheme(t:'light'|'dark'|'system'){
     setTheme(t);
@@ -335,23 +342,23 @@ function WorkerSettingsInner(){
 
         {/* ABOUT */}
         <Section icon="ℹ️" title={t.about}>
-          <SettingsRow label={t.version} desc="Orders Manager — Choices For You">
+          <SettingsRow label={t.version} desc={`Orders Manager — ${companyName}`}>
             <span style={{fontSize:12,fontFamily:'monospace',color:'var(--text-3)',fontWeight:600}}>{APP_VERSION}</span>
           </SettingsRow>
           <div style={{padding:'10px 0',borderTop:'1px solid var(--border)'}}>
             <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{t.privacy}</div>
             <div style={{fontSize:12,color:'var(--text-3)',lineHeight:1.7}}>
-              <p>Orders Manager is a private business tool used exclusively by Choices For You employees.</p>
-              <p style={{marginTop:8}}>All order data (vendor names, item codes, prices, photos) is stored securely in a private Google Sheet accessible only to authorized staff.</p>
+              <p>Orders Manager is a private business tool used exclusively by {companyName} employees.</p>
+              <p style={{marginTop:8}}>All order data (vendor names, item codes, prices, photos) is stored securely in a private local database schema isolated by brand workspace.</p>
               <p style={{marginTop:8}}>No personal data is shared with third parties. Photos you take are compressed and stored only for order review purposes.</p>
               <p style={{marginTop:8}}>Your PIN is used for authentication only and is not stored in plain text in any external service.</p>
-              <p style={{marginTop:8}}>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</p>
+              <p style={{marginTop:8}}>© {new Date().getFullYear()} Flowriq. All rights reserved.</p>
             </div>
           </div>
         </Section>
 
         <div style={{textAlign:'center',fontSize:11,color:'var(--text-4)',marginTop:20}}>
-          {APP_VERSION} · © {new Date().getFullYear()} Abdo Alasaadi
+          {APP_VERSION} · © {new Date().getFullYear()} Flowriq
         </div>
       </div>
     </div>
