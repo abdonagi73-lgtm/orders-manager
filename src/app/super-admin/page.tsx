@@ -332,8 +332,20 @@ export default function SuperAdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#060A13] text-[#E0E6ED] font-sans flex items-center justify-center p-6">
+      <div className="sa-lock-container">
         <style>{`
+          .sa-lock-container {
+            min-height: 100vh;
+            background: #060A13;
+            color: #E0E6ED;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+            width: 100%;
+          }
           .sa-lock-card { width:100%; max-width:400px; background:#0A1120; border:1px solid #1E2E4F; border-radius:20px; padding:40px 32px; box-shadow: 0 24px 80px rgba(0,0,0,.6); text-align:center; }
           .sa-lock-title { font-size:18px; font-weight:900; letter-spacing:-.02em; margin-top:16px; text-transform:uppercase; }
           .sa-lock-sub { font-size:10px; color:#3B82F6; font-family:monospace; tracking-widest: .08em; margin-top:4px; text-transform:uppercase; }
