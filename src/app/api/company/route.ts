@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/db/db';
+import { companies } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { decryptSession } from '@/lib/auth';
-import { getDb } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,14 +13,14 @@ export async function POST(req: NextRequest) {
     if (!session?.companyId) return NextResponse.json({ error: 'No company context' }, { status: 401 });
 
     const { name, logoUrl } = await req.json();
-    if (!name || typeof name !== 'string') return NextResponse.json({ error: 'Business name is required' }, { status: 400 });
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return NextResponse.json({ error: 'Business name is required' }, { status: 400 });
+    }
 
-    const db = await getDb();
-
-    await db.run(
-      `UPDATE companies SET name = ?, logo_url = ? WHERE id = ?`,
-      [name.trim(), logoUrl || null, session.companyId]
-    );
+    await db
+      .update(companies)
+      .set({ name: name.trim(), logo_url: logoUrl?.trim() || null })
+      .where(eq(companies.id, session.companyId));
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {

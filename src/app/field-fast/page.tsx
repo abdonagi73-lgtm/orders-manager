@@ -729,7 +729,7 @@ function FieldFastInner() {
       }
       // 3. Auto-auth: if already signed in as worker via /app email login, skip the PIN screen
       if(!savedWorker && d.user && d.user.role === 'worker') {
-        const autoWorker = { id: d.user.id, name: d.user.name, companyName: d.company?.name || '', logoUrl: d.company?.logoUrl || null };
+        const autoWorker: Worker = { id: d.user.id, name: d.user.name, pin: '' };
         setWorker(autoWorker);
         sessionStorage.setItem('ff_worker', JSON.stringify(autoWorker));
         sessionStorage.setItem('ff_screen', 'orders');
