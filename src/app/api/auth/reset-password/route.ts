@@ -3,7 +3,7 @@ import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
-import { resetCodes } from '../forgot-password/route';
+import { resetCodes } from '@/lib/resetCodes';
 
 export async function POST(req: NextRequest) {
   try {

@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users } from '@/db/schema';
-import { eq, sql } from 'drizzle-orm';
-
-// In-memory store for reset codes (valid for 15 minutes)
-const resetCodes = new Map<string, { code: string; expires: number }>();
-
-export { resetCodes };
+import { sql } from 'drizzle-orm';
+import { resetCodes } from '@/lib/resetCodes';
 
 export async function POST(req: NextRequest) {
   try {
