@@ -57,6 +57,12 @@ export default function SuperAdminPage() {
   // Active Navigation Tab
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [pin, setPin] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+
   // Core Platform Data State
   const [companies, setCompanies] = useState<Company[]>([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
@@ -141,9 +147,59 @@ export default function SuperAdminPage() {
     }
   };
 
+  // Check auth on load
   useEffect(() => {
-    loadPlatformData();
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/session");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user?.role === "super_admin") {
+            setIsAuthenticated(true);
+            loadPlatformData();
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Auth check failed", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkAuth();
   }, []);
+
+  // Handle PIN entry login
+  const handlePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length !== 4 || isNaN(Number(pin))) {
+      setAuthError("PIN MUST BE EXACTLY 4 DIGITS");
+      return;
+    }
+    setAuthSubmitting(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "super-admin-user", pin }),
+      });
+      const data = await res.json();
+      if (res.ok && data.role === "super_admin") {
+        setIsAuthenticated(true);
+        setPin("");
+        setLoading(true);
+        loadPlatformData();
+      } else {
+        setAuthError(data.error || "INVALID PLATFORM PASSCODE");
+        setPin("");
+      }
+    } catch {
+      setAuthError("SECURE CONNECTION TIMEOUT");
+    } finally {
+      setAuthSubmitting(false);
+    }
+  };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -270,6 +326,112 @@ export default function SuperAdminPage() {
     return (
       <div className="min-h-screen bg-[#060A13] flex items-center justify-center font-mono text-xs tracking-tighter text-[#3B82F6] animate-pulse">
         CONNECTING TO FLOWXIQ OPS HEADQUARTERS...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#060A13] text-[#E0E6ED] font-sans flex items-center justify-center p-6">
+        <style>{`
+          .sa-lock-card { width:100%; max-width:400px; background:#0A1120; border:1px solid #1E2E4F; border-radius:20px; padding:40px 32px; box-shadow: 0 24px 80px rgba(0,0,0,.6); text-align:center; }
+          .sa-lock-title { font-size:18px; font-weight:900; letter-spacing:-.02em; margin-top:16px; text-transform:uppercase; }
+          .sa-lock-sub { font-size:10px; color:#3B82F6; font-family:monospace; tracking-widest: .08em; margin-top:4px; text-transform:uppercase; }
+          .sa-pin-display { display:flex; justify-content:center; gap:16px; margin:24px 0; }
+          .sa-pin-dot { width:14px; height:14px; border-radius:50%; border:2px solid #1E2E4F; transition:all .15s; }
+          .sa-pin-dot.filled { background:#3B82F6; border-color:#3B82F6; box-shadow:0 0 10px rgba(59,130,246,.5); }
+          .sa-lock-logo { width:52px; height:52px; border-radius:12px; border:1px solid #1E2E4F; background:#060A13; padding:6px; margin:0 auto; object-fit:contain; }
+          .sa-keypad { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:20px; }
+          .sa-key { background:rgba(255,255,255,.02); border:1px solid #1E2E4F; border-radius:12px; padding:16px; font-size:18px; font-weight:700; cursor:pointer; color:#FFF; font-family:inherit; transition:all .1s; aspect-ratio:1; display:flex; align-items:center; justify-content:center; }
+          .sa-key:hover { background:rgba(59,130,246,.08); border-color:#3B82F6; }
+          .sa-key:active { transform:scale(.95); }
+          .sa-key.empty { background:transparent; border:none; cursor:default; }
+          .sa-key.back { font-size:15px; color:#64748B; }
+          .sa-lock-error { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); text-align:center; padding:10px; border-radius:8px; color:#FCA5A5; font-size:12px; font-family:monospace; margin-bottom:16px; }
+        `}</style>
+        <div className="sa-lock-card">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-flowriq.png" alt="Flowxiq" className="sa-lock-logo" />
+          <h2 className="sa-lock-title">OPERATIONS COMMAND LOCK</h2>
+          <div className="sa-lock-sub">SUPER ADMIN SECURITY GATE</div>
+
+          <div className="sa-pin-display">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className={`sa-pin-dot${i < pin.length ? " filled" : ""}`} />
+            ))}
+          </div>
+
+          {authError && <div className="sa-lock-error">{authError}</div>}
+
+          <form onSubmit={handlePinSubmit}>
+            <input
+              type="password"
+              maxLength={4}
+              value={pin}
+              readOnly
+              className="sr-only"
+            />
+            <div className="sa-keypad">
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map((k, idx) => {
+                if (k === "") return <div key={idx} className="sa-key empty" />;
+                if (k === "⌫") {
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className="sa-key back"
+                      onClick={() => {
+                        setPin((p) => p.slice(0, -1));
+                        setAuthError("");
+                      }}
+                    >
+                      ⌫
+                    </button>
+                  );
+                }
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="sa-key"
+                    onClick={async () => {
+                      if (pin.length >= 4) return;
+                      const nextPin = pin + k;
+                      setPin(nextPin);
+                      setAuthError("");
+                      if (nextPin.length === 4) {
+                        setAuthSubmitting(true);
+                        try {
+                          const res = await fetch("/api/auth/login", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ userId: "super-admin-user", pin: nextPin }),
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.role === "super_admin") {
+                            setIsAuthenticated(true);
+                            setPin("");
+                            setLoading(true);
+                            loadPlatformData();
+                          } else {
+                            setAuthError(data.error || "INVALID PLATFORM PASSCODE");
+                            setPin("");
+                          }
+                        } catch {
+                          setAuthError("SECURE CONNECTION TIMEOUT");
+                        } finally {
+                          setAuthSubmitting(false);
+                        }
+                      }
+                    }}
+                  >
+                    {k}
+                  </button>
+                );
+              })}
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
