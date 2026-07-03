@@ -13,6 +13,7 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   company_id: text('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
   name: text('name').notNull(),
+  email: text('email'),
   pin_hash: text('pin_hash').notNull(),
   role: text('role').default('worker').notNull(),
 });
