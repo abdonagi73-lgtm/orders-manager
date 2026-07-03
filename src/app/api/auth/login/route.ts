@@ -33,7 +33,10 @@ export async function GET(request: Request) {
 // POST: Authenticate user globally by Email or User ID and create session
 export async function POST(request: Request) {
   try {
-    const { loginInput, password, selectedUserId } = await request.json();
+    const body = await request.json();
+    const loginInput = body.loginInput || body.userId;
+    const password = body.password || body.pin;
+    const selectedUserId = body.selectedUserId;
 
     if (!loginInput || !password) {
       return NextResponse.json({ error: 'Email/Username and Password are required' }, { status: 400 });
