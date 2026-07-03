@@ -513,14 +513,14 @@ export default function SuperAdminPage() {
         </aside>
 
         {/* Console Workspace Workspace */}
-        <main className="flex-1 overflow-y-auto p-6 bg-[#060A13]">
+        <main className="hq-main-content">
 
           {/* ──────────────────────────────────────────────────────── */}
           {/* TAB: EXECUTIVE DASHBOARD */}
           {/* ──────────────────────────────────────────────────────── */}
           {activeTab === "dashboard" && (
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
+            <div className="hq-flex-col" style={{gap: "24px"}}>
+              <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
                 <div>
                   <h2 className="text-xl font-bold text-white tracking-tight">Executive Dashboard</h2>
                   <p className="text-xs text-[#8A9CB6]">Real-time operational summary across all systems.</p>
@@ -560,34 +560,34 @@ export default function SuperAdminPage() {
               </div>
 
               {/* Layout grid for Platform Health + Actions */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="hq-dashboard-grid">
                 {/* Left: Quick Actions */}
-                <div className="hq-card lg:col-span-1 flex flex-col gap-4">
+                <div className="hq-card hq-flex-col" style={{gap: "16px"}}>
                   <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Quick Operations</h3>
-                  <div className="flex flex-col gap-2">
-                    <button onClick={() => setActiveTab("requests")} className="flex items-center justify-between p-3 bg-[#0B1426] hover:bg-[#16294C] border border-[#1E2E4F] rounded-lg text-left transition-all text-xs font-mono">
+                  <div className="hq-flex-col" style={{gap: "10px"}}>
+                    <button onClick={() => setActiveTab("requests")} className="hq-action-btn">
                       <span>Review Pending Requests</span>
-                      <span className="text-[#3B82F6] font-bold">&rarr;</span>
+                      <span style={{color: "#3B82F6", fontWeight: "bold"}}>&rarr;</span>
                     </button>
-                    <button onClick={() => setActiveTab("provision")} className="flex items-center justify-between p-3 bg-[#0B1426] hover:bg-[#16294C] border border-[#1E2E4F] rounded-lg text-left transition-all text-xs font-mono">
+                    <button onClick={() => setActiveTab("provision")} className="hq-action-btn">
                       <span>Provision Workspace</span>
-                      <span className="text-[#3B82F6] font-bold">&rarr;</span>
+                      <span style={{color: "#3B82F6", fontWeight: "bold"}}>&rarr;</span>
                     </button>
-                    <button onClick={() => setActiveTab("monitoring")} className="flex items-center justify-between p-3 bg-[#0B1426] hover:bg-[#16294C] border border-[#1E2E4F] rounded-lg text-left transition-all text-xs font-mono">
+                    <button onClick={() => setActiveTab("monitoring")} className="hq-action-btn">
                       <span>Check Systems Health</span>
-                      <span className="text-[#3B82F6] font-bold">&rarr;</span>
+                      <span style={{color: "#3B82F6", fontWeight: "bold"}}>&rarr;</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Right: Live activity logs */}
-                <div className="hq-card lg:col-span-2 flex flex-col gap-4">
+                <div className="hq-card hq-flex-col" style={{gap: "16px"}}>
                   <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Headquarters Activity Feed</h3>
-                  <div className="flex flex-col gap-3">
+                  <div className="hq-flex-col" style={{gap: "10px"}}>
                     {auditLogs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between p-3 bg-[#0B1426] border border-[#16223F] rounded-lg text-xs font-mono">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${log.status === "success" ? "bg-[#10B981]" : "bg-[#EF4444]"}`} />
+                      <div key={log.id} className="hq-feed-item">
+                        <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
+                          <span className={`hq-feed-dot ${log.status === "success" ? "badge-active" : "badge-suspended"}`} style={{background: log.status === "success" ? "#10B981" : "#EF4444"}} />
                           <span className="font-bold text-white">{log.action}</span>
                           <span className="text-[#8A9CB6]">by {log.user}</span>
                         </div>
