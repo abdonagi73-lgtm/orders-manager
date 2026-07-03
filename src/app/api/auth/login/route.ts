@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, companies } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { encryptSession } from '@/lib/auth';
 import * as bcrypt from 'bcryptjs';
 
@@ -30,16 +30,64 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Authenticate user via PIN code and create session
+// POST: Authenticate user globally by Email or User ID and create session
 export async function POST(request: Request) {
   try {
-    const { userId, pin } = await request.json();
+    const { loginInput, password, selectedUserId } = await request.json();
 
-    if (!userId || !pin) {
-      return NextResponse.json({ error: 'User ID and PIN are required' }, { status: 400 });
+    if (!loginInput || !password) {
+      return NextResponse.json({ error: 'Email/Username and Password are required' }, { status: 400 });
     }
 
-    // Load user along with company config
+    // 1. If a specific userId was selected (from a multi-tenant choice list)
+    if (selectedUserId) {
+      const results = await db
+        .select({
+          user: users,
+          company: companies,
+        })
+        .from(users)
+        .innerJoin(companies, eq(users.company_id, companies.id))
+        .where(eq(users.id, selectedUserId));
+
+      if (results.length === 0) {
+        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      }
+
+      const { user, company } = results[0];
+
+      if (company.status !== 'active') {
+        return NextResponse.json({ error: 'Subscription suspended. Contact support.' }, { status: 403 });
+      }
+
+      const match = bcrypt.compareSync(password, user.pin_hash);
+      if (!match) {
+        return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
+      }
+
+      // Create session
+      const token = await encryptSession({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        companyId: company.id,
+        companyName: company.name,
+        currency: company.currency,
+        commissionRate: company.commission_rate,
+      });
+
+      const response = NextResponse.json({ success: true, role: user.role });
+      response.cookies.set('session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24,
+        path: '/',
+      });
+      return response;
+    }
+
+    // 2. Default: Look up matching profiles by email, name, or ID
     const results = await db
       .select({
         user: users,
@@ -47,51 +95,69 @@ export async function POST(request: Request) {
       })
       .from(users)
       .innerJoin(companies, eq(users.company_id, companies.id))
-      .where(eq(users.id, userId));
+      .where(
+        or(
+          eq(users.email, loginInput.trim().toLowerCase()),
+          eq(users.id, loginInput.trim()),
+          eq(users.name, loginInput.trim())
+        )
+      );
 
     if (results.length === 0) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    const { user, company } = results[0];
+    // 3. Filter valid password matches
+    const validMatches = results.filter((item) =>
+      bcrypt.compareSync(password, item.user.pin_hash)
+    );
 
-    // Check company status
-    if (company.status !== 'active') {
-      return NextResponse.json({ error: 'Subscription suspended. Contact support.' }, { status: 403 });
+    if (validMatches.length === 0) {
+      return NextResponse.json({ error: 'Incorrect security credentials' }, { status: 401 });
     }
 
-    // Verify PIN passcode
-    const match = bcrypt.compareSync(pin, user.pin_hash);
-    if (!match) {
-      return NextResponse.json({ error: 'Incorrect security PIN' }, { status: 401 });
+    // 4. If exactly one matching workspace
+    if (validMatches.length === 1) {
+      const { user, company } = validMatches[0];
+
+      if (company.status !== 'active') {
+        return NextResponse.json({ error: 'Subscription suspended. Contact support.' }, { status: 403 });
+      }
+
+      // Create session
+      const token = await encryptSession({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        companyId: company.id,
+        companyName: company.name,
+        currency: company.currency,
+        commissionRate: company.commission_rate,
+      });
+
+      const response = NextResponse.json({ success: true, role: user.role });
+      response.cookies.set('session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24,
+        path: '/',
+      });
+      return response;
     }
 
-    // Encrypt session context
-    const token = await encryptSession({
-      id: user.id,
-      name: user.name,
-      role: user.role,
-      companyId: company.id,
-      companyName: company.name,
-      currency: company.currency,
-      commissionRate: company.commission_rate,
-    });
+    // 5. Multi-tenant: Return list of matching workspaces
+    const workspaces = validMatches.map((item) => ({
+      companyId: item.company.id,
+      companyName: item.company.name,
+      userId: item.user.id,
+      role: item.user.role,
+    }));
 
-    const response = NextResponse.json({
-      success: true,
-      role: user.role,
+    return NextResponse.json({
+      selectWorkspace: true,
+      workspaces,
     });
-
-    // Set cookie
-    response.cookies.set('session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
-      path: '/',
-    });
-
-    return response;
   } catch (error) {
     return NextResponse.json({ error: 'Internal login error' }, { status: 500 });
   }

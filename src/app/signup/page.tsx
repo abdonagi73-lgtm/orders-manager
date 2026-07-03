@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [currency, setCurrency] = useState("USD");
   const [commissionRate, setCommissionRate] = useState("3.0");
   const [adminName, setAdminName] = useState("");
+  const [adminEmail, setAdminEmail] = useState(""); // Added email state
   const [adminPin, setAdminPin] = useState(""); // Alphanumeric password now
 
   const [loading, setLoading] = useState(false);
@@ -21,8 +22,8 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !adminName || !adminPin) {
-      setErrorMsg("COMPANY NAME, ADMIN NAME, AND PASSWORD ARE REQUIRED");
+    if (!companyName || !adminName || !adminPin || !adminEmail) {
+      setErrorMsg("COMPANY NAME, ADMIN NAME, EMAIL, AND PASSWORD ARE REQUIRED");
       return;
     }
     if (adminPin.length < 4) {
@@ -43,6 +44,7 @@ export default function SignupPage() {
           currency,
           commissionRate: parseFloat(commissionRate) / 100,
           adminName,
+          adminEmail, // Added parameter
           adminPin,
         }),
       });
@@ -294,6 +296,18 @@ export default function SignupPage() {
               value={adminName}
               onChange={(e) => setAdminName(e.target.value)}
               placeholder="e.g. John Doe"
+              className="su-input"
+            />
+          </div>
+
+          <div className="su-group">
+            <label className="su-label">Administrator Email *</label>
+            <input
+              type="email"
+              required
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              placeholder="e.g. john@company.com"
               className="su-input"
             />
           </div>

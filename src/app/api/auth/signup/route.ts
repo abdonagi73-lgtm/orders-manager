@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
       commissionRate,
       adminName,
       adminPin,
+      adminEmail, // Added email parameter
       // Optional: from onboarding wizard
       workers = [],
       vendors: vendorList = [],
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       id: adminId,
       company_id: companyId,
       name: adminName.trim(),
+      email: adminEmail ? String(adminEmail).trim().toLowerCase() : null,
       pin_hash: pinHash,
       role: 'admin',
     });
