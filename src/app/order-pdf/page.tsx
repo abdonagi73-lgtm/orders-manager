@@ -8,11 +8,18 @@ function safeArr(v:any):string[] {
   try { const p=JSON.parse(v||'[]'); return Array.isArray(p)?p.map(String):[]; } catch { return []; }
 }
 
+interface CompanyInfo {
+  name: string;
+  logoUrl: string | null;
+  currency: string;
+}
+
 function PDFInner() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const [order, setOrder] = useState<Order|null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -21,13 +28,17 @@ function PDFInner() {
     Promise.all([
       fetch('/api/orders').then(r=>r.json()),
       fetch(`/api/items?orderId=${orderId}`).then(r=>r.json()),
-    ]).then(([od, id])=>{
+      fetch('/api/session').then(r=>r.json()),
+    ]).then(([od, id, sess])=>{
       const found = (od.orders||[]).find((o:Order)=>o.id===orderId);
       if(!found){ setError('Order not found'); setLoading(false); return; }
       setOrder(found);
       setItems((id.items||[]).map((i:any)=>({
         ...i, colors:safeArr(i.colors), sizes:safeArr(i.sizes)
       })));
+      if (sess.company) {
+        setCompany(sess.company);
+      }
       setLoading(false);
       setTimeout(()=>window.print(), 800);
     }).catch(e=>{ setError(e.message); setLoading(false); });
@@ -45,7 +56,9 @@ function PDFInner() {
   const totalOrderCost = parseFloat((purchaseValue+shipping+commission).toFixed(2));
   const totalPacks = items.length;
   const totalVariants = items.reduce((s,i)=>s+i.qty, 0);
-  const docRef = `CFY-${order.id.slice(0,8).toUpperCase()}`;
+  
+  const prefix = company?.name ? company.name.split(/\s+/).map(w=>w[0]).join('').toUpperCase().replace(/[^A-Z]/g, '') : 'PO';
+  const docRef = `${prefix || 'PO'}-${order.id.slice(0,8).toUpperCase()}`;
   const generatedDate = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const generatedTime = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
@@ -78,10 +91,10 @@ function PDFInner() {
           background: #000; border-radius: 8px; padding: 4px;
         }
         .brand-name {
-          font-size: 22px; font-weight: 900; letter-spacing: -0.5px;
+          font-size: 20px; font-weight: 900; letter-spacing: -0.5px;
           color: #1A1A1A; line-height: 1.1;
         }
-        .brand-sub { font-size: 11px; color: #666; letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+        .brand-sub { font-size: 10px; color: #666; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
         .doc-meta { text-align: right; }
         .doc-type { font-size: 18px; font-weight: 800; color: #1A1A1A; letter-spacing: -0.3px; }
         .doc-ref { font-size: 13px; font-weight: 700; color: #1A5C3A; margin-top: 4px; font-family: 'Courier New', monospace; }
@@ -99,74 +112,54 @@ function PDFInner() {
 
         /* ── ORDER INFO GRID ── */
         .info-grid {
-          display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
-          gap: 12px; margin-bottom: 20px;
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+          margin-bottom: 24px; background: #FAF9F6;
+          border: 1px solid #EAE6DF; border-radius: 8px; padding: 14px 18px;
         }
-        .info-cell { }
-        .info-label { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: #999; font-weight: 600; }
-        .info-value { font-size: 13px; font-weight: 700; color: #1A1A1A; margin-top: 2px; }
-        .info-value.green { color: #1A5C3A; }
+        .info-item { display: flex; flexDirection: column; }
+        .info-label { font-size: 9px; text-transform: uppercase; color: #777; letter-spacing: 0.5px; margin-bottom: 3px; }
+        .info-val { font-size: 12px; font-weight: 700; color: #222; }
 
-        /* ── SUMMARY TABLE ── */
-        .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-        .summary-table th {
-          background: #1A1A1A; color: #fff; padding: 7px 10px;
-          text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+        /* ── VENDORS SECTION ── */
+        .vendor-title {
+          font-size: 14px; font-weight: 800; letter-spacing: -0.2px;
+          padding: 6px 0; border-bottom: 2px solid #333; margin-top: 24px; margin-bottom: 10px;
+          display: flex; justify-content: space-between;
         }
-        .summary-table th:last-child, .summary-table td:last-child { text-align: right; }
-        .summary-table th:nth-child(2), .summary-table td:nth-child(2) { text-align: center; }
-        .summary-table th:nth-child(3), .summary-table td:nth-child(3) { text-align: center; }
-        .summary-table td { padding: 7px 10px; border-bottom: 1px solid #eee; font-size: 11px; }
-        .summary-table tr:last-child td { border-bottom: none; }
-        .summary-table tr:nth-child(even) td { background: #FAFAFA; }
-
-        /* ── VENDOR SECTIONS ── */
-        .vendor-block { margin-bottom: 20px; page-break-inside: avoid; }
-        .vendor-header {
-          display: flex; justify-content: space-between; align-items: center;
-          background: #1A1A1A; color: #fff;
-          padding: 7px 12px; border-radius: 4px 4px 0 0;
-        }
-        .vendor-name { font-weight: 800; font-size: 13px; letter-spacing: .02em; }
-        .vendor-stats { font-size: 10px; opacity: .85; display: flex; gap: 14px; }
-        .vendor-spend { font-weight: 700; font-size: 13px; }
+        .vendor-title-sub { font-size: 11px; font-weight: 500; color: #666; }
 
         /* ── ITEMS TABLE ── */
-        .items-table { width: 100%; border-collapse: collapse; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .items-table th {
-          background: #f5f5f3; padding: 6px 9px;
-          text-align: left; font-weight: 700; font-size: 9px;
-          text-transform: uppercase; letter-spacing: .06em; color: #555;
-          border-bottom: 1px solid #ddd;
+          background: #F0EFEA; padding: 7px 10px; font-size: 9px; font-weight: 700;
+          text-transform: uppercase; color: #444; border-bottom: 1px solid #DDD; text-align: left;
         }
-        .items-table th.r, .items-table td.r { text-align: right; }
-        .items-table th.c, .items-table td.c { text-align: center; }
-        .items-table td { padding: 6px 9px; border-bottom: 1px solid #eee; font-size: 10px; vertical-align: top; }
-        .items-table tr:last-child td { border-bottom: none; }
-        .code-cell { font-family: 'Courier New', monospace; font-weight: 700; font-size: 11px; color: #1A1A1A; }
-        .vendor-row-total td { background: #f0f5f2; font-weight: 700; color: #1A5C3A; font-size: 10px; }
+        .items-table td {
+          padding: 8px 10px; border-bottom: 1px solid #EEE; vertical-align: top;
+          font-size: 11px;
+        }
+        .item-code { font-family: monospace; font-weight: 700; font-size: 12px; }
+        .item-details { color: #555; margin-top: 2px; }
+        .item-notes { font-size: 10px; color: #D97706; font-style: italic; margin-top: 3px; }
 
-        /* ── TOTALS ── */
-        .totals-section {
-          margin-top: 24px; page-break-inside: avoid;
-          display: grid; grid-template-columns: 1fr 280px; gap: 20px;
+        /* ── SUMMARY SECTION ── */
+        .summary-wrap {
+          display: flex; justify-content: space-between; align-items: flex-start;
+          margin-top: 28px; padding-top: 20px; border-top: 1px dashed #CCC;
         }
-        .totals-notes { }
-        .notes-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #999; margin-bottom: 6px; }
-        .notes-box { border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; min-height: 60px; font-size: 10px; color: #aaa; }
-        .totals-box { }
-        .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; border-bottom: 1px solid #f0f0f0; }
-        .total-row:last-child { border-bottom: none; }
-        .total-row.grand { font-size: 14px; font-weight: 800; color: #1A5C3A; padding: 8px 0; border-top: 2px solid #1A1A1A; border-bottom: none; margin-top: 4px; }
+        .totals-box { width: 300px; }
+        .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
         .total-label { color: #555; }
-        .total-val { font-weight: 600; color: #1A1A1A; }
+        .total-val { font-weight: 600; text-align: right; }
+        .total-row.grand {
+          border-top: 2px solid #1A1A1A; font-weight: 900; font-size: 14px;
+          color: #1A1A1A; padding-top: 8px; margin-top: 6px;
+        }
 
         /* ── FOOTER ── */
         .doc-footer {
-          margin-top: 28px; padding-top: 12px;
-          border-top: 1px solid #e0e0e0;
-          display: flex; justify-content: space-between;
-          font-size: 9px; color: #bbb;
+          display: flex; justify-content: space-between; font-size: 9px; color: #888;
+          margin-top: 40px; padding-top: 14px; border-top: 1px solid #EEE;
         }
 
         /* ── PRINT BUTTON ── */
@@ -186,10 +179,14 @@ function PDFInner() {
         {/* ── DOCUMENT HEADER ── */}
         <div className="doc-header">
           <div className="logo-block">
-            <img src="/logo-choices.png" alt="Choices For You" className="logo-img"/>
+            {company?.logoUrl ? (
+              <img src={company.logoUrl} alt="logo" className="logo-img"/>
+            ) : (
+              <div style={{width: 64, height: 64, background: '#000', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#fff'}}>📦</div>
+            )}
             <div style={{marginLeft:12}}>
-              <div style={{fontSize:20,fontWeight:900,letterSpacing:-0.5,color:'#1A1A1A',lineHeight:1.1}}>CHOICES<br/>FOR YOU</div>
-              <div style={{fontSize:10,color:'#888',letterSpacing:'.08em',textTransform:'uppercase',marginTop:3}}>USA · Retail Fashion</div>
+              <div className="brand-name">{company?.name?.toUpperCase() || 'Flowxiq'}</div>
+              <div className="brand-sub">Orders Manager PO · {order.orderType === 'online' ? 'Online Store' : 'Store Buy'}</div>
             </div>
           </div>
           <div className="doc-meta">
@@ -198,155 +195,102 @@ function PDFInner() {
             <div style={{marginTop:6}}>
               <img src={`https://barcodeapi.org/api/128/${docRef}`} alt={docRef}
                 style={{height:40,maxWidth:180,display:'block'}}
-                onError={(e)=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
-              <div style={{fontSize:9,fontFamily:'monospace',color:'#999',marginTop:2,letterSpacing:'.1em'}}>{docRef}</div>
+                onError={(e)=>{ (e.target as HTMLElement).style.display = 'none'; }}/>
             </div>
-            <div className="doc-date">Generated: {generatedDate} at {generatedTime}</div>
-            <div style={{marginTop:6}}>
-              <span style={{
-                display:'inline-block', padding:'3px 10px', borderRadius:4,
-                fontSize:10, fontWeight:700,
-                background: order.status==='submitted'?'#E8F0FF':order.status==='imported'?'#E8F5EE':'#FFF8E8',
-                color: order.status==='submitted'?'#1A3A7A':order.status==='imported'?'#1A5C3A':'#7A5800',
-                border: `1px solid ${order.status==='submitted'?'#3366CC':order.status==='imported'?'#1A5C3A':'#D4A800'}`,
-              }}>
-                {order.status.toUpperCase()}
+            <div className="doc-ref">{docRef}</div>
+            <div className="doc-date">Date: {generatedDate} · {generatedTime}</div>
+          </div>
+        </div>
+
+        {/* ── STATUS BANNER ── */}
+        <div className={`status-banner status-${order.status}`}>
+          <span style={{fontSize:14,marginRight:6}}>
+            {order.status === 'open' ? '⏳' : order.status === 'submitted' ? '📥' : '✅'}
+          </span>
+          STATUS: {order.status.toUpperCase()}
+          {order.status === 'open' && ' — NOT SUBMITTED FOR REVIEW YET'}
+          {order.status === 'submitted' && ' — SUBMITTED & PENDING IMPORT'}
+          {order.status === 'imported' && ' — PROCESSED & IMPORTED INTO SQUARE'}
+        </div>
+
+        {/* ── ORDER INFO GRID ── */}
+        <div className="info-grid">
+          <div className="info-item">
+            <span className="info-label">Order name</span>
+            <span className="info-val" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{order.name}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Started by</span>
+            <span className="info-val">{order.workerName}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Packs</span>
+            <span className="info-val">{totalPacks}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Total units</span>
+            <span className="info-val">{totalVariants}</span>
+          </div>
+        </div>
+
+        {/* ── VENDORS & ITEMS ── */}
+        {Object.entries(byVendor).map(([vendor, vendorItems]) => (
+          <div key={vendor} className="vendor-section">
+            <div className="vendor-title">
+              <span>{vendor}</span>
+              <span className="vendor-title-sub">
+                {vendorItems.length} pack{vendorItems.length!==1?'s':''} · {vendorItems.reduce((s,i)=>s+i.qty,0)} units
               </span>
             </div>
-          </div>
-        </div>
-
-        {/* ── ORDER INFO ── */}
-        <div className="info-grid">
-          <div className="info-cell">
-            <div className="info-label">Order name</div>
-            <div className="info-value">{order.name}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Worker / Buyer</div>
-            <div className="info-value">{order.workerName}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Order date</div>
-            <div className="info-value">{order.startDate}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Order type</div>
-            <div className="info-value">{order.orderType==='online'?'Online':'Store'}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Total packs</div>
-            <div className="info-value">{totalPacks}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Total variants</div>
-            <div className="info-value">{totalVariants}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Vendors</div>
-            <div className="info-value">{Object.keys(byVendor).length}</div>
-          </div>
-          <div className="info-cell">
-            <div className="info-label">Purchase value</div>
-            <div className="info-value green">${purchaseValue.toFixed(2)}</div>
-          </div>
-        </div>
-
-        {/* ── VENDOR SUMMARY TABLE ── */}
-        <div style={{marginBottom:24}}>
-          <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'#999',marginBottom:6}}>Vendor Summary</div>
-          <table className="summary-table">
-            <thead>
-              <tr>
-                <th>Vendor</th>
-                <th className="c">Packs</th>
-                <th className="c">Variants</th>
-                <th className="r">Purchase total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(byVendor).map(([vendor,vitems])=>{
-                const vTotal=vitems.reduce((s,i)=>s+i.price*i.qty,0);
-                const vVariants=vitems.reduce((s,i)=>s+i.qty,0);
-                return (
-                  <tr key={vendor}>
-                    <td style={{fontWeight:700}}>{vendor}</td>
-                    <td style={{textAlign:'center'}}>{vitems.length}</td>
-                    <td style={{textAlign:'center'}}>{vVariants}</td>
-                    <td style={{textAlign:'right',fontWeight:700}}>${vTotal.toFixed(2)}</td>
+            <table className="items-table">
+              <thead>
+                <tr>
+                  <th style={{width:'15%'}}>Code</th>
+                  <th style={{width:'20%'}}>Category</th>
+                  <th style={{width:'30%'}}>Colors & Sizes</th>
+                  <th style={{width:'10%',textAlign:'right'}}>Qty</th>
+                  <th style={{width:'10%',textAlign:'right'}}>Cost</th>
+                  <th style={{width:'15%',textAlign:'right'}}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendorItems.map(item => (
+                  <tr key={item.id}>
+                    <td>
+                      <span className="item-code">{item.code}</span>
+                      {item.photo && (
+                        <img src={item.photo} alt="" style={{width:40,height:40,borderRadius:4,objectFit:'cover',display:'block',marginTop:6}}/>
+                      )}
+                    </td>
+                    <td>
+                      <div>{item.category}</div>
+                      {item.notes && <div className="item-notes">Note: {item.notes}</div>}
+                    </td>
+                    <td>
+                      <div className="item-details">
+                        <strong>Colors:</strong> {item.colors.join(', ')}
+                      </div>
+                      <div className="item-details" style={{marginTop:4}}>
+                        <strong>Sizes:</strong> {item.sizes.join(' / ')}
+                      </div>
+                    </td>
+                    <td style={{textAlign:'right',fontWeight:700}}>{item.qty}</td>
+                    <td style={{textAlign:'right'}}>${item.price.toFixed(2)}</td>
+                    <td style={{textAlign:'right',fontWeight:700,color:'#111'}}>${(item.price * item.qty).toFixed(2)}</td>
                   </tr>
-                );
-              })}
-              <tr style={{background:'#f0f5f2'}}>
-                <td style={{fontWeight:800,color:'#1A1A1A'}}>TOTAL</td>
-                <td style={{textAlign:'center',fontWeight:700}}>{totalPacks}</td>
-                <td style={{textAlign:'center',fontWeight:700}}>{totalVariants}</td>
-                <td style={{textAlign:'right',fontWeight:800,color:'#1A5C3A',fontSize:12}}>${purchaseValue.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
 
-        {/* ── ITEM DETAILS BY VENDOR ── */}
-        <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'#999',marginBottom:10}}>Item Details</div>
-        {Object.entries(byVendor).map(([vendor,vitems])=>{
-          const vTotal=vitems.reduce((s,i)=>s+i.price*i.qty,0);
-          const vVariants=vitems.reduce((s,i)=>s+i.qty,0);
-          return (
-            <div key={vendor} className="vendor-block">
-              <div className="vendor-header">
-                <div className="vendor-name">{vendor}</div>
-                <div className="vendor-stats">
-                  <span>{vitems.length} pack{vitems.length!==1?'s':''}</span>
-                  <span>{vVariants} variants</span>
-                </div>
-                <div className="vendor-spend">${vTotal.toFixed(2)}</div>
-              </div>
-              <table className="items-table">
-                <thead>
-                  <tr>
-                    <th style={{width:80}}>Code</th>
-                    <th>Category</th>
-                    <th>Colors</th>
-                    <th>Sizes</th>
-                    <th className="c" style={{width:55}}>Variants</th>
-                    <th className="r" style={{width:55}}>Unit $</th>
-                    <th className="r" style={{width:70}}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vitems.map((item,idx)=>(
-                    <tr key={item.id}>
-                      <td><span className="code-cell">{item.code}</span></td>
-                      <td>{item.category}</td>
-                      <td style={{maxWidth:120}}>{safeArr(item.colors).join(', ')}</td>
-                      <td style={{maxWidth:100}}>{safeArr(item.sizes).join(', ')}</td>
-                      <td className="c" style={{fontWeight:700}}>{item.qty}</td>
-                      <td className="r">${item.price.toFixed(2)}</td>
-                      <td className="r" style={{fontWeight:700}}>${(item.price*item.qty).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  <tr className="vendor-row-total">
-                    <td colSpan={4} style={{textAlign:'right',paddingRight:12}}>Vendor subtotal</td>
-                    <td className="c">{vVariants}</td>
-                    <td></td>
-                    <td className="r">${vTotal.toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          );
-        })}
-
-        {/* ── TOTALS + NOTES ── */}
-        <div className="totals-section">
-          <div className="totals-notes">
-            <div className="notes-title">Notes / Special instructions</div>
-            <div className="notes-box">
-              {/* space for handwritten notes */}
-            </div>
-            <div style={{marginTop:12,fontSize:10,color:'#999'}}>
-              <div>Document ref: <strong style={{color:'#1A1A1A',fontFamily:'monospace'}}>{docRef}</strong></div>
+        {/* ── SUMMARY SECTION ── */}
+        <div className="summary-wrap">
+          <div style={{flex:1,paddingRight:40}}>
+            <div style={{fontSize:10,fontWeight:700,color:'#555',textTransform:'uppercase',letterSpacing:0.5,marginBottom:6}}>DOCUMENT SUMMARY</div>
+            <div style={{color:'#666',lineHeight:1.6}}>
+              This purchase order document was generated dynamically by Flowxiq.
+              All prices shown are purchase costs as registered by the field worker.
               <div>Order ID: <span style={{fontFamily:'monospace',fontSize:9}}>{order.id}</span></div>
             </div>
           </div>
@@ -372,7 +316,7 @@ function PDFInner() {
 
         {/* ── FOOTER ── */}
         <div className="doc-footer">
-          <span>Choices For You · USA · Retail Fashion</span>
+          <span>{company?.name || 'Flowxiq'}</span>
           <span>Ref: {docRef} · Generated {generatedDate}</span>
           <span>© {new Date().getFullYear()} Abdo Alasaadi. All rights reserved.</span>
         </div>

@@ -42,14 +42,14 @@ export async function GET(req: NextRequest) {
 
       try {
         const colors: string[] = Array.isArray(colorsRaw) ? colorsRaw : JSON.parse(colorsRaw||'[]');
-        [...new Set(colors)].filter(Boolean).forEach(c => {
+        colors.filter((c, i) => colors.indexOf(c) === i && c).forEach(c => {
           counts.colors[c] = (counts.colors[c]||0) + 1;
         });
       } catch {}
 
       try {
         const sizes: string[] = Array.isArray(sizesRaw) ? sizesRaw : JSON.parse(sizesRaw||'[]');
-        [...new Set(sizes.map(String))].filter(Boolean).forEach(s => {
+        sizes.map(String).filter((s, i, arr) => arr.indexOf(s) === i && s).forEach(s => {
           counts.sizes[s] = (counts.sizes[s]||0) + 1;
         });
       } catch {}

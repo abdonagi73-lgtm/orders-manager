@@ -1,0 +1,27 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1783027377369,
+      "tag": "0000_woozy_rhodey",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1783027412419,
+      "tag": "0001_worried_scarlet_witch",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783027462744,
+      "tag": "0002_broad_doctor_octopus",
+      "breakpoints": true
+    }
+  ]
+}
