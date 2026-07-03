@@ -167,6 +167,33 @@ export default function AppLoginPage() {
           padding: 36px 32px;
           box-shadow: 0 24px 80px rgba(0,0,0,.5);
         }
+        .lp-input {
+          background: #080C14;
+          border: 1px solid #1A2F50;
+          color: #F0F4FF;
+          border-radius: 8px;
+          padding: 12px 14px;
+          font-size: 14px;
+          width: 100%;
+          box-sizing: border-box;
+          outline: none;
+          margin-bottom: 12px;
+          transition: border-color 0.15s;
+        }
+        .lp-input:focus { border-color: #3B82F6; }
+        .lp-btn {
+          width: 100%;
+          background: #3B82F6;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 8px;
+          padding: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .lp-btn:hover { background: #2563EB; }
         /* LOGO HEADER */
         .lp-header { text-align: center; margin-bottom: 32px; }
         .lp-logo {
@@ -408,42 +435,71 @@ export default function AppLoginPage() {
               <div className="pin-user">{selectedUser?.name}</div>
               <div className="pin-role">{selectedUser?.role}</div>
 
-              <div className="pin-display">
-                {[0,1,2,3].map(i => (
-                  <div key={i} className={`pin-dot${i < pin.length ? ' filled' : ''}`} />
-                ))}
-              </div>
+              {selectedUser?.role === 'worker' ? (
+                <>
+                  <div className="pin-display">
+                    {[0,1,2,3].map(i => (
+                      <div key={i} className={`pin-dot${i < pin.length ? ' filled' : ''}`} />
+                    ))}
+                  </div>
 
-              {error && <div className="lp-error">{error}</div>}
+                  {error && <div className="lp-error">{error}</div>}
 
-              {/* Hidden input for hardware keyboards */}
-              <input
-                ref={pinRef}
-                className="pin-input-hidden"
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pin}
-                onChange={e => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                  setPin(val);
-                  setError('');
-                  if (val.length === 4) submitLogin(val);
-                }}
-              />
+                  {/* Hidden input for hardware keyboards */}
+                  <input
+                    ref={pinRef}
+                    className="pin-input-hidden"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={pin}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setPin(val);
+                      setError('');
+                      if (val.length === 4) submitLogin(val);
+                    }}
+                  />
 
-              {/* Visual PIN pad */}
-              <div className="pin-pad">
-                {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
-                  k === '' ? (
-                    <div key={i} className="pin-key empty" />
-                  ) : k === '⌫' ? (
-                    <button key={i} className="pin-key del" onClick={handlePinDelete}>⌫</button>
-                  ) : (
-                    <button key={i} className="pin-key" onClick={() => handlePinDigit(k)}>{k}</button>
-                  )
-                ))}
-              </div>
+                  {/* Visual PIN pad */}
+                  <div className="pin-pad">
+                    {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
+                      k === '' ? (
+                        <div key={i} className="pin-key empty" />
+                      ) : k === '⌫' ? (
+                        <button key={i} className="pin-key del" onClick={handlePinDelete}>⌫</button>
+                      ) : (
+                        <button key={i} className="pin-key" onClick={() => handlePinDigit(k)}>{k}</button>
+                      )
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    submitLogin(pin);
+                  }}
+                  style={{ marginTop: 20 }}
+                >
+                  {error && <div className="lp-error">{error}</div>}
+                  <input
+                    ref={pinRef}
+                    type="password"
+                    value={pin}
+                    onChange={e => {
+                      setPin(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="Enter security password"
+                    className="lp-input"
+                    required
+                  />
+                  <button type="submit" className="lp-btn">
+                    Sign In
+                  </button>
+                </form>
+              )}
             </>
           )}
 
