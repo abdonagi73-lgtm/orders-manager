@@ -7,6 +7,25 @@ export const companies = sqliteTable('companies', {
   currency: text('currency').default('USD').notNull(),
   commission_rate: real('commission_rate').default(0).notNull(),
   status: text('status').default('active').notNull(),
+  industry: text('industry'),
+  business_type: text('business_type'),
+  country: text('country'),
+  state_province: text('state_province'),
+  city: text('city'),
+  timezone: text('timezone'),
+  language: text('language'),
+  website: text('website'),
+  phone: text('phone'),
+  email: text('email'),
+  tax_id: text('tax_id'),
+  plan: text('plan'),
+  billing_cycle: text('billing_cycle'),
+  max_users: integer('max_users'),
+  max_workers: integer('max_workers'),
+  storage_limit_gb: integer('storage_limit_gb'),
+  trial_expiration: text('trial_expiration'),
+  owner_name: text('owner_name'),
+  owner_phone: text('owner_phone'),
 });
 
 export const users = sqliteTable('users', {
@@ -16,6 +35,8 @@ export const users = sqliteTable('users', {
   email: text('email'),
   pin_hash: text('pin_hash').notNull(),
   role: text('role').default('worker').notNull(),
+  // false = first-time login; owner must set their permanent password before entering portal
+  is_activated: integer('is_activated', { mode: 'boolean' }).default(false).notNull(),
 });
 
 export const vendors = sqliteTable('vendors', {
