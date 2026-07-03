@@ -48,7 +48,8 @@ type Tab =
   | "integrations"
   | "marketing"
   | "security"
-  | "settings";
+  | "settings"
+  | "provision";
 
 export default function SuperAdminPage() {
   const router = useRouter();
