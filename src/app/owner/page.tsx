@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -956,7 +956,8 @@ function OwnerPageInner() {
               value={pin} onChange={e=>setPin(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&verifyPin()}
               className="login-pin-input" autoFocus/>
-            {pinError&&<div className="field-error">Incorrect PIN ' try again</div>}
+            {pinError&&<div className="field-error">Incorrect PIN &mdash; try again</div>}
+
           </div>
           <button className="btn btn-primary btn-lg btn-full"
             onClick={verifyPin} disabled={pinLoading}>

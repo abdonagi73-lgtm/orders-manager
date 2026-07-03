@@ -2,8 +2,8 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Flowxiq — Purchasing Workflow Software for Retail',
-  description: 'Flowxiq streamlines vendor purchasing for retail businesses. Capture items, approve orders, track commissions, and export to Square — all offline-capable.',
+  title: 'FlowXIQ — One-Click POS Integration for Retail Purchasing',
+  description: 'FlowXIQ connects your purchasing workflow directly to any POS system. Capture orders from the vendor floor and push to Square, Shopify, Clover, Lightspeed, or your own API — with a single click.',
 };
 
 export default function HomePage() {
@@ -273,17 +273,17 @@ export default function HomePage() {
         <div className="hero-grid" />
         <div className="hero-inner">
           <div className="hero-badge">
-            <span /> B2B Purchasing Operations Platform
+            <span /> Universal POS Integration &amp; Direct Data Entry
           </div>
           <h1>
-            The operating system for<br />
-            <em>retail purchasing workflows</em>
+            Push purchasing data to<br />
+            <em>any POS with one click</em>
           </h1>
           <p className="hero-sub">
-            Flowxiq gives your team a fast, offline-capable system to capture items at vendor warehouses, approve purchase orders, track commissions, and export directly to Square POS — all from a single platform.
+            FlowXIQ connects your vendor purchasing workflow directly to Square, Shopify, Clover, Lightspeed, WooCommerce, and virtually any POS system via direct API &mdash; no CSV exports, no manual re-entry, no errors.
           </p>
           <div className="hero-ctas">
-            <Link href="/request-access" className="cta-primary">Request Access →</Link>
+            <Link href="/request-access" className="cta-primary">Start Free Trial &rarr;</Link>
             <Link href="#workflow" className="cta-secondary">See How It Works</Link>
           </div>
 
@@ -390,19 +390,27 @@ export default function HomePage() {
       <section style={{padding:'80px 24px', background:'var(--mk-bg2)',borderTop:'1px solid var(--mk-border)',borderBottom:'1px solid var(--mk-border)'}} id="features">
         <div style={{maxWidth:1200,margin:'0 auto'}}>
           <span className="section-label">Platform Capabilities</span>
-          <h2 className="section-h">Built for the reality of retail buying</h2>
-          <p className="section-sub">Every feature was designed around an actual vendor purchasing workflow — not adapted from generic inventory software.</p>
+          <h2 className="section-h">Works with almost every POS &mdash; out of the box</h2>
+          <p className="section-sub">FlowXIQ sends your purchasing data directly to your POS system via native API or direct data entry. One click. No exports. No re-keying.</p>
+
+          {/* POS Logos row */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:12,justifyContent:'center',alignItems:'center',marginBottom:48,padding:'24px',background:'var(--mk-surface)',border:'1px solid var(--mk-border)',borderRadius:16}}>
+            {['Square','Shopify','Clover','Lightspeed','Vend','WooCommerce','QuickBooks','Revel','Toast','Custom API'].map(pos=>(
+              <span key={pos} style={{padding:'6px 16px',borderRadius:100,background:'var(--mk-surface2)',border:'1px solid var(--mk-border)',fontSize:13,fontWeight:600,color:'var(--mk-text2)'}}>{pos}</span>
+            ))}
+          </div>
+
           <div className="features-grid">
             {[
-              { icon:'📶', title:'Offline-First Mobile Entry', desc:'Workers capture items without internet. Data syncs automatically when connection is restored. No data loss.' },
-              { icon:'📸', title:'Photo Capture Per Item', desc:'Attach product photos directly to each line item. Managers see exactly what was purchased, not just a code.' },
-              { icon:'✅', title:'Item-Level Approval Flow', desc:'Approve or reject each item individually with notes. Workers see decisions in real-time on their device.' },
-              { icon:'📈', title:'Commission Tracking', desc:'Automatic worker commission calculation based on configurable rates. Export commission reports with one click.' },
-              { icon:'🔄', title:'Square POS Export', desc:'Generate Square-ready CSV files from approved orders. Eliminate manual data re-entry into your POS system.' },
-              { icon:'🏪', title:'Vendor Intelligence', desc:'Track purchase frequency, top categories, and spending per vendor over time. Make smarter sourcing decisions.' },
+              { icon:'&#128279;', title:'Direct POS API Integration', desc:'Push approved orders directly to Square, Shopify, Clover, Lightspeed, Vend, WooCommerce and more via native API. Items appear in your POS inventory instantly.' },
+              { icon:'&#9989;', title:'One-Click Data Entry', desc:'Select your POS system, click Send &mdash; FlowXIQ maps your order data to the exact format each POS expects and pushes it automatically. Zero manual work.' },
+              { icon:'&#128241;', title:'Offline-First Mobile Entry', desc:'Workers capture items at vendor warehouses without internet. Data syncs automatically. Fully offline-capable on any device.' },
+              { icon:'&#128248;', title:'Photo Capture Per Item', desc:'Attach product photos directly to each line item. Managers and POS systems see exactly what was purchased, not just a code.' },
+              { icon:'&#128200;', title:'Commission Tracking', desc:'Automatic worker commission calculation based on configurable rates. Commission reports exported with a single click.' },
+              { icon:'&#128203;', title:'Vendor Intelligence', desc:'Track purchase frequency, top categories, and spending per vendor over time. Make smarter sourcing decisions backed by real data.' },
             ].map(f => (
               <div className="feature-card" key={f.title}>
-                <div className="feature-icon">{f.icon}</div>
+                <div className="feature-icon" dangerouslySetInnerHTML={{__html:f.icon}} />
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
               </div>
@@ -415,60 +423,72 @@ export default function HomePage() {
       <section className="section" id="pricing" style={{textAlign:'center'}}>
         <span className="section-label">Pricing</span>
         <h2 className="section-h">Simple, transparent pricing</h2>
-        <p className="section-sub" style={{margin:'0 auto 56px'}}>Priced for real retail businesses. No per-seat surprises. Scale your team without scaling your bill.</p>
-        <div className="pricing-grid" style={{maxWidth:960,margin:'0 auto'}}>
+        <p className="section-sub" style={{margin:'0 auto 56px'}}>Start free for 30 days. No credit card required. Cancel anytime.</p>
+        <div className="pricing-grid" style={{maxWidth:820,margin:'0 auto'}}>
+
+          {/* FREE TRIAL */}
           <div className="price-card">
-            <div className="price-name">Starter</div>
-            <div className="price-amount">$49</div>
-            <div className="price-period">per month, billed monthly</div>
+            <div className="price-name">Free Trial</div>
+            <div className="price-amount">$0</div>
+            <div className="price-period">for your first 30 days</div>
             <ul className="price-features">
-              <li>Up to 5 workers</li>
-              <li>Unlimited orders</li>
-              <li>Photo capture</li>
-              <li>Square CSV export</li>
-              <li>Email support</li>
+              <li>1 worker included</li>
+              <li>Up to 5 orders</li>
+              <li>Up to 500 items per order</li>
+              <li>Direct POS API integration</li>
+              <li>One-click data entry</li>
+              <li>Full platform access</li>
             </ul>
-            <Link href="/request-access" className="price-cta ghost">Request Access</Link>
+            <Link href="/request-access" className="price-cta ghost">Start Free Trial</Link>
           </div>
+
+          {/* BUSINESS — featured */}
           <div className="price-card featured">
             <div className="price-badge">Most Popular</div>
-            <div className="price-name">Professional</div>
-            <div className="price-amount">$129</div>
-            <div className="price-period">per month, billed monthly</div>
+            <div className="price-name">Business</div>
+            <div className="price-amount">$23.99</div>
+            <div className="price-period">per business / month &mdash; after free trial</div>
             <ul className="price-features">
-              <li>Up to 20 workers</li>
+              <li>1 worker included</li>
               <li>Unlimited orders</li>
-              <li>Approval workflows</li>
-              <li>Commission tracking</li>
-              <li>Vendor analytics</li>
+              <li>Up to 500 items per order</li>
+              <li>Direct API to all supported POS</li>
+              <li>One-click POS data entry</li>
+              <li>Approval workflows &amp; commissions</li>
+              <li>Vendor analytics &amp; intelligence</li>
               <li>Priority support</li>
             </ul>
-            <Link href="/request-access" className="price-cta solid">Request Access</Link>
+            <Link href="/request-access" className="price-cta solid">Start Free Trial</Link>
           </div>
+
+          {/* ENTERPRISE */}
           <div className="price-card">
             <div className="price-name">Enterprise</div>
             <div className="price-amount">Custom</div>
             <div className="price-period">tailored for your operation</div>
             <ul className="price-features">
               <li>Unlimited workers</li>
+              <li>Unlimited orders &amp; items</li>
               <li>Multi-location support</li>
-              <li>Custom integrations</li>
+              <li>Custom POS integrations</li>
               <li>Dedicated onboarding</li>
               <li>SLA guarantee</li>
             </ul>
             <Link href="/request-access" className="price-cta ghost">Contact Us</Link>
           </div>
+
         </div>
+        <p style={{marginTop:24,fontSize:13,color:'var(--mk-text3)'}}>Prices are per business workspace. Add more workers anytime by upgrading. All plans include full POS integration access.</p>
       </section>
 
       {/* ── FINAL CTA ── */}
       <div style={{padding:'0 24px 96px',maxWidth:1200,margin:'0 auto'}}>
         <div className="cta-banner">
-          <h2>Ready to fix your purchasing workflow?</h2>
-          <p>Join retail businesses already using Flowxiq to cut order capture time by 70% and eliminate manual data entry entirely.</p>
+          <h2>Ready to sync purchasing to your POS?</h2>
+          <p>Join retail businesses that eliminated manual data re-entry and push orders to any POS with a single click. Start free for 30 days.</p>
           <div className="cta-banner-actions">
-            <Link href="/request-access" className="cta-primary">Request Access — It&apos;s Free to Apply</Link>
-            <Link href="/app" className="cta-secondary">Already have an account? Login →</Link>
+            <Link href="/request-access" className="cta-primary">Start Free Trial &mdash; No Card Required</Link>
+            <Link href="/app" className="cta-secondary">Already have an account? Login &rarr;</Link>
           </div>
         </div>
       </div>
