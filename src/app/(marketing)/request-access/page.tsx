@@ -36,11 +36,17 @@ export default function RequestAccessPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, num_workers: Number(form.num_workers) }),
       });
-      if (!res.ok) throw new Error('Server error');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus('error');
+        setError(data.error || `Server error (${res.status}). Please try again.`);
+        return;
+      }
       setStatus('success');
-    } catch {
+    } catch (err) {
       setStatus('error');
-      setError('Something went wrong. Please try again or reach out directly.');
+      setError('Connection error — make sure you are online and try again.');
+      console.error('[request-access]', err);
     }
   }
 
