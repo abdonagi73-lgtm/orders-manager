@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -7,7 +7,7 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
-// ΓöÇΓöÇ ExpandPanel: simple CSS expand, triggered by arrow button ΓöÇΓöÇ
+// -- ExpandPanel: simple CSS expand, triggered by arrow button --
 function ExpandPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
   return (
     <div style={{
@@ -72,10 +72,10 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
         <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_W,
           display:'flex',alignItems:'stretch',zIndex:1}}>
           {[
-            {label:'Edit',icon:'Γ£Ä',bg:'#F59E0B',fn:onEdit},
-            ...(order.status==='submitted'?[{label:'Import',icon:'Γ£ô',bg:'#16a34a',fn:onImport||onEdit}]:[]),
-            {label:'PDF',icon:'Γ¼ç',bg:'#3B82F6',fn:onPDF},
-            {label:'Delete',icon:'≡ƒùæ',bg:'#EF4444',fn:onDelete},
+            {label:'Edit',icon:'Edit',bg:'#F59E0B',fn:onEdit},
+            ...(order.status==='submitted'?[{label:'Import',icon:'&#10004;',bg:'#16a34a',fn:onImport||onEdit}]:[]),
+            {label:'PDF',icon:'&#128220;',bg:'#3B82F6',fn:onPDF},
+            {label:'Delete',icon:'&#128465;',bg:'#EF4444',fn:onDelete},
           ].map(({label,icon,bg,fn})=>(
             <button key={label} style={{flex:1,background:bg,color:'#fff',border:'none',cursor:'pointer',
               fontSize:10,fontWeight:700,display:'flex',flexDirection:'column',
@@ -105,22 +105,22 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <div style={{fontWeight:600,fontSize:15}}>{order.name}</div>
                   {order.orderType==='online'
-                    ? <span className="badge badge-info" style={{fontSize:10}}>≡ƒîÉ</span>
-                    : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)',fontSize:10}}>≡ƒÅ¬</span>}
+                    ? <span className="badge badge-info" style={{fontSize:10}}>&#127758;</span>
+                    : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)',fontSize:10}}>&#127978;</span>}
                 </div>
                 <div style={{fontSize:11,color:'var(--text-3)',marginTop:3}}>
-                  {order.workerName} ┬╖ {order.startDate} ┬╖ {order.itemCount} item{order.itemCount!==1?'s':''}
+                  {order.workerName} &middot; {order.startDate} &middot; {order.itemCount} item{order.itemCount!==1?'s':''}
                 </div>
                 <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
                   Purchase: <strong style={{color:'var(--text)'}}>${order.totalValue.toFixed(2)}</strong>
-                  {order.totalOrderCost>0&&<> ┬╖ <strong style={{color:'var(--green)'}}>Total: ${order.totalOrderCost.toFixed(2)}</strong></>}
+                  {order.totalOrderCost>0&&<> &middot; <strong style={{color:'var(--green)'}}>Total: ${order.totalOrderCost.toFixed(2)}</strong></>}
                 </div>
               </div>
               <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,flexShrink:0}}>
                 <span className={`badge ${order.status==='open'?'badge-pending':order.status==='submitted'?'badge-info':'badge-approved'}`}>
                   {order.status}
                 </span>
-                <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>ΓåÉ swipe</div>
+                <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>&larr; swipe</div>
               </div>
             </div>
           </div>
@@ -130,7 +130,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
               padding:'4px 0 2px',borderTop:'1px solid var(--border)',
               cursor:'pointer',color:'var(--text-4)',fontSize:11,gap:4}}>
             <span style={{fontSize:13,transition:'transform .25s',
-              display:'inline-block',transform:expanded?'rotate(180deg)':'rotate(0deg)'}}>Γû╛</span>
+              display:'inline-block',transform:expanded?'rotate(180deg)':'rotate(0deg)'}}>&#8897;</span>
             <span style={{fontSize:9,letterSpacing:'.05em',textTransform:'uppercase'}}>{expanded?'hide summary':'order summary'}</span>
           </div>
         </div>
@@ -176,7 +176,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
                 <button style={{background:'none',border:'none',cursor:'pointer',
                   fontSize:11,color:'var(--text-4)',display:'flex',alignItems:'center',gap:4,margin:'0 auto'}}
                   onClick={onToggleExpand}>
-                  <span style={{fontSize:14}}>Γû▓</span> collapse
+                  <span style={{fontSize:14}}>&#8963;</span> collapse
                 </button>
               </div>
             </>
@@ -188,7 +188,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
   );
 }
 
-// ΓöÇΓöÇ Swipeable item card for manager portal ΓöÇΓöÇ
+// -- Swipeable item card for manager portal --
 function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprove, onFlag, onEdit, onDelete }:{
   item:any; cost:number; retail:number; variants:number; dupeInOrder:boolean;
   onApprove:()=>void; onFlag:()=>void; onEdit:()=>void; onDelete:()=>void;
@@ -220,10 +220,10 @@ function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprov
       <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_W,
         display:'flex',alignItems:'stretch',zIndex:1}}>
         {[
-          {label:'Approve',icon:'Γ£ô',bg:'#16a34a',fn:onApprove},
-          {label:'Flag',icon:'ΓÜæ',bg:'#D97706',fn:onFlag},
-          {label:'Edit',icon:'Γ£Ä',bg:'#3B82F6',fn:onEdit},
-          {label:'Delete',icon:'≡ƒùæ',bg:'#EF4444',fn:onDelete},
+          {label:'Approve',icon:'&#10004;',bg:'#16a34a',fn:onApprove},
+          {label:'Flag',icon:'&#9888;',bg:'#D97706',fn:onFlag},
+          {label:'Edit',icon:'Edit',bg:'#3B82F6',fn:onEdit},
+          {label:'Delete',icon:'&#128465;',bg:'#EF4444',fn:onDelete},
         ].map(({label,icon,bg,fn})=>(
           <button key={label} style={{flex:1,background:bg,color:'#fff',border:'none',cursor:'pointer',
             fontSize:10,fontWeight:700,display:'flex',flexDirection:'column',
@@ -245,9 +245,9 @@ function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprov
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontWeight:700,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
-            <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>{item.category} ┬╖ {item.colors.join(', ')} ┬╖ {item.sizes.join('/')}</div>
-            <div style={{fontSize:11,color:'var(--text-2)'}}>Purchase: ${item.price} ┬╖ Qty: {item.qty}</div>
-            {dupeInOrder&&<div style={{fontSize:10,color:'var(--amber)',fontWeight:600}}>ΓÜá Duplicate</div>}
+            <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>{item.category} &middot; {item.colors.join(', ')} &middot; {item.sizes.join('/')}</div>
+            <div style={{fontSize:11,color:'var(--text-2)'}}>Purchase: ${item.price} &middot; Qty: {item.qty}</div>
+            {dupeInOrder&&<div style={{fontSize:10,color:'var(--amber)',fontWeight:600}}>&#9888; Duplicate</div>}
             {item.notes&&<div style={{fontSize:10,color:'var(--text-3)'}}>Note: {item.notes}</div>}
             {item.ownerNote&&<div style={{fontSize:10,color:'var(--amber)'}}>Owner: {item.ownerNote}</div>}
             <div style={{marginTop:6,display:'flex',gap:12,fontSize:11}}>
@@ -259,7 +259,7 @@ function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprov
           <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6,flexShrink:0}}>
             {item.photo&&<img src={item.photo} alt="" style={{width:44,height:44,borderRadius:6,objectFit:'cover'}}/>}
             <span className={`badge badge-${item.status}`}>{item.status}</span>
-            <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>ΓåÉ swipe</div>
+            <div style={{fontSize:8,color:'var(--text-4)',opacity:.5}}>&larr; swipe</div>
           </div>
         </div>
       </div>
@@ -300,8 +300,8 @@ function PriceRow({item, settings, onSave}: {
       borderLeft:`3px solid ${changed?'var(--amber)':'var(--border)'}`}}>
       <div style={{display:'flex',alignItems:'flex-start',gap:12,flexWrap:'wrap'}}>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:600}}>{item.vendor} ┬╖ <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
-          <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>{item.category} ┬╖ {item.colors?.join(', ')} ┬╖ {item.sizes?.join('/')}</div>
+          <div style={{fontWeight:600}}>{item.vendor} &middot; <span style={{fontFamily:'monospace',fontSize:13}}>{item.code}</span></div>
+          <div style={{fontSize:12,color:'var(--text-3)',marginTop:2}}>{item.category} &middot; {item.colors?.join(', ')} &middot; {item.sizes?.join('/')}</div>
           <div style={{fontSize:11,color:'var(--text-4)',marginTop:1}}>{qty} variants</div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,flexWrap:'wrap'}}>
@@ -444,7 +444,7 @@ function OwnerPageInner() {
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
-  // Settings tab state ΓÇö must live at component level (React hook rules)
+  // Settings tab state ' must live at component level (React hook rules)
   const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'experimental'|'about'>('business');
   const [catList, setCatList] = useState<string[]>([]);
   const [colorList, setColorList] = useState<string[]>([]);
@@ -774,20 +774,20 @@ function OwnerPageInner() {
     setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
     if(status==='approved') {
-      showSuccess('Γ£à', 'Item approved!', `${item.vendor} ┬╖ ${item.code} has been approved.`);
+      showSuccess('&#9989;', 'Item approved!', `${item.vendor} &middot; ${item.code} has been approved.`);
       fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({orderId:item.orderId,orderName:'',action:`Item approved: ${item.vendor} ┬╖ ${item.code}`,by:loggedInName})
+        body:JSON.stringify({orderId:item.orderId,orderName:'',action:`Item approved: ${item.vendor} &middot; ${item.code}`,by:loggedInName})
       }).catch(()=>{});
     }
-    else showToast('ΓÜæ Flagged');
+    else showToast('&#9888; Flagged');
   }
 
   async function deleteItem(id: string) {
-    showConfirmModal('≡ƒùæ∩╕Å', 'Remove item?', 'This item will be permanently deleted from the order.',
+    showConfirmModal('&#128465;', 'Remove item?', 'This item will be permanently deleted from the order.',
       'Yes, remove', async()=>{
         setItems(prev=>prev.filter(i=>i.id!==id));
         await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-        showSuccess('≡ƒùæ∩╕Å', 'Item removed', 'The item has been deleted.');
+        showSuccess('&#128465;', 'Item removed', 'The item has been deleted.');
       });
   }
 
@@ -802,18 +802,18 @@ function OwnerPageInner() {
     setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
     setEditModal(null);
-    showSuccess('Γ£Å∩╕Å', 'Item updated!', `${updated.vendor} ┬╖ ${updated.code} has been updated successfully.`);
+    showSuccess('Γ£Å', 'Item updated!', `${updated.vendor} &middot; ${updated.code} has been updated successfully.`);
   }
 
   async function deleteOrderHandler(order: Order) {
-    showConfirmModal('≡ƒùæ∩╕Å', 'Delete order?',
+    showConfirmModal('&#128465;', 'Delete order?',
       `"${order.name}" and all its items will be permanently deleted. This cannot be undone.`,
       'Yes, delete', async () => {
         await fetch('/api/orders', {method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({action:'delete', orderId: order.id})});
         setOrders(prev => prev.filter(o => o.id !== order.id));
         if(selectedOrder?.id === order.id) { setSelectedOrder(null); setItems([]); }
-        showSuccess('≡ƒùæ∩╕Å', 'Order deleted', `"${order.name}" has been permanently deleted.`);
+        showSuccess('&#128465;', 'Order deleted', `"${order.name}" has been permanently deleted.`);
       });
   }
 
@@ -833,7 +833,7 @@ function OwnerPageInner() {
     setOrders(prev=>prev.map(o=>o.id===orderId?updated:o));
     await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'update',order:updated})});
-    if(paid) showSuccess('≡ƒÆ░', 'Commission paid!', `Commission of $${updated.workerCommission.toFixed(2)} marked as paid for "${updated.name}".`);
+    if(paid) showSuccess('&#128176;', 'Commission paid!', `Commission of $${updated.workerCommission.toFixed(2)} marked as paid for "${updated.name}".`);
     else showToast('Commission marked unpaid');
   }
 
@@ -857,25 +857,25 @@ function OwnerPageInner() {
     const res2 = await fetch(`/api/items?orderId=${targetOrderId}`);
     const d2 = await res2.json();
     if(d2.items) setItems(d2.items);
-    showToast(`Γ£ô Copied ${copied} items`);
+    showToast(`&#10004; Copied ${copied} items`);
   }
 
   async function closeOrder(orderId: string) {
     const order = orders.find(o=>o.id===orderId);
-    showConfirmModal('Γ£ô', 'Mark as imported?',
+    showConfirmModal('&#10004;', 'Mark as imported?',
       `"${order?.name}" will be marked as imported and closed. The worker will see it as read-only.`,
       'Mark imported', async()=>{
         await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({action:'close',orderId})});
         loadAll();
-        showSuccess('Γ£à', 'Order imported!', `"${order?.name}" has been marked as imported and is now closed.`);
+        showSuccess('&#9989;', 'Order imported!', `"${order?.name}" has been marked as imported and is now closed.`);
       });
   }
 
   async function doExport() {
     if(!selectedOrder) return;
-    showConfirmModal('Γ¼ç∩╕Å', 'Download Square CSV?',
-      `This will export ${exportableRows} rows for "${selectedOrder.name}" using Tax: ${settings.tax}%, Markup: ${settings.markup}├ù, Shipping: $${settings.shipping}/kg.`,
+    showConfirmModal('&#128220;', 'Download Square CSV?',
+      `This will export ${exportableRows} rows for "${selectedOrder.name}" using Tax: ${settings.tax}%, Markup: ${settings.markup}&times;, Shipping: $${settings.shipping}/kg.`,
       'Download CSV', async()=>{
         setExporting(true);
         try {
@@ -886,7 +886,7 @@ function OwnerPageInner() {
           const a = document.createElement('a'); a.href=url;
           a.download=`SQUARE_${selectedOrder.name.replace(/\s+/g,'_')}.csv`;
           a.click(); URL.revokeObjectURL(url);
-          showSuccess('Γ£à', 'CSV downloaded!', `${exportableRows} rows exported for "${selectedOrder.name}". Import it to Square POS now.`);
+          showSuccess('&#9989;', 'CSV downloaded!', `${exportableRows} rows exported for "${selectedOrder.name}". Import it to Square POS now.`);
         } catch(e:any){ showToast('Export failed: '+e.message); }
         finally{ setExporting(false); }
       });
@@ -910,7 +910,7 @@ function OwnerPageInner() {
       const fresh = await fetch('/api/session').then(r=>r.json());
       if(fresh.workers) setWorkers(fresh.workers);
       setNewWorkerName(''); setNewWorkerPin('');
-      showToast('Γ£ô Worker saved');
+      showToast('&#10004; Worker saved');
     } else { showToast('Error saving worker'); }
   }
 
@@ -944,19 +944,19 @@ function OwnerPageInner() {
           {company?.logoUrl ? (
             <img src={company.logoUrl} alt="logo" style={{width:72,height:72,borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16,objectFit:'contain'}} />
           ) : (
-            <div style={{width:72,height:72,background:'var(--surface-2)',borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:32}}>≡ƒôª</div>
+            <div style={{width:72,height:72,background:'var(--surface-2)',borderRadius:18,boxShadow:'0 8px 32px rgba(0,0,0,.14)',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:32}}>&#128218;</div>
           )}
           <div className="login-brand">Orders Manager</div>
-          <div className="login-sub">Management ┬╖ {company?.name || 'Flowxiq'}</div>
+          <div className="login-sub">Management &middot; {company?.name || 'Flowxiq'}</div>
         </div>
         <div className="login-form">
           <div className="field">
             <label className="label">Management PIN</label>
-            <input type="password" inputMode="numeric" placeholder="ΓÇóΓÇóΓÇóΓÇó"
+            <input type="password" inputMode="numeric" placeholder="&bull;&bull;&bull;&bull;"
               value={pin} onChange={e=>setPin(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&verifyPin()}
               className="login-pin-input" autoFocus/>
-            {pinError&&<div className="field-error">Incorrect PIN ΓÇö try again</div>}
+            {pinError&&<div className="field-error">Incorrect PIN ' try again</div>}
           </div>
           <button className="btn btn-primary btn-lg btn-full"
             onClick={verifyPin} disabled={pinLoading}>
@@ -969,12 +969,12 @@ function OwnerPageInner() {
               textDecoration:'none',color:'var(--text-2)',transition:'all .12s'}}
               onMouseOver={e=>(e.currentTarget.style.borderColor='var(--green)')}
               onMouseOut={e=>(e.currentTarget.style.borderColor='var(--border)')}>
-              <span style={{fontSize:20}}>≡ƒº╛</span>
+              <span style={{fontSize:20}}>&#127959;</span>
               <div>
                 <div style={{fontWeight:600,fontSize:13,color:'var(--text)'}}>Order Entry</div>
                 <div style={{fontSize:11,color:'var(--text-3)'}}>Field worker login</div>
               </div>
-              <span style={{marginLeft:'auto',color:'var(--text-4)'}}>ΓÇ║</span>
+              <span style={{marginLeft:'auto',color:'var(--text-4)'}}>&#8250;</span>
             </a>
           </div>
         </div>
@@ -994,14 +994,14 @@ function OwnerPageInner() {
                 {company?.logoUrl ? (
                   <img src={company.logoUrl} alt="logo" style={{width:32,height:32,borderRadius:8,flexShrink:0,objectFit:'contain'}} />
                 ) : (
-                  <div style={{width:32,height:32,background:'var(--surface-2)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>≡ƒôª</div>
+                  <div style={{width:32,height:32,background:'var(--surface-2)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>&#128218;</div>
                 )}
               </a>
               <div style={{minWidth:0}}>
                 <div className="header-title" style={{fontSize:16,fontWeight:700,letterSpacing:'-.01em',color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                   {loggedInName || 'Management'}
                 </div>
-                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>{company?.name || 'Flowxiq'}{location ? ' ┬╖ '+location : ''}</div>
+                <div className="header-sub" style={{fontSize:12,color:'var(--text-3)',marginTop:2,whiteSpace:'nowrap'}}>{company?.name || 'Flowxiq'}{location ? ' &middot; '+location : ''}</div>
               </div>
             </div>
             <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0,flexWrap:'wrap'}}>
@@ -1010,7 +1010,7 @@ function OwnerPageInner() {
                   style={{fontSize:16,padding:'6px 10px',position:'relative'}} 
                   onClick={()=>setNotifPanelOpen(p=>!p)}
                   title="Notifications">
-                  ≡ƒöö
+                  &#128276;
                   {unreadNotifs > 0 && (
                     <span style={{
                       position:'absolute',top:-2,right:-2,
@@ -1037,7 +1037,7 @@ function OwnerPageInner() {
                           setUnreadNotifs(0); setNotifPanelOpen(false);
                           loadNotifs();
                         }}>Mark all read</button>
-                        <button className="btn btn-sm btn-ghost" onClick={()=>setNotifPanelOpen(false)}>Γ£ò</button>
+                        <button className="btn btn-sm btn-ghost" onClick={()=>setNotifPanelOpen(false)}>&#x2715;</button>
                       </div>
                     </div>
                     {visibleNotifs.length===0?(
@@ -1047,7 +1047,7 @@ function OwnerPageInner() {
                         background:'var(--amber-light)'}}>
                         <div style={{fontSize:13,fontWeight:500}}>{n.message||n[9]||'New notification'}</div>
                         <div style={{fontSize:11,color:'var(--text-3)',marginTop:3}}>
-                          {n.type||n[1]} ┬╖ {n.workerName||n[4]||''} ┬╖ {(n.createdAt||n[11]||'').slice(0,10)}
+                          {n.type||n[1]} &middot; {n.workerName||n[4]||''} &middot; {(n.createdAt||n[11]||'').slice(0,10)}
                         </div>
                       </div>
                     ))}
@@ -1082,7 +1082,7 @@ function OwnerPageInner() {
               window.history.pushState({ tab: t, orderId: oId }, '', `?tab=${t}${oId ? '&orderId='+oId : ''}`);
             }}>
               {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t==='intelligence'?'Vendors':t==='timeline'?'Timeline':t.charAt(0).toUpperCase()+t.slice(1)}
-              {t==='items'&&selectedOrder&&` ΓÇö ${selectedOrder.name}`}
+              {t==='items'&&selectedOrder&&` ' ${selectedOrder.name}`}
               {t==='commission'&&orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length>0&&
                 <span style={{background:'var(--red)',color:'#fff',borderRadius:10,padding:'1px 6px',fontSize:10,marginLeft:4}}>
                   {orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length}
@@ -1092,7 +1092,7 @@ function OwnerPageInner() {
           ))}
         </div>
 
-        {/* ΓöÇΓöÇ ORDERS TAB ΓöÇΓöÇ */}
+        {/* -- ORDERS TAB -- */}
         {tab==='orders'&&(
           <>
             {/* Unified search + filter bar */}
@@ -1110,13 +1110,13 @@ function OwnerPageInner() {
                   {mgmtSearch&&!mgmtSearching&&(
                     <button className="btn btn-sm btn-ghost"
                       style={{position:'absolute',right:4,top:'50%',transform:'translateY(-50%)',height:26,color:'var(--text-3)'}}
-                      onClick={()=>{setMgmtSearch('');setMgmtResults([]);}}>Γ£ò</button>
+                      onClick={()=>{setMgmtSearch('');setMgmtResults([]);}}>&#x2715;</button>
                   )}
                 </div>
               </div>
               {mgmtSearch&&(
                 <div style={{fontSize:11,color:'var(--text-3)',marginBottom:6,padding:'0 2px'}}>
-                  {mgmtSearching?'Searching...':mgmtResults.length>0?`${mgmtResults.length} order(s) found`:`No matches ┬╖ ${orders.length} orders loaded`}
+                  {mgmtSearching?'Searching...':mgmtResults.length>0?`${mgmtResults.length} order(s) found`:`No matches &middot; ${orders.length} orders loaded`}
                 </div>
               )}
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
@@ -1127,9 +1127,9 @@ function OwnerPageInner() {
                   </button>
                 ))}
                 <button className={`btn btn-sm ${filterStatus==='__store'?'btn-primary':''}`}
-                  onClick={()=>setFilterStatus(filterStatus==='__store'?'':'__store')}>≡ƒÅ¬ Store</button>
+                  onClick={()=>setFilterStatus(filterStatus==='__store'?'':'__store')}>&#127978; Store</button>
                 <button className={`btn btn-sm ${filterStatus==='__online'?'btn-primary':''}`}
-                  onClick={()=>setFilterStatus(filterStatus==='__online'?'':'__online')}>≡ƒîÉ Online</button>
+                  onClick={()=>setFilterStatus(filterStatus==='__online'?'':'__online')}>&#127758; Online</button>
               </div>
             </div>
             {(()=>{
@@ -1141,7 +1141,7 @@ function OwnerPageInner() {
                   return (!filterStatus||o.status===filterStatus);
                 })
                 .filter(o=>!mgmtSearch.trim()||mgmtResults.some(r=>r.orderId===o.id));
-              if(filtered.length===0) return <div className="empty"><div className="empty-icon">≡ƒôª</div><div className="empty-text">No orders yet</div></div>;
+              if(filtered.length===0) return <div className="empty"><div className="empty-icon">&#128218;</div><div className="empty-text">No orders yet</div></div>;
               return groupOrdersByDate(filtered).map(({label:grpLabel,orders:grpOrders})=>(
                 <div key={grpLabel} style={{marginBottom:4}}>
                   <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',
@@ -1170,7 +1170,7 @@ function OwnerPageInner() {
             })()}
           </>
         )}
-        {/* ΓöÇΓöÇ ITEMS TAB ΓöÇΓöÇ */}
+        {/* -- ITEMS TAB -- */}
         {tab==='items'&&(
           <>
             {!selectedOrder?(
@@ -1184,11 +1184,11 @@ function OwnerPageInner() {
                     setTab('orders');
                     window.history.pushState({ tab: 'orders', orderId: '' }, '', `?tab=orders`);
                   }} style={{fontWeight:500}}>
-                    ΓåÉ Back to orders
+                    &larr; Back to orders
                   </button>
                   {selectedOrder.orderType==='online'
-                    ? <span className="badge badge-info">≡ƒîÉ Online</span>
-                    : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)'}}>≡ƒÅ¬ Store</span>}
+                    ? <span className="badge badge-info">&#127758; Online</span>
+                    : <span className="badge" style={{background:'var(--surface-2)',color:'var(--text-3)',border:'1px solid var(--border)'}}>&#127978; Store</span>}
                   <span className="badge badge-approved">{approvedCount} approved</span>
                   <span className="badge badge-pending">{pendingCount} pending</span>
                   {flaggedCount>0&&<span className="badge badge-flagged">{flaggedCount} flagged</span>}
@@ -1203,7 +1203,7 @@ function OwnerPageInner() {
                 {/* Live pricing controls */}
                 <div className="card" style={{marginBottom:14,background:'var(--blue-bg)',border:'1px solid var(--blue-border)'}}>
                   <div style={{fontSize:12,fontWeight:600,color:'var(--blue)',marginBottom:10}}>
-                    LIVE PRICING ΓÇö adjust and watch all prices update instantly
+                    LIVE PRICING ' adjust and watch all prices update instantly
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
                     <div>
@@ -1213,7 +1213,7 @@ function OwnerPageInner() {
                         style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:'var(--text-2)',display:'block',marginBottom:4}}>Markup (├ù)</label>
+                      <label style={{fontSize:11,color:'var(--text-2)',display:'block',marginBottom:4}}>Markup (&times;)</label>
                       <input type="number" step="0.1" value={settings.markup}
                         onChange={e=>setSettings(s=>({...s,markup:Number(e.target.value)}))}
                         style={{width:'100%',padding:'7px 10px',border:'1px solid var(--blue-border)',borderRadius:6,background:'var(--surface)',fontSize:14}}/>
@@ -1244,7 +1244,7 @@ function OwnerPageInner() {
                       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
                         <button className="btn btn-sm btn-success" onClick={()=>{
                           filteredItems.filter(i=>i.status==='pending').forEach(i=>updateItemStatus(i,'approved'));
-                        }}>Γ£ô Approve all pending</button>
+                        }}>&#10004; Approve all pending</button>
                       </div>
                     )}
 
@@ -1264,7 +1264,7 @@ function OwnerPageInner() {
                             display:'flex',justifyContent:'space-between'}}>
                             <span>{vendorName}</span>
                             <span style={{fontWeight:500,fontSize:11}}>
-                              {vendorItems.length} item{vendorItems.length!==1?'s':''} ┬╖ ${vendorItems.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}
+                              {vendorItems.length} item{vendorItems.length!==1?'s':''} &middot; ${vendorItems.reduce((s,i)=>s+i.price*i.qty,0).toFixed(0)}
                             </span>
                           </div>
                           {vendorItems.map(item=>{
@@ -1280,7 +1280,7 @@ function OwnerPageInner() {
                                 onFlag={()=>{setFlagModal({item});setFlagNote('');}}
                                 onEdit={()=>{ setEditModal({item}); setEditPrice(String(item.price)); setEditNotes(item.notes); setEditOwnerNote(item.ownerNote); }}
                                 onDelete={()=>{
-                                  showConfirmModal('≡ƒùæ∩╕Å','Delete item?',`${item.vendor} ┬╖ ${item.code} will be permanently removed.`,'Delete',()=>deleteItem(item.id));
+                                  showConfirmModal('&#128465;','Delete item?',`${item.vendor} &middot; ${item.code} will be permanently removed.`,'Delete',()=>deleteItem(item.id));
                                 }}
                               />
                             );
@@ -1292,7 +1292,7 @@ function OwnerPageInner() {
                     {/* Square preview table */}
                     <div style={{marginTop:20,marginBottom:14}}>
                       <div style={{fontWeight:600,fontSize:14,marginBottom:10}}>
-                        Square CSV preview ΓÇö {exportableRows} rows
+                        Square CSV preview ' {exportableRows} rows
                       </div>
                       <div style={{overflowX:'auto',borderRadius:'var(--radius)',border:'1px solid var(--border)'}}>
                         <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,background:'var(--surface)'}}>
@@ -1356,13 +1356,13 @@ function OwnerPageInner() {
                   <div>
                     <div style={{fontWeight:600}}>Export to Square</div>
                     <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>
-                      {exportableRows} rows ┬╖ Tax: {settings.tax}% ┬╖ Markup: {settings.markup}├ù ┬╖ Shipping: ${settings.shipping}/kg
+                      {exportableRows} rows &middot; Tax: {settings.tax}% &middot; Markup: {settings.markup}&times; &middot; Shipping: ${settings.shipping}/kg
                     </div>
                   </div>
                   <div style={{display:'flex',gap:8}}>
                     <button className="btn btn-success" style={{padding:'10px 20px'}}
                       onClick={doExport} disabled={exporting||exportableRows===0}>
-                      {exporting?'Generating...':'Γ¼ç Download CSV'}
+                      {exporting?'Generating...':'&#128220; Download CSV'}
                     </button>
                     <button className="btn btn-sm" style={{borderColor:'var(--green-border)',color:'var(--green)'}}
                       onClick={()=>closeOrder(selectedOrder.id)}>
@@ -1375,7 +1375,7 @@ function OwnerPageInner() {
           </>
         )}
 
-        {/* ΓöÇΓöÇ PRICES TAB ΓöÇΓöÇ */}
+        {/* -- PRICES TAB -- */}
         {tab==='prices'&&(
           <>
             {!selectedOrder?(
@@ -1395,7 +1395,7 @@ function OwnerPageInner() {
                         const updated = {...item, price:newPrice};
                         setItems(prev=>prev.map(i=>i.id===item.id?updated:i));
                         await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
-                        showToast(`Γ£ô Price updated for ${item.vendor} ┬╖ ${item.code}`);
+                        showToast(`&#10004; Price updated for ${item.vendor} &middot; ${item.code}`);
                       }}/>
                   );
                 })}
@@ -1407,7 +1407,7 @@ function OwnerPageInner() {
           </>
         )}
 
-        {/* ΓöÇΓöÇ ANALYTICS TAB ΓöÇΓöÇ */}
+        {/* -- ANALYTICS TAB -- */}
         {tab==='analytics'&&(()=>{
           const totalSpend    = orders.reduce((s,o)=>s+(o.totalValue||0),0);
           const totalShipping = orders.reduce((s,o)=>s+o.shippingCost,0);
@@ -1433,11 +1433,11 @@ function OwnerPageInner() {
                       <div key={o.id} className="vendor-row">
                         <div>
                           <strong>{o.name}</strong>
-                          <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} ┬╖ {o.startDate} ┬╖ {o.itemCount} items</div>
+                          <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} &middot; {o.startDate} &middot; {o.itemCount} items</div>
                         </div>
                         <div style={{textAlign:'right'}}>
                           <div style={{fontWeight:600}}>${o.totalValue.toFixed(0)}</div>
-                          <div style={{fontSize:11,color:'var(--text-3)'}}>+${o.shippingCost} ship ┬╖ +${o.workerCommission} comm</div>
+                          <div style={{fontSize:11,color:'var(--text-3)'}}>+${o.shippingCost} ship &middot; +${o.workerCommission} comm</div>
                         </div>
                       </div>
                     ))}
@@ -1450,7 +1450,7 @@ function OwnerPageInner() {
               </div>
               {selectedOrder&&items.length>0&&(
                 <div className="card">
-                  <div className="card-title">Current order ΓÇö by category</div>
+                  <div className="card-title">Current order ' by category</div>
                   {Object.entries(catMap).sort((a,b)=>b[1].spend-a[1].spend).map(([cat,d])=>(
                     <div key={cat} className="vendor-row">
                       <span>{cat} <span style={{fontSize:11,color:'var(--text-3)'}}>({d.count} items)</span></span>
@@ -1463,7 +1463,7 @@ function OwnerPageInner() {
           );
         })()}
 
-        {/* ΓöÇΓöÇ COMMISSION TAB ΓöÇΓöÇ */}
+        {/* -- COMMISSION TAB -- */}
         {tab==='commission'&&(()=>{
           const unpaid = orders.filter(o=>o.workerCommission>0&&!o.commissionPaid);
           const paid   = orders.filter(o=>o.workerCommission>0&&o.commissionPaid);
@@ -1478,12 +1478,12 @@ function OwnerPageInner() {
               </div>
               {unpaid.length>0&&(
                 <div className="card" style={{marginBottom:12,borderColor:'var(--red-border)'}}>
-                  <div className="card-title" style={{color:'var(--red)'}}>Unpaid ΓÇö {unpaid.length} order{unpaid.length!==1?'s':''}</div>
+                  <div className="card-title" style={{color:'var(--red)'}}>Unpaid ' {unpaid.length} order{unpaid.length!==1?'s':''}</div>
                   {unpaid.map(o=>(
                     <div key={o.id} className="vendor-row">
                       <div>
                         <strong>{o.name}</strong>
-                        <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} ┬╖ {o.startDate}</div>
+                        <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} &middot; {o.startDate}</div>
                         <div style={{fontSize:11,color:'var(--text-3)'}}>3% of ${o.totalValue.toFixed(2)}</div>
                       </div>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -1501,11 +1501,11 @@ function OwnerPageInner() {
                     <div key={o.id} className="vendor-row">
                       <div>
                         <strong>{o.name}</strong>
-                        <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} ┬╖ {o.startDate}</div>
+                        <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} &middot; {o.startDate}</div>
                       </div>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
                         <span style={{fontWeight:600,color:'var(--green)'}}>${o.workerCommission.toFixed(2)}</span>
-                        <span className="badge badge-approved">paid Γ£ô</span>
+                        <span className="badge badge-approved">paid &#10004;</span>
                         <button className="btn btn-sm btn-ghost" style={{fontSize:11}} onClick={()=>markCommissionPaid(o.id,false)}>Undo</button>
                       </div>
                     </div>
@@ -1513,13 +1513,13 @@ function OwnerPageInner() {
                 </div>
               )}
               {unpaid.length===0&&paid.length===0&&(
-                <div className="empty"><div className="empty-icon">≡ƒÆ░</div><div className="empty-text">No commission records yet</div></div>
+                <div className="empty"><div className="empty-icon">&#128176;</div><div className="empty-text">No commission records yet</div></div>
               )}
             </>
           );
         })()}
 
-        {/* ΓöÇΓöÇ VENDOR INTELLIGENCE TAB ΓöÇΓöÇ */}
+        {/* -- VENDOR INTELLIGENCE TAB -- */}
         {tab==='intelligence'&&(()=>{
           const vendorStats = Object.entries(usage.vendors||{})
             .sort((a:any,b:any)=>b[1]-a[1])
@@ -1541,7 +1541,7 @@ function OwnerPageInner() {
               <div className="card" style={{marginBottom:12}}>
                 <div className="card-title">Top vendors by order frequency</div>
                 {vendorStats.length===0?(
-                  <div className="empty"><div className="empty-text">No vendor data yet ΓÇö start adding items</div></div>
+                  <div className="empty"><div className="empty-text">No vendor data yet ' start adding items</div></div>
                 ):(
                   vendorStats.slice(0,15).map(({name,count},i)=>(
                     <div key={name} className="vendor-row">
@@ -1566,7 +1566,7 @@ function OwnerPageInner() {
                   {topCategories.map(([name,count]:any,i)=>(
                     <div key={name} className="vendor-row" style={{padding:'6px 0'}}>
                       <span style={{fontSize:13}}>{name}</span>
-                      <span style={{fontSize:12,color:'var(--text-3)'}}>{count}├ù</span>
+                      <span style={{fontSize:12,color:'var(--text-3)'}}>{count}&times;</span>
                     </div>
                   ))}
                 </div>
@@ -1575,7 +1575,7 @@ function OwnerPageInner() {
                   {topColors.map(([name,count]:any)=>(
                     <div key={name} className="vendor-row" style={{padding:'6px 0'}}>
                       <span style={{fontSize:13}}>{name}</span>
-                      <span style={{fontSize:12,color:'var(--text-3)'}}>{count}├ù</span>
+                      <span style={{fontSize:12,color:'var(--text-3)'}}>{count}&times;</span>
                     </div>
                   ))}
                 </div>
@@ -1584,12 +1584,12 @@ function OwnerPageInner() {
           );
         })()}
 
-        {/* ΓöÇΓöÇ TIMELINE TAB ΓöÇΓöÇ */}
+        {/* -- TIMELINE TAB -- */}
         {tab==='timeline'&&(
           <div className="card">
             <div className="card-title">Order activity timeline</div>
             {timelineEvents.length===0?(
-              <div className="empty"><div className="empty-text">No activity yet ΓÇö start creating orders</div></div>
+              <div className="empty"><div className="empty-text">No activity yet ' start creating orders</div></div>
             ):(
               timelineEvents.map((e:any,i:number)=>(
                 <div key={e.id||i} style={{display:'flex',gap:12,padding:'10px 0',
@@ -1610,7 +1610,7 @@ function OwnerPageInner() {
           </div>
         )}
 
-        {/* ΓöÇΓöÇ WORKERS TAB ΓöÇΓöÇ */}
+        {/* -- WORKERS TAB -- */}
         {tab==='workers'&&(
           <>
             {/* Management users */}
@@ -1627,7 +1627,7 @@ function OwnerPageInner() {
                   await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({action:'save-managers',managers:newMgr})});
                   setManagers(newMgr); setNewManagerName(''); setNewManagerPin('');
-                  showToast('Γ£ô Manager added');
+                  showToast('&#10004; Manager added');
                 }}>Add</button>
               </div>
             </div>
@@ -1687,7 +1687,7 @@ function OwnerPageInner() {
           </>
         )}
 
-        {/* ΓöÇΓöÇ SETTINGS TAB ΓöÇΓöÇ */}
+        {/* -- SETTINGS TAB -- */}
         {tab==='settings'&&(()=>{
 
           function saveCatalog(type:string, list:string[]){
@@ -1744,7 +1744,7 @@ function OwnerPageInner() {
                       background:'var(--surface-2)',border:'1px solid var(--border)'}}>
                       {item}
                       <span style={{cursor:'pointer',color:'var(--red)',fontSize:15,marginLeft:2,lineHeight:1}}
-                        onClick={()=>onDelete(item)}>├ù</span>
+                        onClick={()=>onDelete(item)}>&times;</span>
                     </span>
                   ))}
                 </div>
@@ -1841,8 +1841,8 @@ function OwnerPageInner() {
                     <div className="field"><label className="label">Business name</label><input type="text" placeholder={company?.name || 'Flowxiq'} defaultValue={company?.name || 'Flowxiq'}/></div>
                     <div className="field"><label className="label">Default currency</label>
                       <select style={{maxWidth:200}}>
-                        <option value="usd">USD ΓÇö US Dollar</option>
-                        <option value="try">TRY ΓÇö Turkish Lira</option>
+                        <option value="usd">USD ' US Dollar</option>
+                        <option value="try">TRY ' Turkish Lira</option>
                       </select>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
@@ -1866,7 +1866,7 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* ΓöÇΓöÇ CATALOG ΓöÇΓöÇ */}
+                {/* -- CATALOG -- */}
                 {settingsSection==='catalog'&&(
                   <div>
                     <div className="card" style={{marginBottom:12}}>
@@ -1875,7 +1875,7 @@ function OwnerPageInner() {
                       <CatalogList
                         type="categories" items={catList} input={newCatInput} setInput={setNewCatInput}
                         placeholder="e.g. Jogger Pants"
-                        onAdd={v=>{ addCatalogItem('categories',v,setCatList,()=>catList); showToast('Category added ΓÇö visible to all workers'); }}
+                        onAdd={v=>{ addCatalogItem('categories',v,setCatList,()=>catList); showToast('Category added ' visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('categories',v,setCatList,()=>catList); }}
                       />
                     </div>
@@ -1884,7 +1884,7 @@ function OwnerPageInner() {
                       <CatalogList
                         type="colors" items={colorList} input={newColorInput} setInput={setNewColorInput}
                         placeholder="e.g. Rust Orange"
-                        onAdd={v=>{ addCatalogItem('colors',v,setColorList,()=>colorList); showToast('Color added ΓÇö visible to all workers'); }}
+                        onAdd={v=>{ addCatalogItem('colors',v,setColorList,()=>colorList); showToast('Color added ' visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('colors',v,setColorList,()=>colorList); }}
                       />
                     </div>
@@ -1893,26 +1893,26 @@ function OwnerPageInner() {
                       <CatalogList
                         type="sizes" items={sizeList} input={newSizeInput} setInput={setNewSizeInput}
                         placeholder="e.g. 29, XXS, One Size"
-                        onAdd={v=>{ addCatalogItem('sizes',v,setSizeList,()=>sizeList); showToast('Size added ΓÇö visible to all workers'); }}
+                        onAdd={v=>{ addCatalogItem('sizes',v,setSizeList,()=>sizeList); showToast('Size added ' visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('sizes',v,setSizeList,()=>sizeList); }}
                       />
                     </div>
                     <div className="card">
-                      <div className="card-title">≡ƒÅ¬ Vendors</div>
+                      <div className="card-title">&#127978; Vendors</div>
                       <CatalogList
                         type="vendors" items={vendorList} input={newVendorInput} setInput={setNewVendorInput}
                         placeholder="e.g. New Vendor Name"
                         onAdd={v=>{ addCatalogItem('vendors',v,setVendorList,()=>vendorList);
                           fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
                             body:JSON.stringify({action:'save-registry',vendor:v})}).catch(()=>{});
-                          showToast('Vendor added ΓÇö visible to all workers'); }}
+                          showToast('Vendor added ' visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('vendors',v,setVendorList,()=>vendorList); }}
                       />
                     </div>
                   </div>
                 )}
 
-                {/* ΓöÇΓöÇ WORKERS ΓöÇΓöÇ (reuse existing workers tab content) */}
+                {/* -- WORKERS -- (reuse existing workers tab content) */}
                 {settingsSection==='workers'&&(
                   <div className="card">
                     <div className="card-title">≡ƒæÑ Workers</div>
@@ -1923,7 +1923,7 @@ function OwnerPageInner() {
                         <div>
                           <div style={{fontWeight:600,fontSize:14}}>{w.name}</div>
                           <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-                            PIN: {w.pin} ┬╖ Commission: 3% ┬╖ Joined: {w.createdAt||'ΓÇö'}
+                            PIN: {w.pin} &middot; Commission: 3% &middot; Joined: {w.createdAt||'''}
                           </div>
                         </div>
                         <div style={{display:'flex',gap:6,alignItems:'center'}}>
@@ -1952,7 +1952,7 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* ΓöÇΓöÇ APPEARANCE ΓöÇΓöÇ */}
+                {/* -- APPEARANCE -- */}
                 {settingsSection==='appearance'&&(
                   <div className="card">
                     <div className="card-title">≡ƒîÄ Appearance</div>
@@ -1968,7 +1968,7 @@ function OwnerPageInner() {
                               localStorage.setItem(`darkMode_owner_${loggedInName}`,String(next));
                               window.dispatchEvent(new Event('darkModeChange'));
                             }}>
-                            {t==='Dark'?'≡ƒîÖ':t==='Light'?'ΓÿÇ∩╕Å':'ΓÜÖ∩╕Å'} {t}
+                            {t==='Dark'?'≡ƒîÖ':t==='Light'?'ΓÿÇ':'ΓÜÖ'} {t}
                           </button>
                         ))}
                       </div>
@@ -1976,10 +1976,10 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* ΓöÇΓöÇ EXPERIMENTAL ΓöÇΓöÇ */}
+                {/* -- EXPERIMENTAL -- */}
                 {settingsSection==='experimental'&&(
                   <div className="card">
-                    <div className="card-title">≡ƒÜÇ Experimental Features</div>
+                    <div className="card-title">&#128007; Experimental Features</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Future AI and advanced features. Toggle to enable early access.</div>
                     {[
                       {key:'aiPriceAnomaly',label:'AI price anomaly detection',desc:'Flags items with unusual pricing compared to similar codes'},
@@ -2004,10 +2004,10 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* ΓöÇΓöÇ ABOUT ΓöÇΓöÇ */}
+                {/* -- ABOUT -- */}
                 {settingsSection==='about'&&(
                   <div className="card">
-                    <div className="card-title">Γä╣∩╕Å About</div>
+                    <div className="card-title">&#8505; About</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       {[
                         {label:'App version',value:'v2.73'},
@@ -2079,8 +2079,8 @@ function OwnerPageInner() {
                 <label className="label">Order type</label>
                 <select value={editOrderModal.orderType||'store'}
                   onChange={e=>setEditOrderModal({...editOrderModal,orderType:e.target.value as any})}>
-                  <option value="store">≡ƒÅ¬ For Store</option>
-                  <option value="online">≡ƒîÉ Online Store</option>
+                  <option value="store">&#127978; For Store</option>
+                  <option value="online">&#127758; Online Store</option>
                 </select>
               </div>
             </div>
@@ -2110,7 +2110,7 @@ function OwnerPageInner() {
               padding:24,width:'100%',maxWidth:560,maxHeight:'92vh',overflowY:'auto',boxShadow:'var(--shadow-lg)'}}>
 
               <div style={{fontWeight:700,fontSize:16,marginBottom:2}}>Edit item</div>
-              <div style={{fontSize:12,color:'var(--text-3)',marginBottom:20}}>{item.vendor} ┬╖ <span style={{fontFamily:'monospace'}}>{item.code}</span> ┬╖ {item.category}</div>
+              <div style={{fontSize:12,color:'var(--text-3)',marginBottom:20}}>{item.vendor} &middot; <span style={{fontFamily:'monospace'}}>{item.code}</span> &middot; {item.category}</div>
 
               {/* Price */}
               <div className="field">
@@ -2147,11 +2147,11 @@ function OwnerPageInner() {
                       borderRadius:100,fontSize:12,fontWeight:500,background:'var(--blue-light)',
                       border:'1px solid var(--blue-border)',color:'var(--blue)'}}>
                       {color}
-                      {colorCounts[color]>1&&<span style={{background:'var(--blue)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10,margin:'0 2px'}}>├ù{colorCounts[color]}</span>}
+                      {colorCounts[color]>1&&<span style={{background:'var(--blue)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10,margin:'0 2px'}}>&times;{colorCounts[color]}</span>}
                       <span title="Add one more" style={{cursor:'pointer',background:'var(--blue)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}}
                         onClick={()=>setEditModal({item:{...item,colors:[...item.colors,color]}})}>+</span>
                       <span title="Remove one" style={{cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1,marginLeft:1}}
-                        onClick={()=>{const idx=item.colors.lastIndexOf(color);const nc=[...item.colors];nc.splice(idx,1);setEditModal({item:{...item,colors:nc}});}}>├ù</span>
+                        onClick={()=>{const idx=item.colors.lastIndexOf(color);const nc=[...item.colors];nc.splice(idx,1);setEditModal({item:{...item,colors:nc}});}}>&times;</span>
                     </span>
                   ))}
                 </div>}
@@ -2182,11 +2182,11 @@ function OwnerPageInner() {
                       borderRadius:100,fontSize:12,fontWeight:500,background:'var(--green-light)',
                       border:'1px solid var(--green-border)',color:'var(--green)'}}>
                       {size}
-                      {sizeCounts[size]>1&&<span style={{background:'var(--green)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10,margin:'0 2px'}}>├ù{sizeCounts[size]}</span>}
+                      {sizeCounts[size]>1&&<span style={{background:'var(--green)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10,margin:'0 2px'}}>&times;{sizeCounts[size]}</span>}
                       <span title="Add one more" style={{cursor:'pointer',background:'var(--green)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}}
                         onClick={()=>setEditModal({item:{...item,sizes:[...item.sizes,size]}})}>+</span>
                       <span title="Remove one" style={{cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1,marginLeft:1}}
-                        onClick={()=>{const idx=item.sizes.lastIndexOf(size);const ns=[...item.sizes];ns.splice(idx,1);setEditModal({item:{...item,sizes:ns}});}}>├ù</span>
+                        onClick={()=>{const idx=item.sizes.lastIndexOf(size);const ns=[...item.sizes];ns.splice(idx,1);setEditModal({item:{...item,sizes:ns}});}}>&times;</span>
                     </span>
                   ))}
                 </div>}
@@ -2197,7 +2197,7 @@ function OwnerPageInner() {
                 <div style={{background:'var(--green-light)',border:'1px solid var(--green-border)',
                   borderRadius:'var(--r)',padding:'10px 14px',marginBottom:16,fontSize:13}}>
                   <strong style={{color:'var(--green)',fontSize:22}}>{totalC*totalS}</strong>
-                  <span style={{color:'var(--text-3)',marginLeft:8}}>total units ┬╖ {totalC} colors ├ù {totalS} sizes</span>
+                  <span style={{color:'var(--text-3)',marginLeft:8}}>total units &middot; {totalC} colors &times; {totalS} sizes</span>
                 </div>
               )}
 
@@ -2231,7 +2231,7 @@ function OwnerPageInner() {
           <div className="card" style={{width:'100%',maxWidth:380}}>
             <div style={{fontWeight:600,marginBottom:10}}>Flag item</div>
             <div style={{fontSize:13,color:'var(--text-2)',marginBottom:12}}>
-              {flagModal.item.vendor} ┬╖ {flagModal.item.code}
+              {flagModal.item.vendor} &middot; {flagModal.item.code}
             </div>
             <div className="field">
               <label className="label">Note for worker</label>

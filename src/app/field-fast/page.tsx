@@ -1089,13 +1089,19 @@ function FieldFastInner() {
     reader.readAsDataURL(file);
   }
 
-  // Wrapped setScreen that also persists to sessionStorage
   // Add popstate listener for phone back button
   useEffect(()=>{
     function onPop(e:PopStateEvent){
       const prev = e.state?.screen as Screen|undefined;
-      if(prev){ setScreen(prev); sessionStorage.setItem('ff_screen',prev); }
-      else { goTo('orders'); }
+      // If no state or going back to 'login', the user wants to EXIT the portal
+      if(!prev || prev === 'login'){
+        // Clear session so they truly log out
+        sessionStorage.removeItem('ff_worker');
+        sessionStorage.removeItem('ff_screen');
+        window.location.replace('/app');
+        return;
+      }
+      setScreen(prev); sessionStorage.setItem('ff_screen',prev);
     }
     window.addEventListener('popstate', onPop);
     return ()=>window.removeEventListener('popstate', onPop);
@@ -1103,7 +1109,10 @@ function FieldFastInner() {
 
   function goTo(s:Screen){
     sessionStorage.setItem('ff_screen', s);
-    window.history.pushState({screen:s}, '', window.location.pathname+window.location.search);
+    // Only push to history if not already at the top of the stack for this screen
+    if(window.history.state?.screen !== s){
+      window.history.pushState({screen:s}, '', window.location.pathname+window.location.search);
+    }
     setScreen(s);
   }
 
