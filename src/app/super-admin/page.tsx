@@ -450,7 +450,6 @@ export default function SuperAdminPage() {
 
   return (
     <div className="hq-layout">
-
       {/* Main Operations Header */}
       <header className="hq-header">
         <div className="hq-header-left">
