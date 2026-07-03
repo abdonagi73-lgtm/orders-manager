@@ -1215,7 +1215,7 @@ export default function HQPlatformOperations() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "12px", mt: 4 }}>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
                       <button
                         type="button"
                         onClick={() => setWizardStep(1)}
@@ -1279,7 +1279,7 @@ export default function HQPlatformOperations() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "12px", mt: 4 }}>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
                       <button
                         type="button"
                         onClick={() => setWizardStep(2)}
