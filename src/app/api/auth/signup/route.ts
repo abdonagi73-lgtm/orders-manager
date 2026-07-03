@@ -22,11 +22,11 @@ export async function POST(req: NextRequest) {
     } = await req.json();
 
     if (!companyName || !adminName || !adminPin) {
-      return NextResponse.json({ error: 'Company Name, Admin Name, and PIN are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Company Name, Admin Name, and Password are required' }, { status: 400 });
     }
 
-    if (String(adminPin).length !== 4 || isNaN(Number(adminPin))) {
-      return NextResponse.json({ error: 'PIN must be exactly 4 digits' }, { status: 400 });
+    if (String(adminPin).length < 4) {
+      return NextResponse.json({ error: 'Password must be at least 4 characters long' }, { status: 400 });
     }
 
     // 1. Create company
