@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
-import { addNotification } from '@/lib/sheets';
 
+// Legacy test endpoint — Google Sheets notifications have been deprecated.
+// Kept as a stub to avoid build errors from cached references.
 export async function GET() {
-  try {
-    await addNotification(
-      'order_started', 'owner', 'w1', 'Test Worker',
-      'test-order-id', 'Test Order', '', '',
-      'Test notification from debug endpoint'
-    );
-    return NextResponse.json({ ok: true, message: 'Notification written' });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message, stack: e.stack }, { status: 500 });
-  }
+  return NextResponse.json({
+    ok: false,
+    message: 'This endpoint is deprecated. Flowxiq uses a database-backed notification system.',
+  }, { status: 410 });
 }
