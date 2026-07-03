@@ -21,6 +21,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/onboard') ||
     pathname === '/field-fast' ||      // Worker portal uses internal PIN auth, not cookies
     pathname.startsWith('/field-fast/') ||
+    pathname === '/owner' ||           // Manager/owner portal uses internal PIN auth
+    pathname.startsWith('/owner/') ||
     (pathname.startsWith('/api/access-requests') && request.method === 'POST');
 
   if (isPublic) {
@@ -68,43 +70,19 @@ export async function middleware(request: NextRequest) {
   // /super-admin — only super_admin
   if (pathname === '/super-admin') {
     if (session.role !== 'super_admin') {
-      const dest = (session.role === 'admin' || session.role === 'manager') ? '/admin' : '/field-fast';
-      return NextResponse.redirect(new URL(dest, request.url));
+      return NextResponse.redirect(new URL('/owner', request.url));
     }
   }
 
-  // /admin — business workspace for admin and manager roles
+  // /admin — redirect to /owner (original workspace)
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
-    if (session.role === 'super_admin') {
-      return NextResponse.redirect(new URL('/super-admin', request.url));
-    }
-    if (session.role === 'worker') {
-      return NextResponse.redirect(new URL('/field-fast', request.url));
-    }
-  }
-
-  // /owner — legacy redirect to /admin
-  if (pathname === '/owner' || pathname.startsWith('/owner/')) {
-    return NextResponse.redirect(new URL('/admin', request.url));
+    return NextResponse.redirect(new URL('/owner', request.url));
   }
 
   // /orders/new — legacy redirect
   if (pathname === '/orders/new') {
     if (session.role === 'super_admin') {
       return NextResponse.redirect(new URL('/super-admin', request.url));
-    }
-    if (session.role === 'admin' || session.role === 'manager') {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-  }
-
-  // /field-fast — worker portal, block admins
-  if (pathname === '/field-fast' || pathname.startsWith('/field-fast/')) {
-    if (session.role === 'super_admin') {
-      return NextResponse.redirect(new URL('/super-admin', request.url));
-    }
-    if (session.role === 'admin' || session.role === 'manager') {
-      return NextResponse.redirect(new URL('/admin', request.url));
     }
   }
 
