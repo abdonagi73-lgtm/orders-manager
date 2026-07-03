@@ -1813,7 +1813,7 @@ export default function HQPlatformOperations() {
                       { area: "Italy (Europe Central)", percent: 15 },
                     ].map((g, i) => (
                       <div key={i} className="hq-flex-col" style={{ gap: "6px" }}>
-                        <div style={{ display: "flex", justify: "space-between", fontSize: 11, fontFamily: "monospace", color: "#E0E6ED" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "monospace", color: "#E0E6ED" }}>
                           <span>{g.area}</span>
                           <span className="font-bold">{g.percent}%</span>
                         </div>
@@ -1836,7 +1836,7 @@ export default function HQPlatformOperations() {
                       { ind: "Logistics & Transport warehouses", percent: 10 },
                     ].map((g, i) => (
                       <div key={i} className="hq-flex-col" style={{ gap: "6px" }}>
-                        <div style={{ display: "flex", justify: "space-between", fontSize: 11, fontFamily: "monospace", color: "#E0E6ED" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "monospace", color: "#E0E6ED" }}>
                           <span>{g.ind}</span>
                           <span className="font-bold">{g.percent}%</span>
                         </div>
