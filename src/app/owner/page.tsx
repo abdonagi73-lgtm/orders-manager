@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -1830,40 +1830,69 @@ function OwnerPageInner() {
                       <div style={{background:'var(--amber-light)',border:'1px solid var(--amber-border)',borderRadius:'var(--r)',padding:'14px 18px',fontSize:13,color:'var(--text-2)'}}>
                         To upgrade your plan or manage billing, contact <strong>FlowXIQ support</strong>.
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* --- BUSINESS --- */}
+                                   {/* --- BUSINESS --- */}
                 {settingsSection==='business'&&(
                   <div className="card">
                     <div className="card-title">🏢 Business</div>
-                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>These values affect exports and pricing calculations.</div>
-                    <div className="field"><label className="label">Business name</label><input type="text" placeholder={company?.name || 'Flowxiq'} defaultValue={company?.name || 'Flowxiq'}/></div>
-                    <div className="field"><label className="label">Default currency</label>
-                      <select style={{maxWidth:200}}>
-                        <option value="usd">USD ' US Dollar</option>
-                        <option value="try">TRY ' Turkish Lira</option>
-                      </select>
+                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Update your business name, logo, and pricing settings.</div>
+
+                    {/* Business name + logo */}
+                    <div className="field">
+                      <label className="label">Business name</label>
+                      <input type="text" id="biz-name" defaultValue={company?.name || ''} placeholder="Your business name"
+                        style={{maxWidth:320}}/>
                     </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-                      <div className="field"><label className="label">Tax (%)</label>
-                        <input type="number" step="0.5" value={settings.tax}
-                          onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,tax:v}));}}/></div>
-                      <div className="field"><label className="label">Markup (x)</label>
-                        <input type="number" step="0.1" value={settings.markup}
-                          onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,markup:v}));}}/></div>
-                      <div className="field"><label className="label">Shipping ($/kg)</label>
-                        <input type="number" step="0.01" value={settings.shipping}
-                          onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,shipping:v}));}}/></div>
-                      <div className="field"><label className="label">Import duty (%)</label>
-                        <input type="number" step="0.5" placeholder="0"/></div>
-                      <div className="field"><label className="label">Rounding</label>
-                        <select><option>Round to .99</option><option>Round to whole</option><option>No rounding</option></select></div>
+                    <div className="field">
+                      <label className="label">Logo URL</label>
+                      <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                        <input type="url" id="biz-logo" defaultValue={company?.logoUrl||''} placeholder="https://..." style={{flex:1}}/>
+                        {company?.logoUrl && (
+                          <img src={company.logoUrl} alt="logo" style={{width:40,height:40,borderRadius:8,objectFit:'contain',border:'1px solid var(--border)'}}/>
+                        )}
+                      </div>
+                      <div style={{fontSize:11,color:'var(--text-3)',marginTop:4}}>Paste a public image URL (JPEG, PNG, WebP). This logo appears in the manager and worker portals.</div>
                     </div>
-                    <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
-                      {savingSettings?'Saving...':'Save business settings'}
-                    </button>
+                    <button className="btn btn-primary" style={{marginBottom:20}} onClick={async()=>{
+                      const nameEl = document.getElementById('biz-name') as HTMLInputElement;
+                      const logoEl = document.getElementById('biz-logo') as HTMLInputElement;
+                      const newName = nameEl?.value.trim() || company?.name || '';
+                      const newLogo = logoEl?.value.trim() || null;
+                      const res = await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({name:newName,logoUrl:newLogo})});
+                      const d = await res.json();
+                      if(d.ok){
+                        setCompany({name:newName,logoUrl:newLogo||null});
+                        showToast('Business info saved!');
+                      } else { showToast('Error saving: '+(d.error||'unknown')); }
+                    }}>Save business info</button>
+
+                    <div style={{borderTop:'1px solid var(--border)',paddingTop:16,marginTop:4}}>
+                      <div className="card-title" style={{fontSize:13,marginBottom:12}}>Pricing settings</div>
+                      <div className="field"><label className="label">Default currency</label>
+                        <select style={{maxWidth:200}}>
+                          <option value="usd">USD &mdash; US Dollar</option>
+                          <option value="try">TRY &mdash; Turkish Lira</option>
+                        </select>
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                        <div className="field"><label className="label">Tax (%)</label>
+                          <input type="number" step="0.5" value={settings.tax}
+                            onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,tax:v}));}}/></div>
+                        <div className="field"><label className="label">Markup (x)</label>
+                          <input type="number" step="0.1" value={settings.markup}
+                            onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,markup:v}));}}/></div>
+                        <div className="field"><label className="label">Shipping ($/kg)</label>
+                          <input type="number" step="0.01" value={settings.shipping}
+                            onChange={e=>{const v=Number(e.target.value);setSettings((s:any)=>({...s,shipping:v}));}}/></div>
+                        <div className="field"><label className="label">Import duty (%)</label>
+                          <input type="number" step="0.5" placeholder="0"/></div>
+                        <div className="field"><label className="label">Rounding</label>
+                          <select><option>Round to .99</option><option>Round to whole</option><option>No rounding</option></select></div>
+                      </div>
+                      <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
+                        {savingSettings?'Saving...':'Save pricing settings'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1871,7 +1900,7 @@ function OwnerPageInner() {
                 {settingsSection==='catalog'&&(
                   <div>
                     <div className="card" style={{marginBottom:12}}>
-                      <div className="card-title">≡ƒôï Categories</div>
+                      <div className="card-title">📋 Categories</div>
                       <div style={{fontSize:12,color:'var(--text-3)',marginBottom:10}}>Sorted by most used. Add, remove, or reorder.</div>
                       <CatalogList
                         type="categories" items={catList} input={newCatInput} setInput={setNewCatInput}
@@ -1881,7 +1910,7 @@ function OwnerPageInner() {
                       />
                     </div>
                     <div className="card" style={{marginBottom:12}}>
-                      <div className="card-title">≡ƒÄ¿ Colors</div>
+                      <div className="card-title">🎨 Colors</div>
                       <CatalogList
                         type="colors" items={colorList} input={newColorInput} setInput={setNewColorInput}
                         placeholder="e.g. Rust Orange"
@@ -1890,7 +1919,7 @@ function OwnerPageInner() {
                       />
                     </div>
                     <div className="card" style={{marginBottom:12}}>
-                      <div className="card-title">≡ƒôÅ Sizes</div>
+                      <div className="card-title">📏 Sizes</div>
                       <CatalogList
                         type="sizes" items={sizeList} input={newSizeInput} setInput={setNewSizeInput}
                         placeholder="e.g. 29, XXS, One Size"
@@ -1956,7 +1985,7 @@ function OwnerPageInner() {
                 {/* -- APPEARANCE -- */}
                 {settingsSection==='appearance'&&(
                   <div className="card">
-                    <div className="card-title">≡ƒîÄ Appearance</div>
+                    <div className="card-title">🎨 Appearance</div>
                     <div style={{marginBottom:16}}>
                       <div className="label" style={{marginBottom:8}}>Theme</div>
                       <div style={{display:'flex',gap:8}}>

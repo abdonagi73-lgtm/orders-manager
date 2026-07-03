@@ -6,9 +6,9 @@ import Link from "next/link";
 
 const ROLE_DESTINATIONS: Record<string, string> = {
   super_admin: "/super-admin",
-  admin:       "/admin",
-  manager:     "/admin",
-  owner:       "/admin",
+  admin:       "/owner",
+  manager:     "/owner",
+  owner:       "/owner",
   worker:      "/field-fast",
 };
 
@@ -19,20 +19,33 @@ interface Workspace {
   role: string;
 }
 
+type Mode = "login" | "workspace" | "forgot" | "reset-code";
+
 export default function UnifiedLoginPage() {
   const router = useRouter();
 
-  // Login form states
-  const [loginInput, setLoginInput] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // Login form
+  const [loginInput, setLoginInput]   = useState("");
+  const [password, setPassword]       = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
 
-  // Multi-tenant workspace selection states
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [selectWorkspaceMode, setSelectWorkspaceMode] = useState(false);
+  // Workspace selection
+  const [workspaces, setWorkspaces]   = useState<Workspace[]>([]);
 
-  // Check for active session on mount
+  // Forgot password
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetCode, setResetCode]     = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [fpMsg, setFpMsg]             = useState("");
+  const [fpError, setFpError]         = useState("");
+  const [fpLoading, setFpLoading]     = useState(false);
+  const [resetToken, setResetToken]   = useState("");
+
+  // UI mode
+  const [mode, setMode] = useState<Mode>("login");
+
+  // Check for active session on mount → auto-redirect
   useEffect(() => {
     fetch("/api/session")
       .then((r) => (r.ok ? r.json() : null))
@@ -45,349 +58,355 @@ export default function UnifiedLoginPage() {
       .catch(() => {});
   }, [router]);
 
+  /* ── Login ─────────────────────────────────────────────── */
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginInput || !password) {
-      setError("EMAIL/USERNAME AND PASSWORD ARE REQUIRED");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
+    if (!loginInput || !password) { setError("Email/username and password are required."); return; }
+    setLoading(true); setError("");
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
+      const res  = await fetch("/api/auth/login", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loginInput, password }),
-      });
-
+        body: JSON.stringify({ loginInput, password }) });
       const data = await res.json();
-
       if (res.ok) {
         if (data.requiresActivation) {
-          // New owner — redirect to set permanent password
-          const params = new URLSearchParams({
-            userId: data.userId,
-            companyName: data.companyName || '',
-          });
-          window.location.href = `/activate?${params.toString()}`;
+          const p = new URLSearchParams({ userId: data.userId, companyName: data.companyName || "" });
+          window.location.href = `/activate?${p}`;
         } else if (data.selectWorkspace && data.workspaces) {
-          setWorkspaces(data.workspaces);
-          setSelectWorkspaceMode(true);
-          setLoading(false);
+          setWorkspaces(data.workspaces); setMode("workspace"); setLoading(false);
         } else if (data.success && data.role) {
-          // Hard navigate so the browser sends the new session cookie
-          const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
-          window.location.href = dest;
-        } else {
-          setError("Login response unrecognized. Please try again.");
-          setLoading(false);
-        }
-      } else {
-        setError(data.error || "INVALID LOGIN CREDENTIALS");
-        setLoading(false);
-      }
-    } catch {
-      setError("SECURE SERVICE PROTOCOL TIMEOUT");
-      setLoading(false);
-    }
+          window.location.href = ROLE_DESTINATIONS[data.role] || "/field-fast";
+        } else { setError("Login response unrecognized."); setLoading(false); }
+      } else { setError(data.error || "Invalid credentials."); setLoading(false); }
+    } catch { setError("Connection error. Please try again."); setLoading(false); }
   };
 
+  /* ── Workspace select ───────────────────────────────────── */
   const handleSelectWorkspace = async (ws: Workspace) => {
-    setLoading(true);
-    setError("");
-
+    setLoading(true); setError("");
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
+      const res  = await fetch("/api/auth/login", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loginInput, password, selectedUserId: ws.userId }),
-      });
-
+        body: JSON.stringify({ loginInput, password, selectedUserId: ws.userId }) });
       const data = await res.json();
+      if (res.ok && data.success && data.role) {
+        window.location.href = ROLE_DESTINATIONS[data.role] || "/field-fast";
+      } else { setError(data.error || "Failed to switch workspace."); setLoading(false); }
+    } catch { setError("Connection error."); setLoading(false); }
+  };
 
-      if (res.ok) {
-        if (data.requiresActivation) {
-          const params = new URLSearchParams({
-            userId: data.userId,
-            companyName: data.companyName || '',
-          });
-          window.location.href = `/activate?${params.toString()}`;
-        } else if (data.success && data.role) {
-          const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
-          window.location.href = dest;
-        } else {
-          setError(data.error || "FAILED TO ROUTE WORKSPACE SESSION");
-          setLoading(false);
-        }
-      } else {
-        setError(data.error || "FAILED TO ROUTE WORKSPACE SESSION");
-        setLoading(false);
-      }
-    } catch {
-      setError("WORKSPACE PROTOCOL BREAKDOWN");
-      setLoading(false);
-    }
+  /* ── Forgot password — send code ───────────────────────── */
+  const handleForgotSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) { setFpError("Please enter your email address."); return; }
+    setFpLoading(true); setFpError(""); setFpMsg("");
+    try {
+      const res  = await fetch("/api/auth/forgot-password", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim() }) });
+      const data = await res.json();
+      if (data.ok) {
+        setFpMsg("A 6-digit reset code has been sent to your email.");
+        setMode("reset-code");
+      } else { setFpError(data.error || "Could not send reset code. Check your email address."); }
+    } catch { setFpError("Connection error."); }
+    setFpLoading(false);
+  };
+
+  /* ── Forgot password — verify code & set new password ──── */
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetCode || !newPassword) { setFpError("Please fill in both fields."); return; }
+    if (newPassword.length < 6) { setFpError("Password must be at least 6 characters."); return; }
+    setFpLoading(true); setFpError("");
+    try {
+      const res  = await fetch("/api/auth/reset-password", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail, code: resetCode.trim(), newPassword }) });
+      const data = await res.json();
+      if (data.ok) {
+        setFpMsg("Password updated! You can now sign in.");
+        setMode("login");
+        setLoginInput(forgotEmail);
+        setPassword("");
+        setForgotEmail(""); setResetCode(""); setNewPassword("");
+      } else { setFpError(data.error || "Invalid or expired code."); }
+    } catch { setFpError("Connection error."); }
+    setFpLoading(false);
   };
 
   return (
-    <div className="lp-container">
+    <div className="lp-wrap">
       <style>{`
-        .lp-container {
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { box-sizing: border-box; }
+        .lp-wrap {
           min-height: 100vh;
-          background: #080C14;
-          color: #F0F4FF;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          background: linear-gradient(135deg, #060B14 0%, #0D1726 60%, #071020 100%);
+          display: flex; align-items: center; justify-content: center;
           padding: 32px 20px;
-          box-sizing: border-box;
+          font-family: 'Inter', -apple-system, sans-serif;
+          color: #E2EBF8;
         }
         .lp-card {
-          width: 100%;
-          max-width: 400px;
-          background: #0F1828;
-          border: 1px solid #1A2F50;
+          width: 100%; max-width: 420px;
+          background: rgba(15, 26, 48, 0.85);
+          border: 1px solid rgba(59,130,246,.2);
           border-radius: 20px;
-          padding: 40px 32px;
-          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-          box-sizing: border-box;
+          padding: 40px 36px;
+          box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(59,130,246,.05);
+          backdrop-filter: blur(12px);
         }
-        .lp-header {
-          text-align: center;
-          margin-bottom: 32px;
+        .lp-logo-wrap {
+          text-align: center; margin-bottom: 24px;
         }
         .lp-logo {
-          width: 60px;
-          height: 60px;
-          border-radius: 12px;
+          width: 64px; height: 64px;
+          border-radius: 14px;
           object-fit: contain;
-          margin: 0 auto 16px;
-          border: 1px solid #1A2F50;
-          background: #080C14;
-          padding: 6px;
+          margin: 0 auto 14px;
           display: block;
+          background: #080F1D;
+          border: 1px solid rgba(59,130,246,.2);
+          padding: 8px;
+        }
+        .lp-logo-fallback {
+          width: 64px; height: 64px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, #1D3461, #3B82F6);
+          margin: 0 auto 14px; display: flex;
+          align-items: center; justify-content: center;
+          font-size: 26px;
         }
         .lp-title {
-          font-size: 20px;
-          font-weight: 800;
-          letter-spacing: -0.03em;
+          font-size: 18px; font-weight: 700;
+          letter-spacing: -0.02em; color: #F0F6FF;
+          margin: 0 0 4px;
         }
         .lp-sub {
-          font-size: 11px;
-          color: #3B82F6;
-          font-family: monospace;
-          letter-spacing: 0.08em;
-          margin-top: 4px;
-          text-transform: uppercase;
+          font-size: 12px; color: #4E6785;
+          text-transform: uppercase; letter-spacing: .06em;
         }
-        .lp-form {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .lp-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
+        .lp-form { display: flex; flex-direction: column; gap: 14px; }
+        .lp-group { display: flex; flex-direction: column; gap: 5px; }
         .lp-label {
-          font-size: 10px;
-          font-family: monospace;
-          color: #4E6785;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          font-weight: 700;
+          font-size: 11px; font-weight: 600;
+          color: #4E6785; text-transform: uppercase;
+          letter-spacing: .05em;
         }
         .lp-input {
-          background: #080C14;
-          border: 1px solid #1A2F50;
-          color: #F0F4FF;
-          border-radius: 8px;
-          padding: 10px 12px;
-          font-size: 13px;
-          transition: border-color 0.15s;
-          outline: none;
-          box-sizing: border-box;
-          width: 100%;
+          background: rgba(8,12,20,.7);
+          border: 1px solid rgba(59,130,246,.18);
+          color: #E2EBF8; border-radius: 9px;
+          padding: 11px 13px; font-size: 14px;
+          font-family: inherit;
+          transition: border-color .15s, box-shadow .15s;
+          outline: none; width: 100%;
         }
         .lp-input:focus {
           border-color: #3B82F6;
+          box-shadow: 0 0 0 3px rgba(59,130,246,.15);
         }
+        .lp-input::placeholder { color: #2E4260; }
         .lp-btn {
-          background: #3B82F6;
-          color: #FFFFFF;
-          border: none;
-          border-radius: 8px;
-          padding: 12px;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: background 0.15s;
-          margin-top: 8px;
+          background: linear-gradient(135deg, #2563EB, #3B82F6);
+          color: #fff; border: none; border-radius: 9px;
+          padding: 13px; font-size: 14px; font-weight: 700;
+          font-family: inherit; cursor: pointer;
+          transition: opacity .15s, transform .1s;
+          margin-top: 4px; width: 100%;
+          box-shadow: 0 4px 20px rgba(59,130,246,.3);
         }
-        .lp-btn:hover:not(:disabled) {
-          background: #2563EB;
+        .lp-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+        .lp-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .lp-btn-ghost {
+          background: transparent;
+          border: 1px solid rgba(59,130,246,.25);
+          color: #94A3B8; border-radius: 9px;
+          padding: 11px; font-size: 13px; font-weight: 600;
+          font-family: inherit; cursor: pointer;
+          transition: all .15s; width: 100%;
         }
-        .lp-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
+        .lp-btn-ghost:hover { border-color: #3B82F6; color: #E2EBF8; }
         .lp-error {
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.2);
-          border-radius: 8px;
-          padding: 10px;
-          color: #FCA5A5;
-          font-size: 12px;
-          font-family: monospace;
-          text-align: center;
+          background: rgba(239,68,68,.08);
+          border: 1px solid rgba(239,68,68,.2);
+          border-radius: 8px; padding: 10px 12px;
+          color: #FCA5A5; font-size: 13px;
         }
-        .lp-back-btn {
-          background: none;
-          border: none;
-          color: #4E6785;
-          font-family: monospace;
-          font-size: 11px;
-          text-transform: uppercase;
-          cursor: pointer;
-          margin-bottom: 16px;
-          padding: 0;
-          text-align: left;
+        .lp-success {
+          background: rgba(16,185,129,.08);
+          border: 1px solid rgba(16,185,129,.2);
+          border-radius: 8px; padding: 10px 12px;
+          color: #6EE7B7; font-size: 13px;
         }
-        .lp-back-btn:hover {
-          color: #94A3B8;
+        .lp-back {
+          background: none; border: none; color: #4E6785;
+          font-size: 12px; font-family: inherit;
+          cursor: pointer; padding: 0 0 16px;
+          display: flex; align-items: center; gap: 4px;
         }
-        .lp-ws-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
+        .lp-back:hover { color: #94A3B8; }
+        .lp-divider {
+          border: none; border-top: 1px solid rgba(59,130,246,.1);
+          margin: 18px 0;
         }
+        .lp-link {
+          background: none; border: none; color: #4E6785;
+          font-size: 12px; font-family: inherit;
+          cursor: pointer; text-align: center;
+          text-decoration: underline; padding: 0;
+        }
+        .lp-link:hover { color: #94A3B8; }
         .lp-ws-item {
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid #1A2F50;
-          border-radius: 10px;
-          padding: 14px 16px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          cursor: pointer;
-          transition: all 0.15s;
-          width: 100%;
+          background: rgba(255,255,255,.02);
+          border: 1px solid rgba(59,130,246,.15);
+          border-radius: 10px; padding: 14px 16px;
+          display: flex; justify-content: space-between; align-items: center;
+          cursor: pointer; transition: all .15s; width: 100%;
+          color: #E2E8F0; font-family: inherit;
           text-align: left;
-          color: #E2E8F0;
         }
         .lp-ws-item:hover {
-          background: rgba(59, 130, 246, 0.08);
-          border-color: #3B82F6;
-          color: #FFF;
+          background: rgba(59,130,246,.08);
+          border-color: #3B82F6; color: #fff;
         }
-        .lp-ws-name {
-          font-weight: 700;
-          font-size: 13px;
-        }
-        .lp-ws-role {
-          font-size: 10px;
-          font-family: monospace;
-          color: #3B82F6;
-          text-transform: uppercase;
-        }
-        .lp-footer {
-          text-align: center;
-          margin-top: 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .lp-signup-link {
-          font-size: 11px;
-          color: #4E6785;
-          text-decoration: none;
-          font-family: monospace;
-          text-transform: uppercase;
-          transition: color 0.15s;
-        }
-        .lp-signup-link:hover {
-          color: #94A3B8;
-        }
+        .lp-footer { text-align: center; margin-top: 24px; }
+        .lp-footer a { color: #4E6785; font-size: 12px; text-decoration: none; }
+        .lp-footer a:hover { color: #94A3B8; }
       `}</style>
 
       <div className="lp-card">
-        <header className="lp-header">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-flowriq.png" alt="Flowxiq" className="lp-logo" />
-          <h1 className="lp-title">Unified Login</h1>
-          <div className="lp-sub">Sign In to Your Workspace</div>
-        </header>
 
-        {!selectWorkspaceMode ? (
+        {/* ── Logo & Title ── */}
+        <div className="lp-logo-wrap">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-flowriq.png"
+            alt="FlowXIQ"
+            className="lp-logo"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+              const fb = e.currentTarget.nextElementSibling as HTMLElement;
+              if (fb) fb.style.display = 'flex';
+            }}
+          />
+          <div className="lp-logo-fallback" style={{ display: 'none' }}>📦</div>
+          <h1 className="lp-title">FlowXIQ</h1>
+          <div className="lp-sub">
+            {mode === "forgot"      ? "Reset Credentials" :
+             mode === "reset-code"  ? "Enter Reset Code"  :
+             mode === "workspace"   ? "Select Workspace"  :
+             "Sign in to your workspace"}
+          </div>
+        </div>
+
+        {/* ── Login ── */}
+        {mode === "login" && (
           <form onSubmit={handleLoginSubmit} className="lp-form">
             <div className="lp-group">
-              <label className="lp-label">Email Address or Username</label>
-              <input
-                type="text"
-                required
-                value={loginInput}
-                onChange={(e) => setLoginInput(e.target.value)}
-                placeholder="Enter email or username"
-                className="lp-input"
-              />
+              <label className="lp-label">Email or Username</label>
+              <input type="text" required autoFocus
+                value={loginInput} onChange={(e) => setLoginInput(e.target.value)}
+                placeholder="Enter your email or username"
+                className="lp-input" />
             </div>
-
             <div className="lp-group">
-              <label className="lp-label">Password or PIN Passcode</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter login credentials"
-                className="lp-input"
-              />
+              <label className="lp-label">Password</label>
+              <input type="password" required
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="lp-input" />
             </div>
-
             {error && <div className="lp-error">{error}</div>}
-
             <button type="submit" disabled={loading} className="lp-btn">
-              {loading ? "Authenticating security channels…" : "Secure Login"}
+              {loading ? "Signing in…" : "Sign In"}
             </button>
-          </form>
-        ) : (
-          <div>
-            <button
-              onClick={() => {
-                setSelectWorkspaceMode(false);
-                setWorkspaces([]);
-                setError("");
-              }}
-              className="lp-back-btn"
-            >
-              &larr; Back to login
-            </button>
-            
-            <div className="lp-label" style={{ marginBottom: 14 }}>
-              Select Workspace Realm:
+            <div style={{ textAlign: "center" }}>
+              <button type="button" className="lp-link"
+                onClick={() => { setMode("forgot"); setError(""); setFpError(""); setFpMsg(""); }}>
+                Forgot your credentials?
+              </button>
             </div>
+          </form>
+        )}
 
-            <div className="lp-ws-list">
+        {/* ── Workspace select ── */}
+        {mode === "workspace" && (
+          <div>
+            <button className="lp-back" onClick={() => { setMode("login"); setWorkspaces([]); setError(""); }}>
+              ← Back
+            </button>
+            <div className="lp-label" style={{ marginBottom: 12 }}>Select your workspace:</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {workspaces.map((ws, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelectWorkspace(ws)}
-                  className="lp-ws-item"
-                >
+                <button key={i} onClick={() => handleSelectWorkspace(ws)} className="lp-ws-item">
                   <div>
-                    <div className="lp-ws-name">{ws.companyName}</div>
-                    <div className="lp-ws-role">{ws.role}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{ws.companyName}</div>
+                    <div style={{ fontSize: 11, color: "#3B82F6", textTransform: "uppercase", marginTop: 2 }}>{ws.role}</div>
                   </div>
-                  <span style={{ fontSize: 16, color: "#4E6785" }}>&rarr;</span>
+                  <span style={{ color: "#4E6785", fontSize: 18 }}>→</span>
                 </button>
               ))}
             </div>
+            {error && <div className="lp-error" style={{ marginTop: 14 }}>{error}</div>}
           </div>
         )}
+
+        {/* ── Forgot password — enter email ── */}
+        {mode === "forgot" && (
+          <form onSubmit={handleForgotSend} className="lp-form">
+            <button type="button" className="lp-back" onClick={() => setMode("login")}>← Back to sign in</button>
+            <p style={{ fontSize: 13, color: "#94A3B8", margin: "0 0 4px", lineHeight: 1.6 }}>
+              Enter the email address associated with your account. We&apos;ll send you a 6-digit code to reset your password.
+            </p>
+            <div className="lp-group">
+              <label className="lp-label">Email Address</label>
+              <input type="email" required autoFocus
+                value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="your@email.com" className="lp-input" />
+            </div>
+            {fpError && <div className="lp-error">{fpError}</div>}
+            {fpMsg   && <div className="lp-success">{fpMsg}</div>}
+            <button type="submit" disabled={fpLoading} className="lp-btn">
+              {fpLoading ? "Sending…" : "Send Reset Code"}
+            </button>
+          </form>
+        )}
+
+        {/* ── Forgot password — enter code + new password ── */}
+        {mode === "reset-code" && (
+          <form onSubmit={handleResetPassword} className="lp-form">
+            <button type="button" className="lp-back" onClick={() => setMode("forgot")}>← Back</button>
+            {fpMsg && <div className="lp-success">{fpMsg}</div>}
+            <div className="lp-group">
+              <label className="lp-label">6-Digit Reset Code</label>
+              <input type="text" required autoFocus inputMode="numeric" maxLength={6}
+                value={resetCode} onChange={(e) => setResetCode(e.target.value)}
+                placeholder="Enter the code from your email" className="lp-input" />
+            </div>
+            <div className="lp-group">
+              <label className="lp-label">New Password</label>
+              <input type="password" required
+                value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 6 characters" className="lp-input" />
+            </div>
+            {fpError && <div className="lp-error">{fpError}</div>}
+            <button type="submit" disabled={fpLoading} className="lp-btn">
+              {fpLoading ? "Updating…" : "Reset Password"}
+            </button>
+            <button type="button" className="lp-btn-ghost"
+              onClick={handleForgotSend} disabled={fpLoading}>
+              Resend Code
+            </button>
+          </form>
+        )}
+
+        {/* ── Footer ── */}
+        <hr className="lp-divider" />
+        <div className="lp-footer">
+          <Link href="/">← Back to FlowXIQ home</Link>
+        </div>
 
       </div>
     </div>

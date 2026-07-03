@@ -699,7 +699,7 @@ function FieldFastInner() {
   }
 
   useEffect(()=>{
-    // Restore worker from session on page refresh
+    // 1. Restore from sessionStorage (page refresh / back navigation)
     const savedWorker = sessionStorage.getItem('ff_worker');
     const savedScreen = sessionStorage.getItem('ff_screen') as Screen|null;
     if(savedWorker && savedScreen && savedScreen !== 'login'){
@@ -707,11 +707,8 @@ function FieldFastInner() {
         const w = JSON.parse(savedWorker);
         setWorker(w);
         loadOrders(w.id);
-        // Don't restore entry/setup/cart screens on refresh - go to orders list
         const safeScreen = ['orders','earnings'].includes(savedScreen) ? savedScreen : 'orders';
         setScreen(safeScreen as Screen);
-        
-        // Load language from worker settings
         const ws = localStorage.getItem(`workerSettings_${w.id}`);
         if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
       } catch{}
@@ -719,15 +716,28 @@ function FieldFastInner() {
       const ws = localStorage.getItem('workerSettings_field');
       if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
     }
-    const saved = localStorage.getItem('darkMode_fieldfast');
-    if(saved==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
+
+    const dark = localStorage.getItem('darkMode_fieldfast');
+    if(dark==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
+
+    // 2. Fetch session data (company info, vendors, etc.)
     fetch('/api/session').then(r=>r.json()).then(d=>{
       if(d.registry) setVendors(Object.keys(d.registry));
       if(d.company && d.company.name !== 'System Administration') {
         setCompanyName(d.company.name);
         setLogoUrl(d.company.logoUrl);
       }
+      // 3. Auto-auth: if already signed in as worker via /app email login, skip the PIN screen
+      if(!savedWorker && d.user && d.user.role === 'worker') {
+        const autoWorker = { id: d.user.id, name: d.user.name, companyName: d.company?.name || '', logoUrl: d.company?.logoUrl || null };
+        setWorker(autoWorker);
+        sessionStorage.setItem('ff_worker', JSON.stringify(autoWorker));
+        sessionStorage.setItem('ff_screen', 'orders');
+        loadOrders(autoWorker.id);
+        setScreen('orders');
+      }
     });
+
     fetch('/api/usage').then(r=>r.json()).then(d=>{
       if(d.vendors){
         setUsage(d);
