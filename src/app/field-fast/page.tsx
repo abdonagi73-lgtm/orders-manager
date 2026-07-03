@@ -1089,22 +1089,29 @@ function FieldFastInner() {
     reader.readAsDataURL(file);
   }
 
+  // Clears the session cookie AND sessionStorage, then redirects to /app
+  // This prevents the /app login page from seeing role='worker' and looping back
+  async function signOutWorker() {
+    sessionStorage.removeItem('ff_worker');
+    sessionStorage.removeItem('ff_screen');
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+    window.location.replace('/app');
+  }
+
   // Add popstate listener for phone back button
   useEffect(()=>{
     function onPop(e:PopStateEvent){
       const prev = e.state?.screen as Screen|undefined;
       // If no state or going back to 'login', the user wants to EXIT the portal
       if(!prev || prev === 'login'){
-        // Clear session so they truly log out
-        sessionStorage.removeItem('ff_worker');
-        sessionStorage.removeItem('ff_screen');
-        window.location.replace('/app');
+        signOutWorker();
         return;
       }
       setScreen(prev); sessionStorage.setItem('ff_screen',prev);
     }
     window.addEventListener('popstate', onPop);
     return ()=>window.removeEventListener('popstate', onPop);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
   function goTo(s:Screen){
@@ -1242,7 +1249,10 @@ function FieldFastInner() {
             {pinLoading?t('saving'):t('signIn')}
           </button>
           <div style={{textAlign:'center',marginTop:16}}>
-            <a href="/app" style={{fontSize:12,color:'var(--text-3)'}}>{t('backToHome')}</a>
+            <button
+              onClick={signOutWorker}
+              style={{fontSize:12,color:'var(--text-3)',background:'none',border:'none',cursor:'pointer',textDecoration:'underline',padding:0}}
+            >{t('backToHome')}</button>
           </div>
         </div>
       </div>
@@ -1266,16 +1276,11 @@ function FieldFastInner() {
             <div className="header-sub">{t('orderEntry')}{location?` · ${location}`:''}</div></div>
         </div>
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
-          <button className="btn btn-sm" onClick={()=>window.location.href='/app'} title="Back to home">🏠</button>
+          <button className="btn btn-sm" onClick={signOutWorker} title="Back to home">🏠</button>
           <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           <button className="btn btn-sm" onClick={()=>goTo('earnings')}>{t('earnings')}</button>
           <a href={`/worker-settings?id=${worker?.id || ''}&name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
-          <button className="btn btn-sm" onClick={()=>{
-            setWorker(null); setPin('');
-            sessionStorage.removeItem('ff_worker');
-            sessionStorage.removeItem('ff_screen');
-            window.location.href = '/app';
-          }}>{t('signOut')}</button>
+          <button className="btn btn-sm" onClick={signOutWorker}>{t('signOut')}</button>
         </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
