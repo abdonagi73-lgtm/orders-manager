@@ -1830,7 +1830,11 @@ function OwnerPageInner() {
                       <div style={{background:'var(--amber-light)',border:'1px solid var(--amber-border)',borderRadius:'var(--r)',padding:'14px 18px',fontSize:13,color:'var(--text-2)'}}>
                         To upgrade your plan or manage billing, contact <strong>FlowXIQ support</strong>.
                       </div>
-                                   {/* --- BUSINESS --- */}
+                    </div>
+                  </div>
+                )}
+
+                {/* --- BUSINESS --- */}
                 {settingsSection==='business'&&(
                   <div className="card">
                     <div className="card-title">🏢 Business</div>
