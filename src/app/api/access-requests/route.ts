@@ -34,9 +34,14 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, id });
-  } catch (err) {
-    console.error('[access-requests POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err: any) {
+    // Surface the actual DB error so we can debug
+    const message = err?.message || String(err);
+    console.error('[access-requests POST] DB ERROR:', message);
+    return NextResponse.json(
+      { error: 'Database error', detail: message },
+      { status: 500 }
+    );
   }
 }
 
@@ -45,8 +50,9 @@ export async function GET() {
   try {
     const rows = await db.select().from(accessRequests).orderBy(desc(accessRequests.created_at));
     return NextResponse.json(rows);
-  } catch (err) {
-    console.error('[access-requests GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err: any) {
+    const message = err?.message || String(err);
+    console.error('[access-requests GET] DB ERROR:', message);
+    return NextResponse.json({ error: 'Database error', detail: message }, { status: 500 });
   }
 }
