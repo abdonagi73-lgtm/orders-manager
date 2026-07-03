@@ -61,28 +61,48 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 6. Routing protection and role-based redirection
+  // 6. Role-based routing protection
+
+  // /super-admin — only super_admin
   if (pathname === '/super-admin') {
     if (session.role !== 'super_admin') {
-      return NextResponse.redirect(new URL(session.role === 'admin' ? '/admin' : '/orders/new', request.url));
+      const dest = (session.role === 'admin' || session.role === 'manager') ? '/owner' : '/field-fast';
+      return NextResponse.redirect(new URL(dest, request.url));
     }
   }
 
-  if (pathname === '/admin') {
+  // /owner — business workspace for admin (owner) and manager roles
+  if (pathname === '/owner' || pathname.startsWith('/owner/')) {
     if (session.role === 'super_admin') {
       return NextResponse.redirect(new URL('/super-admin', request.url));
     }
-    if (session.role !== 'admin') {
-      return NextResponse.redirect(new URL('/orders/new', request.url));
+    if (session.role === 'worker') {
+      return NextResponse.redirect(new URL('/field-fast', request.url));
     }
   }
 
+  // /admin — legacy page redirect to /owner
+  if (pathname === '/admin') {
+    return NextResponse.redirect(new URL('/owner', request.url));
+  }
+
+  // /orders/new — legacy redirect
   if (pathname === '/orders/new') {
     if (session.role === 'super_admin') {
       return NextResponse.redirect(new URL('/super-admin', request.url));
     }
-    if (session.role === 'admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
+    if (session.role === 'admin' || session.role === 'manager') {
+      return NextResponse.redirect(new URL('/owner', request.url));
+    }
+  }
+
+  // /field-fast — worker portal, block admins
+  if (pathname === '/field-fast' || pathname.startsWith('/field-fast/')) {
+    if (session.role === 'super_admin') {
+      return NextResponse.redirect(new URL('/super-admin', request.url));
+    }
+    if (session.role === 'admin' || session.role === 'manager') {
+      return NextResponse.redirect(new URL('/owner', request.url));
     }
   }
 

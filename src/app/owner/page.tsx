@@ -127,16 +127,19 @@ export default function OwnerPortal() {
 
   // Load session
   useEffect(() => {
-    fetch('/api/session')
+    fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (!data?.user) { router.replace('/app'); return; }
-        const u = data.user;
-        if (u.role !== 'admin' && u.role !== 'owner') { router.replace('/app'); return; }
-        setSession(u);
+        if (!data) { window.location.href = '/app'; return; }
+        // Allow admin, owner, and manager roles
+        if (!['admin', 'owner', 'manager'].includes(data.role)) {
+          window.location.href = '/app';
+          return;
+        }
+        setSession(data);
       })
-      .catch(() => router.replace('/app'));
-  }, [router]);
+      .catch(() => { window.location.href = '/app'; });
+  }, []);
 
   // Load all dashboard data in one call
   const loadDashboard = useCallback(async () => {
