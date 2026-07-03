@@ -128,12 +128,14 @@ export default function HQPlatformOperations() {
   const [bizLogo, setBizLogo] = useState("");
   const [bizIndustry, setBizIndustry] = useState("Retail");
   const [bizType, setBizType] = useState("E-commerce");
-  const [bizCountry, setBizCountry] = useState("Qatar");
+  const [bizCountry, setBizCountry] = useState("United States");
   const [bizState, setBizState] = useState("");
-  const [bizCity, setBizCity] = useState("Doha");
-  const [bizTimezone, setBizTimezone] = useState("Asia/Qatar");
-  const [bizCurrency, setBizCurrency] = useState("QAR");
-  const [bizLanguage, setBizLanguage] = useState("Arabic");
+  const [bizCity, setBizCity] = useState("");
+  const [bizTimezone, setBizTimezone] = useState(
+    typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "America/New_York"
+  );
+  const [bizCurrency, setBizCurrency] = useState("USD");
+  const [bizLanguage, setBizLanguage] = useState("English");
   const [bizWebsite, setBizWebsite] = useState("");
   const [bizPhone, setBizPhone] = useState("");
   const [bizEmail, setBizEmail] = useState("");
@@ -954,142 +956,283 @@ export default function HQPlatformOperations() {
           {/* TAB: ONBOARDING WIZARD */}
           {/* ──────────────────────────────────────────────────────── */}
           {activeTab === "onboarding" && (
-            <div className="hq-flex-col" style={{ gap: "24px", maxWidth: 640 }}>
+            <div className="hq-flex-col" style={{ gap: "24px", maxWidth: 880 }}>
               <div>
                 <h2 className="text-xl font-bold text-white tracking-tight">Create New Customer Profile</h2>
                 <p className="text-xs text-[#8A9CB6]">Multi-step onboarding wizard to register customer workspaces and administrators.</p>
               </div>
 
               {/* Wizard Steps indicator */}
-              <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+              <div style={{ display: "flex", gap: "6px", width: "100%" }}>
                 {[
                   { step: 1, label: "Company Info" },
                   { step: 2, label: "Subscription" },
                   { step: 3, label: "Owner Profile" },
                   { step: 4, label: "Confirmation" }
                 ].map((s) => (
-                  <div key={s.step} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ height: 4, background: wizardStep >= s.step ? "#3B82F6" : "#1E2E4F", borderRadius: 2 }} />
-                    <span style={{ fontSize: 10, fontFamily: "monospace", color: wizardStep === s.step ? "#FFF" : "#4E6785" }}>
-                      Step {s.step}: {s.label}
+                  <div key={s.step} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "7px" }}>
+                    <div style={{
+                      height: 3,
+                      background: wizardStep > s.step ? "#10B981" : wizardStep === s.step ? "#3B82F6" : "rgba(255,255,255,0.07)",
+                      borderRadius: 2,
+                      boxShadow: wizardStep === s.step ? "0 0 8px rgba(59,130,246,0.5)" : "none",
+                    }} />
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: wizardStep === s.step ? 700 : 500,
+                      color: wizardStep > s.step ? "#34D399" : wizardStep === s.step ? "#E2E8F0" : "#475569",
+                      letterSpacing: ".01em",
+                    }}>
+                      {wizardStep > s.step ? "✓ " : ""}{s.label}
                     </span>
                   </div>
                 ))}
               </div>
 
               <div className="hq-card">
-                {/* STEP 1: Company details */}
+                {/* STEP 1: Company details — 2-column premium layout */}
                 {wizardStep === 1 && (
-                  <div className="hq-flex-col" style={{ gap: "16px" }}>
-                    <div className="sa-form-group">
-                      <label className="sa-label">Company / Brand Name *</label>
-                      <input
-                        type="text"
-                        required
-                        value={bizName}
-                        onChange={(e) => setBizName(e.target.value)}
-                        placeholder="e.g. Vogue Apparel Direct"
-                        className="sa-input"
-                      />
-                    </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {/* 2-col grid: left = identity, right = location */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
 
-                    <div className="sa-form-group">
-                      <label className="sa-label">Company Logo URL (optional)</label>
-                      <input
-                        type="text"
-                        value={bizLogo}
-                        onChange={(e) => setBizLogo(e.target.value)}
-                        placeholder="https://..."
-                        className="sa-input"
-                      />
-                    </div>
+                      {/* LEFT: Company Identity */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#334155", paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                          Company Identity
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="sa-form-group">
-                        <label className="sa-label">Industry</label>
-                        <select value={bizIndustry} onChange={(e) => setBizIndustry(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none">
-                          <option value="Retail">Retail</option>
-                          <option value="Wholesale">Wholesale</option>
-                          <option value="Logistics">Logistics</option>
-                          <option value="Manufacturing">Manufacturing</option>
-                          <option value="E-commerce">E-commerce</option>
-                        </select>
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">Business Type</label>
-                        <input
-                          type="text"
-                          value={bizType}
-                          onChange={(e) => setBizType(e.target.value)}
-                          placeholder="e.g. Clothing & shoes"
-                          className="sa-input"
-                        />
-                      </div>
-                    </div>
+                        <div className="sa-form-group">
+                          <label className="sa-label">Company / Brand Name *</label>
+                          <input
+                            type="text"
+                            required
+                            value={bizName}
+                            onChange={(e) => setBizName(e.target.value)}
+                            placeholder="e.g. Vogue Apparel Direct"
+                            className="sa-input"
+                          />
+                        </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="sa-form-group">
-                        <label className="sa-label">Country</label>
-                        <input type="text" value={bizCountry} onChange={(e) => setBizCountry(e.target.value)} className="sa-input" />
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">State / Province</label>
-                        <input type="text" value={bizState} onChange={(e) => setBizState(e.target.value)} placeholder="e.g. Doha" className="sa-input" />
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">City</label>
-                        <input type="text" value={bizCity} onChange={(e) => setBizCity(e.target.value)} className="sa-input" />
-                      </div>
-                    </div>
+                        {/* Drag-and-drop logo upload */}
+                        <div className="sa-form-group">
+                          <label className="sa-label">Company Logo</label>
+                          <div
+                            onClick={() => document.getElementById('logo-upload-input')?.click()}
+                            onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor = '#3B82F6'; }}
+                            onDragLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                              const file = e.dataTransfer.files[0];
+                              if (file && file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => setBizLogo(ev.target?.result as string);
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            style={{
+                              border: "2px dashed rgba(255,255,255,0.08)",
+                              borderRadius: 10,
+                              padding: "20px 16px",
+                              textAlign: "center",
+                              cursor: "pointer",
+                              transition: "border-color .2s",
+                              background: "rgba(255,255,255,0.02)",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            {bizLogo ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={bizLogo} alt="logo preview" style={{ maxHeight: 48, maxWidth: 120, objectFit: "contain", borderRadius: 6 }} />
+                            ) : (
+                              <>
+                                <div style={{ fontSize: 22 }}>🏷️</div>
+                                <div style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>Drop logo here or click to upload</div>
+                                <div style={{ fontSize: 11, color: "#334155" }}>PNG, JPG, SVG · Max 2MB</div>
+                              </>
+                            )}
+                            <input
+                              id="logo-upload-input"
+                              type="file"
+                              accept="image/*"
+                              style={{ display: "none" }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => setBizLogo(ev.target?.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </div>
+                          {bizLogo && (
+                            <button type="button" onClick={() => setBizLogo('')} style={{ fontSize: 11, color: "#475569", background: "none", border: "none", cursor: "pointer", marginTop: 4 }}>✕ Remove logo</button>
+                          )}
+                        </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="sa-form-group">
-                        <label className="sa-label">Time Zone</label>
-                        <input type="text" value={bizTimezone} onChange={(e) => setBizTimezone(e.target.value)} className="sa-input" />
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">Currency</label>
-                        <select value={bizCurrency} onChange={(e) => setBizCurrency(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none">
-                          <option value="QAR">QAR (QR)</option>
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                          <option value="GBP">GBP (£)</option>
-                        </select>
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">Language</label>
-                        <input type="text" value={bizLanguage} onChange={(e) => setBizLanguage(e.target.value)} className="sa-input" />
-                      </div>
-                    </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div className="sa-form-group">
+                            <label className="sa-label">Industry</label>
+                            <select value={bizIndustry} onChange={(e) => setBizIndustry(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
+                              <option value="Retail">Retail</option>
+                              <option value="Wholesale">Wholesale</option>
+                              <option value="Logistics">Logistics</option>
+                              <option value="Manufacturing">Manufacturing</option>
+                              <option value="E-commerce">E-commerce</option>
+                              <option value="Food & Beverage">Food &amp; Beverage</option>
+                              <option value="Healthcare">Healthcare</option>
+                              <option value="Technology">Technology</option>
+                            </select>
+                          </div>
+                          <div className="sa-form-group">
+                            <label className="sa-label">Business Type</label>
+                            <input type="text" value={bizType} onChange={(e) => setBizType(e.target.value)} placeholder="e.g. Clothing &amp; Shoes" className="sa-input" />
+                          </div>
+                        </div>
 
-                    <div className="sa-form-group">
-                      <label className="sa-label">Website</label>
-                      <input type="text" value={bizWebsite} onChange={(e) => setBizWebsite(e.target.value)} placeholder="https://company.com" className="sa-input" />
-                    </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div className="sa-form-group">
+                            <label className="sa-label">Business Phone</label>
+                            <input type="text" value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="sa-input" />
+                          </div>
+                          <div className="sa-form-group">
+                            <label className="sa-label">Business Email</label>
+                            <input type="email" value={bizEmail} onChange={(e) => setBizEmail(e.target.value)} placeholder="hello@company.com" className="sa-input" />
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="sa-form-group">
-                        <label className="sa-label">Business Phone</label>
-                        <input type="text" value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} className="sa-input" />
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">Business Email</label>
-                        <input type="email" value={bizEmail} onChange={(e) => setBizEmail(e.target.value)} className="sa-input" />
-                      </div>
-                    </div>
+                        <div className="sa-form-group">
+                          <label className="sa-label">Website</label>
+                          <input type="text" value={bizWebsite} onChange={(e) => setBizWebsite(e.target.value)} placeholder="https://company.com" className="sa-input" />
+                        </div>
 
-                    <div className="sa-form-group">
-                      <label className="sa-label">Tax ID / Business Registration (optional)</label>
-                      <input type="text" value={bizTaxId} onChange={(e) => setBizTaxId(e.target.value)} placeholder="e.g. Tax-5091-QA" className="sa-input" />
+                        <div className="sa-form-group">
+                          <label className="sa-label">Tax ID / Registration (optional)</label>
+                          <input type="text" value={bizTaxId} onChange={(e) => setBizTaxId(e.target.value)} placeholder="e.g. EIN 12-3456789" className="sa-input" />
+                        </div>
+                      </div>
+
+                      {/* RIGHT: Location & Localization */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#334155", paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                          Location &amp; Localization
+                        </div>
+
+                        <div className="sa-form-group">
+                          <label className="sa-label">Country</label>
+                          <input type="text" value={bizCountry} onChange={(e) => setBizCountry(e.target.value)} placeholder="United States" className="sa-input" />
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div className="sa-form-group">
+                            <label className="sa-label">State / Province</label>
+                            <input type="text" value={bizState} onChange={(e) => setBizState(e.target.value)} placeholder="e.g. New York" className="sa-input" />
+                          </div>
+                          <div className="sa-form-group">
+                            <label className="sa-label">City</label>
+                            <input type="text" value={bizCity} onChange={(e) => setBizCity(e.target.value)} placeholder="e.g. New York City" className="sa-input" />
+                          </div>
+                        </div>
+
+                        <div className="sa-form-group">
+                          <label className="sa-label">Time Zone</label>
+                          <select value={bizTimezone} onChange={(e) => setBizTimezone(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
+                            <option value="America/New_York">America/New_York (ET)</option>
+                            <option value="America/Chicago">America/Chicago (CT)</option>
+                            <option value="America/Denver">America/Denver (MT)</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
+                            <option value="America/Anchorage">America/Anchorage (AK)</option>
+                            <option value="Pacific/Honolulu">Pacific/Honolulu (HI)</option>
+                            <option value="Europe/London">Europe/London (GMT)</option>
+                            <option value="Europe/Paris">Europe/Paris (CET)</option>
+                            <option value="Europe/Istanbul">Europe/Istanbul (TRT)</option>
+                            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                            <option value="Asia/Riyadh">Asia/Riyadh (AST)</option>
+                            <option value="Asia/Qatar">Asia/Qatar (AST)</option>
+                            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                            <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+                          </select>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div className="sa-form-group">
+                            <label className="sa-label">Currency</label>
+                            <select value={bizCurrency} onChange={(e) => setBizCurrency(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
+                              <option value="USD">USD ($)</option>
+                              <option value="EUR">EUR (€)</option>
+                              <option value="GBP">GBP (£)</option>
+                              <option value="CAD">CAD ($)</option>
+                              <option value="AUD">AUD ($)</option>
+                              <option value="AED">AED (د.إ)</option>
+                              <option value="QAR">QAR (﷼)</option>
+                              <option value="SAR">SAR (﷼)</option>
+                              <option value="TRY">TRY (₺)</option>
+                            </select>
+                          </div>
+                          <div className="sa-form-group">
+                            <label className="sa-label">Language</label>
+                            <select value={bizLanguage} onChange={(e) => setBizLanguage(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
+                              <option value="English">English</option>
+                              <option value="Arabic">Arabic</option>
+                              <option value="French">French</option>
+                              <option value="Spanish">Spanish</option>
+                              <option value="Turkish">Turkish</option>
+                              <option value="German">German</option>
+                              <option value="Portuguese">Portuguese</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Live Preview Card */}
+                        <div style={{
+                          marginTop: 8,
+                          background: "rgba(59,130,246,0.06)",
+                          border: "1px solid rgba(59,130,246,0.15)",
+                          borderRadius: 10,
+                          padding: "14px 16px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#3B82F6", letterSpacing: ".08em", textTransform: "uppercase" }}>Workspace Preview</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>{bizName || "Company Name"}</div>
+                          <div style={{ fontSize: 11, color: "#64748B" }}>
+                            {bizCountry || "United States"} · {bizCurrency} · {bizLanguage}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#475569", fontFamily: "monospace" }}>
+                            ID: {(bizName || "company").toLowerCase().replace(/[^a-z0-9]+/g, "-")}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <button
                       type="button"
                       disabled={!bizName}
                       onClick={() => setWizardStep(2)}
-                      className="w-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:bg-[#1D3D73] text-white py-3 rounded-lg text-xs font-bold uppercase transition-all mt-4"
+                      style={{
+                        width: "100%",
+                        background: bizName ? "linear-gradient(135deg, #1D4ED8, #3B82F6)" : "rgba(59,130,246,0.2)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 10,
+                        padding: "13px",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: bizName ? "pointer" : "not-allowed",
+                        transition: "all .2s",
+                        marginTop: 8,
+                        boxShadow: bizName ? "0 4px 16px rgba(59,130,246,0.3)" : "none",
+                        letterSpacing: ".02em",
+                      }}
                     >
-                      Next: Configure Subscription Plan &rarr;
+                      Next: Configure Subscription →
                     </button>
                   </div>
                 )}
