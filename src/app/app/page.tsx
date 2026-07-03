@@ -66,27 +66,30 @@ export default function UnifiedLoginPage() {
 
       if (res.ok) {
         if (data.requiresActivation) {
-          // New owner — must set permanent password before entering portal
+          // New owner — redirect to set permanent password
           const params = new URLSearchParams({
             userId: data.userId,
             companyName: data.companyName || '',
           });
-          router.push(`/activate?${params.toString()}`);
+          window.location.href = `/activate?${params.toString()}`;
         } else if (data.selectWorkspace && data.workspaces) {
-          // Multi-tenant: same email, multiple workspaces
           setWorkspaces(data.workspaces);
           setSelectWorkspaceMode(true);
+          setLoading(false);
         } else if (data.success && data.role) {
-          // Success — route to correct portal
+          // Hard navigate so the browser sends the new session cookie
           const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
-          router.push(dest);
+          window.location.href = dest;
+        } else {
+          setError("Login response unrecognized. Please try again.");
+          setLoading(false);
         }
       } else {
         setError(data.error || "INVALID LOGIN CREDENTIALS");
+        setLoading(false);
       }
     } catch {
       setError("SECURE SERVICE PROTOCOL TIMEOUT");
-    } finally {
       setLoading(false);
     }
   };
@@ -99,11 +102,7 @@ export default function UnifiedLoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          loginInput,
-          password,
-          selectedUserId: ws.userId,
-        }),
+        body: JSON.stringify({ loginInput, password, selectedUserId: ws.userId }),
       });
 
       const data = await res.json();
@@ -114,19 +113,20 @@ export default function UnifiedLoginPage() {
             userId: data.userId,
             companyName: data.companyName || '',
           });
-          router.push(`/activate?${params.toString()}`);
+          window.location.href = `/activate?${params.toString()}`;
         } else if (data.success && data.role) {
           const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
-          router.push(dest);
+          window.location.href = dest;
         } else {
           setError(data.error || "FAILED TO ROUTE WORKSPACE SESSION");
+          setLoading(false);
         }
       } else {
         setError(data.error || "FAILED TO ROUTE WORKSPACE SESSION");
+        setLoading(false);
       }
     } catch {
       setError("WORKSPACE PROTOCOL BREAKDOWN");
-    } finally {
       setLoading(false);
     }
   };

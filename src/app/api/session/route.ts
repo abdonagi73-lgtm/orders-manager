@@ -95,7 +95,17 @@ export async function GET(req: NextRequest) {
       ownerPin: '9999',
     };
 
-    return NextResponse.json({ settings, registry, workers, managers, company: { name: company.name, logoUrl: company.logo_url } });
+    // 4. Build user context from session cookie
+    let userContext: { id: string; name: string; role: string } | null = null;
+    const sessionToken = req.cookies.get('session')?.value;
+    if (sessionToken) {
+      const session = await decryptSession(sessionToken);
+      if (session) {
+        userContext = { id: session.id, name: session.name, role: session.role };
+      }
+    }
+
+    return NextResponse.json({ settings, registry, workers, managers, company: { name: company.name, logoUrl: company.logo_url }, user: userContext });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
