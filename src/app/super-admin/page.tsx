@@ -119,6 +119,9 @@ export default function HQPlatformOperations() {
   const [selectedCustomer, setSelectedCustomer] = useState<Company | null>(null);
   const [selectedReq, setSelectedReq] = useState<AccessRequest | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [editFields, setEditFields] = useState<Partial<Company>>({});
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
 
   // --- Onboarding Wizard States ---
   const [wizardStep, setWizardStep] = useState(1);
@@ -299,7 +302,54 @@ export default function HQPlatformOperations() {
     }
   };
 
-  // Access Request approvals
+  // Delete customer workspace
+  const handleDeleteCustomer = async (id: string) => {
+    if (!confirm(`⚠️ PERMANENTLY DELETE workspace "${id}"?\n\nThis will remove the company and all associated owner accounts. This cannot be undone.`)) return;
+    setDeletingCustomer(true);
+    try {
+      const res = await fetch(`/api/admin/companies?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCompanies(prev => prev.filter(c => c.id !== id));
+        setSelectedCustomer(null);
+        setEditingCustomer(false);
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Failed to delete workspace');
+      }
+    } catch {
+      alert('Delete request failed');
+    } finally {
+      setDeletingCustomer(false);
+    }
+  };
+
+  // Save edited customer fields
+  const handleSaveEdit = async () => {
+    if (!selectedCustomer) return;
+    setActionLoading('edit');
+    try {
+      const res = await fetch('/api/admin/companies', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedCustomer.id, ...editFields }),
+      });
+      if (res.ok) {
+        const updated = { ...selectedCustomer, ...editFields };
+        setCompanies(prev => prev.map(c => c.id === selectedCustomer.id ? updated as Company : c));
+        setSelectedCustomer(updated as Company);
+        setEditingCustomer(false);
+        setEditFields({});
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Failed to update workspace');
+      }
+    } catch {
+      alert('Update failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleRequestAction = async (reqId: string, action: "approved" | "rejected") => {
     setActionLoading(reqId + action);
     try {
@@ -914,39 +964,99 @@ export default function HQPlatformOperations() {
                   </div>
 
                   {/* Customer Management Actions */}
-                  <div className="flex flex-wrap gap-3 p-4 bg-[#080C14] border border-[#1E2E4F] rounded-lg">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10 }}>
+
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => {
+                        setEditingCustomer(!editingCustomer);
+                        setEditFields({ name: selectedCustomer.name, plan: selectedCustomer.plan || 'growth', status: selectedCustomer.status, industry: selectedCustomer.industry || '', country: selectedCustomer.country || '' });
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)', color: '#60A5FA', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
+                    >
+                      <Edit2 className="w-3 h-3" /> EDIT WORKSPACE
+                    </button>
+
+                    {/* Suspend / Activate */}
                     <button
                       onClick={() => handleToggleCustomerStatus(selectedCustomer.id, selectedCustomer.status)}
-                      className={`flex items-center gap-1.5 py-2 px-4 text-xs font-mono uppercase font-bold border transition-colors rounded-lg ${
-                        selectedCustomer.status === "active"
-                          ? "border-red-950 text-red-500 hover:bg-red-950/20"
-                          : "border-emerald-950 text-emerald-500 hover:bg-emerald-950/20"
-                      }`}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: selectedCustomer.status === 'active' ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(16,185,129,0.25)', background: selectedCustomer.status === 'active' ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)', color: selectedCustomer.status === 'active' ? '#F87171' : '#34D399', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
                     >
-                      {selectedCustomer.status === "active" ? "SUSPEND WORKSPACE" : "REACTIVATE WORKSPACE"}
+                      {selectedCustomer.status === 'active' ? <Ban className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                      {selectedCustomer.status === 'active' ? 'SUSPEND' : 'REACTIVATE'}
                     </button>
 
+                    {/* Delete — destructive, far right */}
                     <button
-                      onClick={() => alert(`Opening Workspace connection for ${selectedCustomer.name}...`)}
-                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-[#FFFFFF] py-2 px-4 rounded-lg text-xs font-mono transition-all"
+                      onClick={() => handleDeleteCustomer(selectedCustomer.id)}
+                      disabled={deletingCustomer}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#F87171', fontSize: 12, fontWeight: 600, cursor: deletingCustomer ? 'not-allowed' : 'pointer', transition: 'all .15s', marginLeft: 'auto', opacity: deletingCustomer ? 0.5 : 1 }}
                     >
-                      OPEN WORKSPACE VIEW
-                    </button>
-
-                    <button
-                      onClick={() => alert(`Impersonating owner session for workspace ${selectedCustomer.id}...`)}
-                      className="border border-amber-900/60 hover:border-amber-500 text-amber-500 hover:text-amber-400 py-2 px-4 rounded-lg text-xs font-mono transition-all"
-                    >
-                      IMPERSONATE (SUPPORT MODE)
-                    </button>
-
-                    <button
-                      onClick={() => alert(`Quota refresh requested for ${selectedCustomer.id}.`)}
-                      className="border border-[#1E2E4F] hover:border-white text-[#8A9CB6] hover:text-[#FFFFFF] py-2 px-4 rounded-lg text-xs font-mono transition-all"
-                    >
-                      RESET WORKSPACE LIMITS
+                      <Trash2 className="w-3 h-3" /> {deletingCustomer ? 'DELETING...' : 'DELETE WORKSPACE'}
                     </button>
                   </div>
+
+                  {/* Inline Edit Form */}
+                  {editingCustomer && (
+                    <div style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#3B82F6' }}>Edit Workspace Details</div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Company Name</label>
+                          <input
+                            value={editFields.name || ''}
+                            onChange={e => setEditFields(f => ({ ...f, name: e.target.value }))}
+                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Plan</label>
+                          <select
+                            value={editFields.plan || 'growth'}
+                            onChange={e => setEditFields(f => ({ ...f, plan: e.target.value }))}
+                            style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                          >
+                            <option value="starter">Starter — $99/mo</option>
+                            <option value="growth">Growth — $249/mo</option>
+                            <option value="enterprise">Enterprise — $599/mo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Industry</label>
+                          <input
+                            value={editFields.industry || ''}
+                            onChange={e => setEditFields(f => ({ ...f, industry: e.target.value }))}
+                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Country</label>
+                          <input
+                            value={editFields.country || ''}
+                            onChange={e => setEditFields(f => ({ ...f, country: e.target.value }))}
+                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={actionLoading === 'edit'}
+                          style={{ flex: 1, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          {actionLoading === 'edit' ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                          onClick={() => { setEditingCustomer(false); setEditFields({}); }}
+                          style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.04)', color: '#64748B', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

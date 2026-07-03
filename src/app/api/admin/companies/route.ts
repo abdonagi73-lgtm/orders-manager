@@ -145,24 +145,65 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT: Modify company status (suspend / activate)
+// PUT: Modify company details (status, name, plan, industry, country)
 export async function PUT(request: NextRequest) {
   if (!(await isSuperAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized system access' }, { status: 403 });
   }
 
   try {
-    const { id, status } = await request.json();
+    const body = await request.json();
+    const { id, status, name, plan, industry, country } = body;
 
-    if (!id || !status) {
-      return NextResponse.json({ error: 'Division ID and status are required' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 });
     }
 
-    await db.update(companies).set({ status }).where(eq(companies.id, id));
+    const updatePayload: Record<string, unknown> = {};
+    if (status !== undefined) updatePayload.status = status;
+    if (name !== undefined) updatePayload.name = name;
+    if (plan !== undefined) updatePayload.plan = plan;
+    if (industry !== undefined) updatePayload.industry = industry;
+    if (country !== undefined) updatePayload.country = country;
+
+    await db.update(companies).set(updatePayload).where(eq(companies.id, id));
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to modify division status' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update workspace' }, { status: 500 });
   }
 }
 
+
 export { PUT as PATCH };
+
+// DELETE: Permanently remove a customer workspace and its owner account
+export async function DELETE(request: NextRequest) {
+  if (!(await isSuperAdmin(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 });
+    }
+
+    if (id === 'system-admin-tenant') {
+      return NextResponse.json({ error: 'Cannot delete the system admin workspace' }, { status: 403 });
+    }
+
+    // Delete all users belonging to this company first
+    await db.delete(users).where(eq(users.company_id, id));
+
+    // Then delete the company itself
+    await db.delete(companies).where(eq(companies.id, id));
+
+    return NextResponse.json({ success: true, deleted: id });
+  } catch (error: any) {
+    console.error('Delete workspace error:', error);
+    return NextResponse.json({ error: error?.message || 'Failed to delete workspace' }, { status: 500 });
+  }
+}
+
