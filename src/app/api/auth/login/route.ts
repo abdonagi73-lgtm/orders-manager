@@ -1,11 +1,33 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, companies } from '@/db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { encryptSession } from '@/lib/auth';
 import * as bcrypt from 'bcryptjs';
 
-// GET: Retrieve users by companyId for dropdown select
+// Build session token + response helper
+async function buildSessionResponse(user: typeof users.$inferSelect, company: typeof companies.$inferSelect) {
+  const token = await encryptSession({
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    companyId: company.id,
+    companyName: company.name,
+    currency: company.currency,
+    commissionRate: company.commission_rate,
+  });
+  const response = NextResponse.json({ success: true, role: user.role });
+  response.cookies.set('session', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24,
+    path: '/',
+  });
+  return response;
+}
+
+// GET: Retrieve users by companyId for worker/manager dropdown
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const companyId = searchParams.get('companyId');
@@ -16,21 +38,16 @@ export async function GET(request: Request) {
 
   try {
     const list = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        role: users.role,
-      })
+      .select({ id: users.id, name: users.name, role: users.role })
       .from(users)
       .where(eq(users.company_id, companyId));
-
     return NextResponse.json(list);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to retrieve user profiles' }, { status: 500 });
   }
 }
 
-// POST: Authenticate user globally by Email or User ID and create session
+// POST: Authenticate any user — routes based on role, detects first-time owners
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -39,23 +56,18 @@ export async function POST(request: Request) {
     const selectedUserId = body.selectedUserId;
 
     if (!loginInput || !password) {
-      return NextResponse.json({ error: 'Email/Username and Password are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Email/Username and password are required' }, { status: 400 });
     }
 
-    // 1. If a specific userId was selected (from a multi-tenant choice list)
+    // ── Path A: A specific userId was already chosen from workspace list ──
     if (selectedUserId) {
       const results = await db
-        .select({
-          user: users,
-          company: companies,
-        })
+        .select({ user: users, company: companies })
         .from(users)
         .innerJoin(companies, eq(users.company_id, companies.id))
         .where(eq(users.id, selectedUserId));
 
-      if (results.length === 0) {
-        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-      }
+      if (results.length === 0) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
       const { user, company } = results[0];
 
@@ -64,38 +76,24 @@ export async function POST(request: Request) {
       }
 
       const match = bcrypt.compareSync(password, user.pin_hash);
-      if (!match) {
-        return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
+      if (!match) return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
+
+      // First-time owner: must set permanent password
+      if (!user.is_activated && (user.role === 'admin' || user.role === 'owner')) {
+        return NextResponse.json({
+          requiresActivation: true,
+          userId: user.id,
+          companyId: company.id,
+          companyName: company.name,
+        });
       }
 
-      // Create session
-      const token = await encryptSession({
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        companyId: company.id,
-        companyName: company.name,
-        currency: company.currency,
-        commissionRate: company.commission_rate,
-      });
-
-      const response = NextResponse.json({ success: true, role: user.role });
-      response.cookies.set('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24,
-        path: '/',
-      });
-      return response;
+      return buildSessionResponse(user, company);
     }
 
-    // 2. Default: Look up matching profiles by email, name, or ID
+    // ── Path B: Look up by email, user ID, or name ──
     const results = await db
-      .select({
-        user: users,
-        company: companies,
-      })
+      .select({ user: users, company: companies })
       .from(users)
       .innerJoin(companies, eq(users.company_id, companies.id))
       .where(
@@ -107,19 +105,19 @@ export async function POST(request: Request) {
       );
 
     if (results.length === 0) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      return NextResponse.json({ error: 'No account found with those details' }, { status: 404 });
     }
 
-    // 3. Filter valid password matches
+    // Filter by matching password
     const validMatches = results.filter((item) =>
       bcrypt.compareSync(password, item.user.pin_hash)
     );
 
     if (validMatches.length === 0) {
-      return NextResponse.json({ error: 'Incorrect security credentials' }, { status: 401 });
+      return NextResponse.json({ error: 'Incorrect password or PIN' }, { status: 401 });
     }
 
-    // 4. If exactly one matching workspace
+    // Exactly one match
     if (validMatches.length === 1) {
       const { user, company } = validMatches[0];
 
@@ -127,29 +125,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Subscription suspended. Contact support.' }, { status: 403 });
       }
 
-      // Create session
-      const token = await encryptSession({
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        companyId: company.id,
-        companyName: company.name,
-        currency: company.currency,
-        commissionRate: company.commission_rate,
-      });
+      // First-time owner: must set permanent password before entering portal
+      if (!user.is_activated && (user.role === 'admin' || user.role === 'owner')) {
+        return NextResponse.json({
+          requiresActivation: true,
+          userId: user.id,
+          companyId: company.id,
+          companyName: company.name,
+        });
+      }
 
-      const response = NextResponse.json({ success: true, role: user.role });
-      response.cookies.set('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24,
-        path: '/',
-      });
-      return response;
+      return buildSessionResponse(user, company);
     }
 
-    // 5. Multi-tenant: Return list of matching workspaces
+    // Multiple workspaces for the same credential
     const workspaces = validMatches.map((item) => ({
       companyId: item.company.id,
       companyName: item.company.name,
@@ -157,11 +146,9 @@ export async function POST(request: Request) {
       role: item.user.role,
     }));
 
-    return NextResponse.json({
-      selectWorkspace: true,
-      workspaces,
-    });
-  } catch (error) {
+    return NextResponse.json({ selectWorkspace: true, workspaces });
+
+  } catch {
     return NextResponse.json({ error: 'Internal login error' }, { status: 500 });
   }
 }

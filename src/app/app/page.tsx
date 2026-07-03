@@ -65,12 +65,19 @@ export default function UnifiedLoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        if (data.selectWorkspace && data.workspaces) {
-          // Multi-tenant email matches multiple workspaces
+        if (data.requiresActivation) {
+          // New owner — must set permanent password before entering portal
+          const params = new URLSearchParams({
+            userId: data.userId,
+            companyName: data.companyName || '',
+          });
+          router.push(`/activate?${params.toString()}`);
+        } else if (data.selectWorkspace && data.workspaces) {
+          // Multi-tenant: same email, multiple workspaces
           setWorkspaces(data.workspaces);
           setSelectWorkspaceMode(true);
         } else if (data.success && data.role) {
-          // Success! Redirect to correct portal based on role
+          // Success — route to correct portal
           const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
           router.push(dest);
         }
@@ -101,9 +108,19 @@ export default function UnifiedLoginPage() {
 
       const data = await res.json();
 
-      if (res.ok && data.success && data.role) {
-        const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
-        router.push(dest);
+      if (res.ok) {
+        if (data.requiresActivation) {
+          const params = new URLSearchParams({
+            userId: data.userId,
+            companyName: data.companyName || '',
+          });
+          router.push(`/activate?${params.toString()}`);
+        } else if (data.success && data.role) {
+          const dest = ROLE_DESTINATIONS[data.role] || "/field-fast";
+          router.push(dest);
+        } else {
+          setError(data.error || "FAILED TO ROUTE WORKSPACE SESSION");
+        }
       } else {
         setError(data.error || "FAILED TO ROUTE WORKSPACE SESSION");
       }
