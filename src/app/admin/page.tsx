@@ -39,6 +39,11 @@ export default function BusinessAdminPage() {
         const sessionRes = await fetch("/api/auth/me");
         if (sessionRes.ok) {
           const session = await sessionRes.json();
+          // Allow admin and manager roles
+          if (!['admin', 'manager'].includes(session.role)) {
+            window.location.href = '/app';
+            return;
+          }
           setCompany({
             name: session.companyName,
             logoUrl: session.logoUrl,
@@ -53,7 +58,7 @@ export default function BusinessAdminPage() {
             setWorkers(data);
           }
         } else {
-          router.push("/app");
+          window.location.href = '/app';
         }
       } catch (err) {
         console.error("Failed to load administration data", err);
@@ -62,12 +67,12 @@ export default function BusinessAdminPage() {
       }
     }
     loadData();
-  }, [router]);
+  }, []);
 
   // Log out
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/app");
+    window.location.href = '/app';
   };
 
   // Add Worker
@@ -227,8 +232,8 @@ export default function BusinessAdminPage() {
                 onChange={(e) => setRole(e.target.value)}
                 className="w-full bg-black border border-zinc-800 text-white rounded-none py-2 px-3 text-xs focus:outline-none focus:border-zinc-500 font-mono uppercase"
               >
-                <option value="worker">WORKER (ENTRY MATRIX ONLY)</option>
-                <option value="admin">ADMIN (SETTINGS PORTAL ACCESS)</option>
+                <option value="worker">WORKER (ENTRY ACCESS ONLY)</option>
+                <option value="manager">MANAGER (FULL WORKSPACE ACCESS)</option>
               </select>
             </div>
 

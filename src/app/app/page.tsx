@@ -6,9 +6,9 @@ import Link from "next/link";
 
 const ROLE_DESTINATIONS: Record<string, string> = {
   super_admin: "/super-admin",
-  admin:       "/owner",
-  manager:     "/owner",
-  owner:       "/owner",
+  admin:       "/admin",
+  manager:     "/admin",
+  owner:       "/admin",
   worker:      "/field-fast",
 };
 

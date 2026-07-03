@@ -19,6 +19,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/signup' ||
     pathname.startsWith('/onboard') ||
     pathname.startsWith('/api/onboard') ||
+    pathname === '/field-fast' ||      // Worker portal uses internal PIN auth, not cookies
+    pathname.startsWith('/field-fast/') ||
     (pathname.startsWith('/api/access-requests') && request.method === 'POST');
 
   if (isPublic) {
@@ -66,13 +68,13 @@ export async function middleware(request: NextRequest) {
   // /super-admin — only super_admin
   if (pathname === '/super-admin') {
     if (session.role !== 'super_admin') {
-      const dest = (session.role === 'admin' || session.role === 'manager') ? '/owner' : '/field-fast';
+      const dest = (session.role === 'admin' || session.role === 'manager') ? '/admin' : '/field-fast';
       return NextResponse.redirect(new URL(dest, request.url));
     }
   }
 
-  // /owner — business workspace for admin (owner) and manager roles
-  if (pathname === '/owner' || pathname.startsWith('/owner/')) {
+  // /admin — business workspace for admin and manager roles
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     if (session.role === 'super_admin') {
       return NextResponse.redirect(new URL('/super-admin', request.url));
     }
@@ -81,9 +83,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // /admin — legacy page redirect to /owner
-  if (pathname === '/admin') {
-    return NextResponse.redirect(new URL('/owner', request.url));
+  // /owner — legacy redirect to /admin
+  if (pathname === '/owner' || pathname.startsWith('/owner/')) {
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   // /orders/new — legacy redirect
@@ -92,7 +94,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/super-admin', request.url));
     }
     if (session.role === 'admin' || session.role === 'manager') {
-      return NextResponse.redirect(new URL('/owner', request.url));
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
   }
 
@@ -102,7 +104,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/super-admin', request.url));
     }
     if (session.role === 'admin' || session.role === 'manager') {
-      return NextResponse.redirect(new URL('/owner', request.url));
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
   }
 
