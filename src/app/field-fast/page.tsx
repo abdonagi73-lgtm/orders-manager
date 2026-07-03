@@ -1233,7 +1233,7 @@ function FieldFastInner() {
             {pinLoading?t('saving'):t('signIn')}
           </button>
           <div style={{textAlign:'center',marginTop:16}}>
-            <a href="/" style={{fontSize:12,color:'var(--text-3)'}}>{t('backToHome')}</a>
+            <a href="/app" style={{fontSize:12,color:'var(--text-3)'}}>{t('backToHome')}</a>
           </div>
         </div>
       </div>
@@ -1246,7 +1246,7 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <a href="/">
+          <a href="/app">
             {logoUrl ? (
               <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain'}}/>
             ) : (
@@ -1261,7 +1261,12 @@ function FieldFastInner() {
           <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
           <button className="btn btn-sm" onClick={()=>goTo('earnings')}>{t('earnings')}</button>
           <a href={`/worker-settings?id=${worker?.id || ''}&name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
-          <button className="btn btn-sm" onClick={()=>{setWorker(null);setPin('');sessionStorage.removeItem('ff_worker');sessionStorage.removeItem('ff_screen');goTo('login');}}>{t('signOut')}</button>
+          <button className="btn btn-sm" onClick={()=>{
+            setWorker(null); setPin('');
+            sessionStorage.removeItem('ff_worker');
+            sessionStorage.removeItem('ff_screen');
+            window.location.href = '/app';
+          }}>{t('signOut')}</button>
         </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
