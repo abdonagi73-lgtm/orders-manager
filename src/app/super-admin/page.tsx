@@ -1308,7 +1308,7 @@ export default function HQPlatformOperations() {
                 {/* STEP 4: Confirmation / Review credentials */}
                 {wizardStep === 4 && createdCredentials && (
                   <div className="hq-flex-col" style={{ gap: "20px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", itemsCenter: "center", textAlign: "center", gap: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "8px" }}>
                       <CheckCircle2 className="w-10 h-10 text-[#10B981] mx-auto" />
                       <h3 className="font-bold text-white text-base">Customer Profile Created Successfully</h3>
                       <p className="text-xs text-[#8A9CB6]">Dedicated database partition has been allocated and defaults configured.</p>
