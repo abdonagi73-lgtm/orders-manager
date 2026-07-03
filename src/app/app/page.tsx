@@ -372,11 +372,6 @@ export default function UnifiedLoginPage() {
           </div>
         )}
 
-        <footer className="lp-footer">
-          <Link href="/signup" className="lp-signup-link">
-            Create Brand Workspace &rarr;
-          </Link>
-        </footer>
       </div>
     </div>
   );
