@@ -449,34 +449,13 @@ export default function SuperAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#060A13] text-[#E0E6ED] font-sans flex flex-col">
-      <style>{`
-        /* CUSTOM STYLING FOR PREMIUM HQ DASHBOARD */
-        .hq-sidebar { width: 280px; background: #0A1120; border-right: 1px solid #16223F; flex-shrink: 0; display: flex; flex-direction: column; }
-        .hq-sidebar-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 18px; font-size: 13px; font-weight: 500; text-align: left; background: transparent; border: none; color: #8A9CB6; cursor: pointer; transition: all .15s; border-left: 3px solid transparent; }
-        .hq-sidebar-btn:hover { background: rgba(59, 130, 246, 0.05); color: #E2E8F0; }
-        .hq-sidebar-btn.active { color: #3B82F6; background: rgba(59, 130, 246, 0.08); border-left-color: #3B82F6; font-weight: 600; }
-        .hq-card { background: #0E1A30; border: 1px solid #1E2E4F; border-radius: 12px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
-        .hq-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
-        .kpi-val { font-size: 26px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.03em; }
-        .kpi-label { font-size: 11px; font-family: monospace; text-transform: uppercase; color: #64748B; letter-spacing: 0.06em; margin-bottom: 4px; }
-        .kpi-trend { font-size: 10px; font-weight: 700; color: #10B981; display: flex; align-items: center; gap: 3px; }
-        .kpi-trend.down { color: #EF4444; }
-        .hq-table { width: 100%; border-collapse: collapse; }
-        .hq-table th { font-family: monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; border-bottom: 1px solid #1E2E4F; padding: 12px 16px; text-align: left; background: #0B1426; }
-        .hq-table td { padding: 14px 16px; border-bottom: 1px solid #16223F; font-size: 13px; }
-        .hq-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-family: monospace; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
-        .badge-active { background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.2); }
-        .badge-suspended { background: rgba(239, 68, 68, 0.1); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.2); }
-        .badge-pending { background: rgba(245, 158, 11, 0.1); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.2); }
-        .tab-badge { background: #EF4444; color: #FFF; border-radius: 20px; font-size: 10px; font-weight: 700; padding: 1px 6px; margin-left: auto; }
-      `}</style>
+    <div className="hq-layout">
 
       {/* Main Operations Header */}
-      <header className="bg-[#0A1120] border-b border-[#16223F] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-[#060A13] border border-[#1E2E4F] p-1.5 rounded-lg flex items-center justify-center">
-            <img src="/logo-flowriq.png" alt="Flowxiq" className="w-6 h-6 object-contain" />
+      <header className="hq-header">
+        <div className="hq-header-left">
+          <div className="hq-header-logo-wrap">
+            <img src="/logo-flowriq.png" alt="Flowxiq" className="sa-logo" />
           </div>
           <div>
             <h1 className="text-base font-black tracking-tight leading-none uppercase text-white">FLOWXIQ PLATFORM OPERATIONS</h1>
@@ -484,11 +463,11 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="hq-header-right">
           <button
             onClick={loadPlatformData}
             disabled={refreshing}
-            className="flex items-center gap-2 border border-[#1E2E4F] bg-[#0E1A30] hover:bg-[#16294C] text-[#8A9CB6] py-1.5 px-3 rounded-md text-xs font-mono transition-all"
+            className="hq-refresh-btn font-mono"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-[#3B82F6]" : ""}`} />
             REFRESH METRICS
@@ -496,7 +475,7 @@ export default function SuperAdminPage() {
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 border border-red-950 hover:border-red-800 hover:text-red-400 bg-red-950/20 py-1.5 px-3.5 rounded-md text-xs font-mono font-bold transition-all text-red-500"
+            className="hq-logout-btn font-mono"
           >
             <Power className="w-3.5 h-3.5" />
             EXIT HEADQUARTERS
@@ -505,7 +484,7 @@ export default function SuperAdminPage() {
       </header>
 
       {/* Panel Body Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="hq-body-wrapper">
         {/* HQ Operations Sidebar navigation */}
         <aside className="hq-sidebar">
           <div className="p-4 border-b border-[#16223F]">
