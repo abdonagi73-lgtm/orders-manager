@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Power, Building, Inbox, CreditCard, Users, BarChart3, Activity, Bell,
   HelpCircle, HardDrive, Brain, Settings, Shield, Layers, Search,
-  Plus, Edit2, Trash2, Eye, Key, Check, X, RefreshCw, Calendar, Mail,
+  Plus, Edit2, Trash2, Eye, Key, KeyRound, Check, X, RefreshCw, Calendar, Mail,
   Phone, Globe, Lock, Play, Ban, AlertTriangle, Cpu, FileText,
   ChevronRight, CheckCircle2, AlertCircle, Trash
 } from "lucide-react";
@@ -122,6 +122,11 @@ export default function HQPlatformOperations() {
   const [editingCustomer, setEditingCustomer] = useState(false);
   const [editFields, setEditFields] = useState<Partial<Company>>({});
   const [deletingCustomer, setDeletingCustomer] = useState(false);
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [ownerCredentials, setOwnerCredentials] = useState<{ email: string; name: string; is_activated: boolean; userId: string } | null>(null);
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
+  const [newPasscode, setNewPasscode] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // --- Onboarding Wizard States ---
   const [wizardStep, setWizardStep] = useState(1);
@@ -312,6 +317,9 @@ export default function HQPlatformOperations() {
         setCompanies(prev => prev.filter(c => c.id !== id));
         setSelectedCustomer(null);
         setEditingCustomer(false);
+        setShowCredentials(false);
+        setOwnerCredentials(null);
+        setNewPasscode(null);
       } else {
         const d = await res.json();
         alert(d.error || 'Failed to delete workspace');
@@ -320,6 +328,50 @@ export default function HQPlatformOperations() {
       alert('Delete request failed');
     } finally {
       setDeletingCustomer(false);
+    }
+  };
+
+  // Fetch owner credentials for a workspace
+  const fetchOwnerCredentials = async (companyId: string) => {
+    setCredentialsLoading(true);
+    setNewPasscode(null);
+    try {
+      const res = await fetch(`/api/admin/credentials?companyId=${encodeURIComponent(companyId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOwnerCredentials(data);
+      } else {
+        setOwnerCredentials(null);
+      }
+    } catch {
+      setOwnerCredentials(null);
+    } finally {
+      setCredentialsLoading(false);
+    }
+  };
+
+  // Generate a new access code for an owner (resets their login)
+  const resetOwnerPasscode = async (userId: string) => {
+    if (!confirm('Generate a new access code? The owner will need to use this code to log in and set a new password.')) return;
+    setResetLoading(true);
+    setNewPasscode(null);
+    try {
+      const res = await fetch('/api/admin/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewPasscode(data.passcode);
+        setOwnerCredentials(prev => prev ? { ...prev, is_activated: false } : prev);
+      } else {
+        alert('Failed to reset credentials');
+      }
+    } catch {
+      alert('Reset failed');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -961,6 +1013,107 @@ export default function HQPlatformOperations() {
                       <div className="text-white font-bold mt-1 text-sm">{selectedCustomer.owner_name || "John Doe"}</div>
                       <div className="text-[#8A9CB6] font-mono text-[10px] mt-1">{selectedCustomer.email || "owner@company.com"}</div>
                     </div>
+                  </div>
+
+                  {/* ── Credentials Manager ── */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' }}>
+                    {/* Header row */}
+                    <div
+                      onClick={() => {
+                        const next = !showCredentials;
+                        setShowCredentials(next);
+                        if (next && !ownerCredentials) fetchOwnerCredentials(selectedCustomer.id);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <KeyRound className="w-4 h-4" style={{ color: '#F59E0B' }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0', letterSpacing: '.04em' }}>LOGIN CREDENTIALS</span>
+                        <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.12)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 8px', fontWeight: 600 }}>OWNER ACCESS</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4" style={{ color: '#475569', transform: showCredentials ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }} />
+                    </div>
+
+                    {/* Expanded content */}
+                    {showCredentials && (
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                        {credentialsLoading && (
+                          <div style={{ textAlign: 'center', color: '#475569', fontSize: 13 }}>Loading credentials...</div>
+                        )}
+
+                        {!credentialsLoading && ownerCredentials && (
+                          <>
+                            {/* Login fields display */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Login URL</div>
+                                <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#3B82F6' }}>flowriq.vercel.app/app</div>
+                              </div>
+                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Owner Name</div>
+                                <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#E2E8F0' }}>{ownerCredentials.name}</div>
+                              </div>
+                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Email (Username)</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#E2E8F0' }}>{ownerCredentials.email}</span>
+                                  <button onClick={() => navigator.clipboard.writeText(ownerCredentials.email)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 10 }} title="Copy">⧉</button>
+                                </div>
+                              </div>
+                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Password</div>
+                                <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#64748B', fontStyle: 'italic' }}>•••••••• (hashed — cannot read)</div>
+                              </div>
+                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Account Status</div>
+                                <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: ownerCredentials.is_activated ? '#34D399' : '#F59E0B', background: ownerCredentials.is_activated ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${ownerCredentials.is_activated ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius: 5, padding: '3px 9px' }}>
+                                  {ownerCredentials.is_activated ? '✓ ACTIVATED — Has set password' : '⏳ PENDING — Must activate with code'}
+                                </span>
+                              </div>
+                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>User ID</div>
+                                <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B' }}>{ownerCredentials.userId}</div>
+                              </div>
+                            </div>
+
+                            {/* New passcode display (after reset) */}
+                            {newPasscode && (
+                              <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '.08em' }}>🔐 New Access Code — Share this with the owner:</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 800, letterSpacing: '.25em', color: '#34D399', background: 'rgba(16,185,129,0.1)', border: '1px dashed rgba(16,185,129,0.3)', borderRadius: 8, padding: '10px 20px' }}>{newPasscode}</span>
+                                  <button onClick={() => navigator.clipboard.writeText(newPasscode)} style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#34D399', borderRadius: 7, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#64748B' }}>They go to <strong style={{ color: '#94A3B8' }}>flowriq.vercel.app/app</strong> → enter their email + this code → set a new password.</div>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: 10 }}>
+                              <button
+                                onClick={() => resetOwnerPasscode(ownerCredentials.userId)}
+                                disabled={resetLoading}
+                                style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#FCD34D', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: resetLoading ? 'not-allowed' : 'pointer', opacity: resetLoading ? 0.6 : 1 }}
+                              >
+                                <KeyRound className="w-3 h-3" />
+                                {resetLoading ? 'Generating...' : 'Generate New Access Code'}
+                              </button>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(`Login URL: flowriq.vercel.app/app\nEmail: ${ownerCredentials.email}${newPasscode ? `\nAccess Code: ${newPasscode}` : ''}`)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748B', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                Copy Login Info
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {!credentialsLoading && !ownerCredentials && (
+                          <div style={{ textAlign: 'center', color: '#475569', fontSize: 13 }}>No owner account found for this workspace.</div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Customer Management Actions */}
