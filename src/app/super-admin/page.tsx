@@ -970,11 +970,34 @@ export default function HQPlatformOperations() {
                     <button
                       onClick={() => {
                         setEditingCustomer(!editingCustomer);
-                        setEditFields({ name: selectedCustomer.name, plan: selectedCustomer.plan || 'growth', status: selectedCustomer.status, industry: selectedCustomer.industry || '', country: selectedCustomer.country || '' });
+                        setEditFields({
+                          name: selectedCustomer.name,
+                          status: selectedCustomer.status,
+                          plan: selectedCustomer.plan || 'growth',
+                          billing_cycle: selectedCustomer.billing_cycle || 'monthly',
+                          industry: selectedCustomer.industry || '',
+                          business_type: selectedCustomer.business_type || '',
+                          country: selectedCustomer.country || '',
+                          state_province: selectedCustomer.state_province || '',
+                          city: selectedCustomer.city || '',
+                          timezone: selectedCustomer.timezone || '',
+                          currency: selectedCustomer.currency || 'USD',
+                          language: selectedCustomer.language || '',
+                          website: selectedCustomer.website || '',
+                          phone: selectedCustomer.phone || '',
+                          email: selectedCustomer.email || '',
+                          tax_id: selectedCustomer.tax_id || '',
+                          owner_name: selectedCustomer.owner_name || '',
+                          owner_phone: selectedCustomer.owner_phone || '',
+                          max_users: selectedCustomer.max_users ?? 10,
+                          max_workers: selectedCustomer.max_workers ?? 50,
+                          storage_limit_gb: selectedCustomer.storage_limit_gb ?? 10,
+                          trial_expiration: selectedCustomer.trial_expiration || '',
+                        });
                       }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)', color: '#60A5FA', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)', background: editingCustomer ? 'rgba(59,130,246,0.16)' : 'rgba(59,130,246,0.08)', color: '#60A5FA', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
                     >
-                      <Edit2 className="w-3 h-3" /> EDIT WORKSPACE
+                      <Edit2 className="w-3 h-3" /> {editingCustomer ? 'CLOSE EDITOR' : 'EDIT WORKSPACE'}
                     </button>
 
                     {/* Suspend / Activate */}
@@ -996,62 +1019,117 @@ export default function HQPlatformOperations() {
                     </button>
                   </div>
 
-                  {/* Inline Edit Form */}
+                  {/* Full Edit Form */}
                   {editingCustomer && (
-                    <div style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#3B82F6' }}>Edit Workspace Details</div>
+                    <div style={{ background: 'rgba(59,130,246,0.03)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 14, padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Company Name</label>
-                          <input
-                            value={editFields.name || ''}
-                            onChange={e => setEditFields(f => ({ ...f, name: e.target.value }))}
-                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Plan</label>
-                          <select
-                            value={editFields.plan || 'growth'}
-                            onChange={e => setEditFields(f => ({ ...f, plan: e.target.value }))}
-                            style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                          >
-                            <option value="starter">Starter — $99/mo</option>
-                            <option value="growth">Growth — $249/mo</option>
-                            <option value="enterprise">Enterprise — $599/mo</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Industry</label>
-                          <input
-                            value={editFields.industry || ''}
-                            onChange={e => setEditFields(f => ({ ...f, industry: e.target.value }))}
-                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Country</label>
-                          <input
-                            value={editFields.country || ''}
-                            onChange={e => setEditFields(f => ({ ...f, country: e.target.value }))}
-                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                          />
+                      {/* Section: Identity */}
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#3B82F6', marginBottom: 14 }}>Company Identity</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                          {[['Company Name', 'name', 'text'], ['Industry', 'industry', 'text'], ['Business Type', 'business_type', 'text']].map(([label, key, type]) => (
+                            <div key={key}>
+                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
+                              <input type={type} value={(editFields as any)[key] || ''} onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button
-                          onClick={handleSaveEdit}
-                          disabled={actionLoading === 'edit'}
-                          style={{ flex: 1, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-                        >
-                          {actionLoading === 'edit' ? 'Saving...' : 'Save Changes'}
+                      {/* Section: Subscription */}
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8B5CF6', marginBottom: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>Subscription</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Plan</label>
+                            <select value={editFields.plan || 'growth'} onChange={e => setEditFields(f => ({ ...f, plan: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+                              <option value="starter">Starter — $99/mo</option>
+                              <option value="growth">Growth — $249/mo</option>
+                              <option value="enterprise">Enterprise — $599/mo</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Billing Cycle</label>
+                            <select value={(editFields as any).billing_cycle || 'monthly'} onChange={e => setEditFields(f => ({ ...f, billing_cycle: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+                              <option value="monthly">Monthly</option>
+                              <option value="annual">Annual</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Status</label>
+                            <select value={editFields.status || 'active'} onChange={e => setEditFields(f => ({ ...f, status: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+                              <option value="active">Active</option>
+                              <option value="suspended">Suspended</option>
+                              <option value="pending">Pending</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Trial Expiry</label>
+                            <input type="text" placeholder="e.g. July 28, 2026" value={(editFields as any).trial_expiration || ''} onChange={e => setEditFields(f => ({ ...f, trial_expiration: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+                          {[['Max Users', 'max_users', 'number'], ['Max Workers', 'max_workers', 'number'], ['Storage (GB)', 'storage_limit_gb', 'number']].map(([label, key, type]) => (
+                            <div key={key}>
+                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
+                              <input type={type} value={(editFields as any)[key] ?? ''} onChange={e => setEditFields(f => ({ ...f, [key]: Number(e.target.value) }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section: Location */}
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#10B981', marginBottom: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>Location &amp; Localization</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                          {[['Country', 'country', 'text'], ['State / Province', 'state_province', 'text'], ['City', 'city', 'text']].map(([label, key, type]) => (
+                            <div key={key}>
+                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
+                              <input type={type} value={(editFields as any)[key] || ''} onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Currency</label>
+                            <select value={(editFields as any).currency || 'USD'} onChange={e => setEditFields(f => ({ ...f, currency: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+                              <option value="USD">USD ($)</option><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option>
+                              <option value="CAD">CAD ($)</option><option value="AED">AED (د.إ)</option><option value="QAR">QAR (﷼)</option>
+                              <option value="SAR">SAR (﷼)</option><option value="TRY">TRY (₺)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Language</label>
+                            <select value={(editFields as any).language || 'English'} onChange={e => setEditFields(f => ({ ...f, language: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+                              <option>English</option><option>Arabic</option><option>French</option><option>Spanish</option><option>Turkish</option><option>German</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Timezone</label>
+                            <input type="text" value={(editFields as any).timezone || ''} onChange={e => setEditFields(f => ({ ...f, timezone: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section: Contact & Owner */}
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F59E0B', marginBottom: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>Contact &amp; Owner Details</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          {[['Business Website', 'website', 'text'], ['Business Phone', 'phone', 'text'], ['Business Email', 'email', 'email'], ['Tax ID / Registration', 'tax_id', 'text'], ['Owner Name', 'owner_name', 'text'], ['Owner Phone', 'owner_phone', 'text']].map(([label, key, type]) => (
+                            <div key={key}>
+                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
+                              <input type={type} value={(editFields as any)[key] || ''} onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Save / Cancel */}
+                      <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+                        <button onClick={handleSaveEdit} disabled={actionLoading === 'edit'} style={{ flex: 1, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', color: '#fff', border: 'none', borderRadius: 9, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(59,130,246,0.3)' }}>
+                          {actionLoading === 'edit' ? 'Saving...' : '✓ Save All Changes'}
                         </button>
-                        <button
-                          onClick={() => { setEditingCustomer(false); setEditFields({}); }}
-                          style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.04)', color: '#64748B', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-                        >
+                        <button onClick={() => { setEditingCustomer(false); setEditFields({}); }} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.04)', color: '#64748B', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                           Cancel
                         </button>
                       </div>

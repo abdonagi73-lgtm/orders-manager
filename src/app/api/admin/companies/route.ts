@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT: Modify company details (status, name, plan, industry, country)
+// PUT: Modify any company field(s)
 export async function PUT(request: NextRequest) {
   if (!(await isSuperAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized system access' }, { status: 403 });
@@ -153,18 +153,26 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, status, name, plan, industry, country } = body;
+    const { id, ...fields } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 });
     }
 
+    // Only pass fields that exist in the companies schema
+    const allowed = ['name','status','plan','billing_cycle','industry','business_type',
+      'country','state_province','city','timezone','currency','language',
+      'website','phone','email','tax_id','owner_name','owner_phone',
+      'max_users','max_workers','storage_limit_gb','trial_expiration','logo_url'];
+
     const updatePayload: Record<string, unknown> = {};
-    if (status !== undefined) updatePayload.status = status;
-    if (name !== undefined) updatePayload.name = name;
-    if (plan !== undefined) updatePayload.plan = plan;
-    if (industry !== undefined) updatePayload.industry = industry;
-    if (country !== undefined) updatePayload.country = country;
+    for (const key of allowed) {
+      if (fields[key] !== undefined) updatePayload[key] = fields[key];
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
 
     await db.update(companies).set(updatePayload).where(eq(companies.id, id));
     return NextResponse.json({ success: true });

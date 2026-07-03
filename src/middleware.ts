@@ -12,13 +12,14 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname === '/api/session' ||
     pathname === '/favicon.ico' ||
-    pathname === '/' ||           // Marketing homepage
+    pathname === '/' ||
     pathname.startsWith('/request-access') ||
-    pathname === '/app' ||         // PIN selector (app login)
+    pathname === '/app' ||
+    pathname === '/activate' ||        // First-time owner password setup
     pathname === '/signup' ||
-    pathname.startsWith('/onboard') ||         // Client onboarding wizard
-    pathname.startsWith('/api/onboard') ||     // Onboarding API (token validation)
-    (pathname.startsWith('/api/access-requests') && request.method === 'POST'); // public POST only
+    pathname.startsWith('/onboard') ||
+    pathname.startsWith('/api/onboard') ||
+    (pathname.startsWith('/api/access-requests') && request.method === 'POST');
 
   if (isPublic) {
     return NextResponse.next();
