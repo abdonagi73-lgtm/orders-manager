@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -406,6 +406,7 @@ function groupOrdersByDate(orders:any[]): {label:string; orders:any[]}[] {
 
 function OwnerPageInner() {
   const [authed, setAuthed] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true); // check cookie session on mount
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
@@ -720,10 +721,29 @@ function OwnerPageInner() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [authed, orders]);
 
+  // On mount: check if user already has a valid cookie session (from /app login)
+  // If so, skip the PIN screen entirely
   useEffect(() => {
-    fetch('/api/session').then(r=>r.json()).then(d=>{
-      if(d.company && d.company.name !== 'System Administration') setCompany(d.company);
-    });
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && ['admin', 'manager', 'owner'].includes(data.role)) {
+          setLoggedInName(data.name || 'Owner');
+          if (data.companyName) setCompany({ name: data.companyName, logoUrl: data.logoUrl || null });
+          setAuthed(true);
+          loadAll();
+          loadNotifs();
+          fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
+        } else {
+          // No valid session — show company name on PIN screen
+          fetch('/api/session').then(r=>r.json()).then(d=>{
+            if(d.company && d.company.name !== 'System Administration') setCompany(d.company);
+          });
+        }
+        setAuthChecking(false);
+      })
+      .catch(() => setAuthChecking(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function selectOrder(order: Order) {
@@ -909,6 +929,14 @@ function OwnerPageInner() {
   const flaggedCount  = items.filter(i=>i.status==='flagged').length;
   const exportableRows = items.filter(i=>i.status!=='flagged').reduce((s,i)=>s+i.colors.length*i.sizes.length,0);
 
+  if(authChecking) return (
+    <main className="login-page">
+      <div className="login-card" style={{textAlign:'center',padding:40}}>
+        <div style={{fontSize:13,color:'var(--text-3)'}}>Loading...</div>
+      </div>
+    </main>
+  );
+
   if(!authed) return (
     <main className="login-page">
       <div className="login-card">
@@ -1028,14 +1056,18 @@ function OwnerPageInner() {
               </div>
               <button className="btn btn-sm btn-primary" style={{fontWeight:600}}
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
-                Γå╗ Refresh
+                &#8635; Refresh
               </button>
               <button className="btn btn-sm btn-secondary" onClick={()=>window.location.href='/app'} style={{fontWeight:600}}>
-                ΓåÉ Back
+                &larr; Back
               </button>
               <button className="btn btn-sm"
                 style={{borderColor:'var(--red-border)',background:'var(--red-light)',color:'var(--red)',fontWeight:600}}
-                onClick={()=>setAuthed(false)}>Sign out</button>
+                onClick={async()=>{
+                  await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
+                  sessionStorage.clear();
+                  window.location.href='/app';
+                }}>Sign out</button>
             </div>
           </div>
         </div>
@@ -1724,22 +1756,29 @@ function OwnerPageInner() {
             <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:16,minHeight:500}}>
               {/* Sidebar */}
               <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:8,height:'fit-content'}}>
-                {sectionBtn('account','≡ƒæñ','Account')}
-                {sectionBtn('business','≡ƒÅó','Business')}
-                {sectionBtn('catalog','≡ƒôï','Catalog')}
-                {sectionBtn('workers','≡ƒæÑ','Workers')}
-                {sectionBtn('appearance','≡ƒîÄ','Appearance')}
-                {sectionBtn('experimental','≡ƒÜÇ','Experimental')}
-                {sectionBtn('about','Γä╣∩╕Å','About')}
+                {sectionBtn('account', '👤', 'Account')}
+                {sectionBtn('business', '🏢', 'Business')}
+                {sectionBtn('catalog', '📋', 'Catalog')}
+                {sectionBtn('workers', '👥', 'Workers')}
+                {sectionBtn('appearance', '🎨', 'Appearance')}
+                {sectionBtn('experimental' as any, '⭐', 'Subscription')}
+                {sectionBtn('about', 'ℹ️', 'About')}
+                <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+                  <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={()=>{
+                    fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})}).finally(()=>{
+                      window.location.href='/login';
+                    });
+                  }}>Sign out</button>
+                </div>
               </div>
 
               {/* Content */}
               <div>
 
-                {/* ΓöÇΓöÇ ACCOUNT ΓöÇΓöÇ */}
+                {/* --- ACCOUNT --- */}
                 {settingsSection==='account'&&(
                   <div className="card">
-                    <div className="card-title">≡ƒæñ Account</div>
+                    <div className="card-title">👤 Account</div>
                     <div className="field">
                       <label className="label">Owner PIN</label>
                       <input type="text" inputMode="numeric" value={settings.ownerPin} style={{maxWidth:160}}
@@ -1754,10 +1793,50 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* ΓöÇΓöÇ BUSINESS ΓöÇΓöÇ */}
+                {/* --- SUBSCRIPTION --- */}
+                {settingsSection==='experimental'&&(
+                  <div className="card">
+                    <div className="card-title">⭐ Subscription</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+                      <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'18px 20px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+                          <div style={{background:'var(--green-light)',border:'1px solid var(--green-border)',borderRadius:8,padding:'4px 14px',color:'var(--green)',fontSize:14,fontWeight:700,textTransform:'capitalize'}}>
+                            {company?.name ? 'Growth' : 'Free'} Plan
+                          </div>
+                          <span style={{fontSize:12,color:'var(--green)',fontWeight:600}}>Active</span>
+                        </div>
+                        <div style={{fontSize:13,color:'var(--text-2)',lineHeight:1.6}}>
+                          <div>Workspace: <strong>{company?.name || 'Your Business'}</strong></div>
+                          <div style={{marginTop:4}}>Orders Manager • Worker Tracking • Analytics • PDF Export</div>
+                        </div>
+                      </div>
+                      <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'16px 20px'}}>
+                        <div style={{fontWeight:600,fontSize:14,marginBottom:10}}>What's included</div>
+                        {[
+                          'Unlimited orders & items',
+                          'Worker & manager accounts',
+                          'Prices, analytics & commission',
+                          'Vendor intelligence',
+                          'Square POS export',
+                          'PDF order reports',
+                          'Order timeline & history',
+                        ].map(f=>(
+                          <div key={f} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--text-2)',marginBottom:6}}>
+                            <span style={{color:'var(--green)',fontWeight:700}}>✓</span> {f}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{background:'var(--amber-light)',border:'1px solid var(--amber-border)',borderRadius:'var(--r)',padding:'14px 18px',fontSize:13,color:'var(--text-2)'}}>
+                        To upgrade your plan or manage billing, contact <strong>FlowXIQ support</strong>.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- BUSINESS --- */}
                 {settingsSection==='business'&&(
                   <div className="card">
-                    <div className="card-title">≡ƒÅó Business</div>
+                    <div className="card-title">🏢 Business</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>These values affect exports and pricing calculations.</div>
                     <div className="field"><label className="label">Business name</label><input type="text" placeholder={company?.name || 'Flowxiq'} defaultValue={company?.name || 'Flowxiq'}/></div>
                     <div className="field"><label className="label">Default currency</label>
