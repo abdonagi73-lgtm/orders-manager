@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -1876,7 +1876,7 @@ function OwnerPageInner() {
                       <CatalogList
                         type="categories" items={catList} input={newCatInput} setInput={setNewCatInput}
                         placeholder="e.g. Jogger Pants"
-                        onAdd={v=>{ addCatalogItem('categories',v,setCatList,()=>catList); showToast('Category added ' visible to all workers'); }}
+                        onAdd={v=>{ addCatalogItem('categories',v,setCatList,()=>catList); showToast('Category added - visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('categories',v,setCatList,()=>catList); }}
                       />
                     </div>
@@ -1885,7 +1885,7 @@ function OwnerPageInner() {
                       <CatalogList
                         type="colors" items={colorList} input={newColorInput} setInput={setNewColorInput}
                         placeholder="e.g. Rust Orange"
-                        onAdd={v=>{ addCatalogItem('colors',v,setColorList,()=>colorList); showToast('Color added ' visible to all workers'); }}
+                        onAdd={v=>{ addCatalogItem('colors',v,setColorList,()=>colorList); showToast('Color added - visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('colors',v,setColorList,()=>colorList); }}
                       />
                     </div>
@@ -1894,7 +1894,7 @@ function OwnerPageInner() {
                       <CatalogList
                         type="sizes" items={sizeList} input={newSizeInput} setInput={setNewSizeInput}
                         placeholder="e.g. 29, XXS, One Size"
-                        onAdd={v=>{ addCatalogItem('sizes',v,setSizeList,()=>sizeList); showToast('Size added ' visible to all workers'); }}
+                        onAdd={v=>{ addCatalogItem('sizes',v,setSizeList,()=>sizeList); showToast('Size added - visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('sizes',v,setSizeList,()=>sizeList); }}
                       />
                     </div>
@@ -1906,7 +1906,7 @@ function OwnerPageInner() {
                         onAdd={v=>{ addCatalogItem('vendors',v,setVendorList,()=>vendorList);
                           fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
                             body:JSON.stringify({action:'save-registry',vendor:v})}).catch(()=>{});
-                          showToast('Vendor added ' visible to all workers'); }}
+                          showToast('Vendor added - visible to all workers'); }}
                         onDelete={v=>{ deleteCatalogItem('vendors',v,setVendorList,()=>vendorList); }}
                       />
                     </div>
@@ -1916,7 +1916,7 @@ function OwnerPageInner() {
                 {/* -- WORKERS -- (reuse existing workers tab content) */}
                 {settingsSection==='workers'&&(
                   <div className="card">
-                    <div className="card-title">≡ƒæÑ Workers</div>
+                    <div className="card-title">👥 Workers</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Manage workers and their commission settings.</div>
                     {workers.map((w:any)=>(
                       <div key={w.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
@@ -1924,7 +1924,7 @@ function OwnerPageInner() {
                         <div>
                           <div style={{fontWeight:600,fontSize:14}}>{w.name}</div>
                           <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-                            PIN: {w.pin} &middot; Commission: 3% &middot; Joined: {w.createdAt||'''}
+                            PIN: {w.pin} &middot; Commission: 3% &middot; Joined: {w.createdAt||''}
                           </div>
                         </div>
                         <div style={{display:'flex',gap:6,alignItems:'center'}}>
