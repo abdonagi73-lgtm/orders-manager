@@ -26,6 +26,9 @@ export async function middleware(request: NextRequest) {
 
   // 2. No session → redirect to PIN selector
   if (!token) {
+    if (pathname === '/super-admin') {
+      return NextResponse.next();
+    }
     return NextResponse.redirect(new URL('/app', request.url));
   }
 
