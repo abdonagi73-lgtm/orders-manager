@@ -26,6 +26,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/owner' ||           // Owner portal uses internal PIN auth
     pathname.startsWith('/owner/') ||
     pathname === '/api/test-notif' ||  // Email diagnostic endpoint (no sensitive data)
+    pathname === '/privacy' ||         // Public legal pages
+    pathname === '/terms' ||
+    pathname === '/security' ||
     (pathname.startsWith('/api/access-requests') && request.method === 'POST');
 
   if (isPublic) {

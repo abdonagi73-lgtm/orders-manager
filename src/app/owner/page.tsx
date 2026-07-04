@@ -464,7 +464,7 @@ function OwnerPageInner() {
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
   // Settings tab state ' must live at component level (React hook rules)
-  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'subscription'|'integrations'|'activity'|'about'>('business');
+  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'subscription'|'integrations'|'activity'|'about'|'formsetup'>('business');
   const [catList, setCatList] = useState<string[]>([]);
   const [colorList, setColorList] = useState<string[]>([]);
   const [sizeList, setSizeList] = useState<string[]>([]);
@@ -2004,6 +2004,7 @@ function OwnerPageInner() {
                 {sectionBtn('subscription', '💳', 'Subscription')}
                 {sectionBtn('integrations', '🔌', 'Integrations')}
                 {sectionBtn('activity', '📋', 'Activity Log')}
+                {sectionBtn('formsetup', '📝', 'Form Setup')}
                 <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
                 {sectionBtn('about', 'ℹ️', 'About')}
                 <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
@@ -2350,6 +2351,25 @@ function OwnerPageInner() {
                   </div>
                 )}
 
+
+                {/* -- FORM SETUP -- */}
+                {settingsSection==='formsetup'&&(
+                  <div>
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:15,fontWeight:700,color:'var(--text)'}}>📝 Form Setup</div>
+                      <div style={{fontSize:13,color:'var(--text-3)',marginTop:4}}>
+                        Change your POS system, required order fields, or add / remove custom fields.
+                        Workers will see the updated form immediately.
+                      </div>
+                    </div>
+                    <SetupWizard
+                      inline
+                      companyName={company?.name || ''}
+                      onComplete={()=>{ setSetupComplete(true); setSettingsSection('business'); }}
+                      onSkip={()=>setSettingsSection('business')}
+                    />
+                  </div>
+                )}
 
                 {/* -- ABOUT -- */}
                 {settingsSection==='about'&&(

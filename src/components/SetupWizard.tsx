@@ -16,6 +16,7 @@ interface Props {
   companyName: string;
   onComplete:  () => void;
   onSkip:      () => void;
+  inline?:     boolean;  // render as card inside settings instead of fullscreen overlay
 }
 
 // ── POS Field Templates ────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ function StepDot({ n, current, label }: { n: number; current: number; label: str
 
 // ── Main Wizard ───────────────────────────────────────────────────────────────
 
-export default function SetupWizard({ companyName, onComplete, onSkip }: Props) {
+export default function SetupWizard({ companyName, onComplete, onSkip, inline }: Props) {
   const [step, setStep]               = useState(1);
   const [bizType, setBizType]         = useState('');
   const [posType, setPosType]         = useState('');
@@ -193,20 +194,14 @@ export default function SetupWizard({ companyName, onComplete, onSkip }: Props) 
 
   const stepLabels = ['Business', 'POS', 'Fields', 'Custom', 'Launch'];
 
-  // ── Overlay wrapper ───────────────────────────────────────────────────────
-  return (
+  // ── Wrapper: overlay (first-login) or inline card (settings) ─────────────
+  const inner = (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '20px',
+      width: '100%', maxWidth: inline ? '100%' : 640, background: 'var(--surface)',
+      border: '1px solid var(--border)', borderRadius: 20,
+      boxShadow: inline ? 'none' : '0 32px 80px rgba(0,0,0,.6)',
+      maxHeight: inline ? 'none' : '90vh', overflowY: inline ? 'visible' : 'auto',
     }}>
-      <div style={{
-        width: '100%', maxWidth: 640, background: 'var(--surface)',
-        border: '1px solid var(--border)', borderRadius: 20,
-        boxShadow: '0 32px 80px rgba(0,0,0,.6)',
-        maxHeight: '90vh', overflowY: 'auto',
-      }}>
         {/* Header */}
         <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '.08em',
@@ -512,13 +507,23 @@ export default function SetupWizard({ companyName, onComplete, onSkip }: Props) 
                 padding: '10px 28px', borderRadius: 8, fontSize: 14, fontWeight: 700,
                 background: saving ? 'var(--border)' : 'var(--green)',
                 color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-              }}>
-                {saving ? 'Saving...' : '🚀 Launch my portal'}
-              </button>
+              }}>{saving ? 'Saving...' : '🚀 Launch my portal'}</button>
             )}
           </div>
         </div>
       </div>
+  );
+
+  if (inline) return inner;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px',
+    }}>
+      {inner}
     </div>
   );
 }
