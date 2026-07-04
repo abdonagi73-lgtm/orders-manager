@@ -7,8 +7,7 @@ export default function MarketingNav() {
       <div className="mk-nav-inner">
         <Link href="/" className="mk-nav-logo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-flowriq.png" alt="Flowxiq" />
-          <span>Flowxiq</span>
+          <img src="/logo-flowxiq-dark.png" alt="flowxiq" style={{height:28,objectFit:'contain'}} />
         </Link>
         <ul className="mk-nav-links">
           <li><a href="/#features">Features</a></li>

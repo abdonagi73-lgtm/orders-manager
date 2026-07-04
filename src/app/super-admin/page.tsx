@@ -545,7 +545,7 @@ export default function HQPlatformOperations() {
         `}</style>
         <div className="sa-lock-card">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-flowriq.png" alt="Flowxiq" className="sa-lock-logo" />
+          <img src="/logo-flowxiq-white.png" alt="flowxiq" className="sa-lock-logo" style={{height:36,objectFit:'contain',marginBottom:8}} />
           <h2 className="sa-lock-title">OPERATIONS COMMAND LOCK</h2>
           <div className="sa-lock-sub">SUPER ADMIN SECURITY GATE</div>
 
@@ -650,13 +650,13 @@ export default function HQPlatformOperations() {
       {/* Platform Header */}
       <header className="hq-header">
         <div className="hq-header-left">
-          <div className="hq-header-logo-wrap" style={{ width: 40, height: 40, background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-flowriq.png" alt="Flowxiq" className="sa-logo" style={{ maxWidth: 28, maxHeight: 28, width: "auto", height: "auto", objectFit: "contain" }} />
+            <img src="/logo-flowxiq-white.png" alt="flowxiq" style={{ height: 26, objectFit: 'contain', display: 'block' }} />
           </div>
           <div>
-            <h1 className="text-base font-black tracking-tight leading-none uppercase text-white">FLOWXIQ PLATFORM OPERATIONS</h1>
-            <p className="text-[#3B82F6] font-mono text-[9px] mt-1 tracking-widest uppercase">HEADQUARTERS CONTROL GATEWAY · CONTROL PANEL v3.0</p>
+            <h1 style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', margin: 0, lineHeight: 1 }}>Platform Operations</h1>
+            <p className="text-[#3B82F6] font-mono text-[9px] mt-1 tracking-widest uppercase">HEADQUARTERS CONTROL GATEWAY · v3.0</p>
           </div>
         </div>
 
