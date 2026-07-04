@@ -107,8 +107,8 @@ export async function POST(req: NextRequest) {
           itemCount: Number(order.itemCount) || 0,
           totalValue: Number(order.totalValue) || 0,
           // Worker reassignment by manager
-          worker_id:   order.workerId   ?? undefined,
-          worker_name: order.workerName ?? undefined,
+          workerId:   order.workerId   ?? undefined,
+          workerName: order.workerName ?? undefined,
         })
         .where(and(eq(orders.id, order.id), eq(orders.company_id, companyId)));
 
