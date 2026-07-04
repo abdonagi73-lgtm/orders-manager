@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import FlowxiqLogo from "@/components/FlowxiqLogo";
 
 const ROLE_DESTINATIONS: Record<string, string> = {
   super_admin: "/super-admin",
@@ -280,18 +281,7 @@ export default function UnifiedLoginPage() {
 
         {/* ── Logo & Title ── */}
         <div className="lp-logo-wrap">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-flowxiq-white.png"
-            alt="FlowXIQ"
-            style={{height:32,objectFit:'contain',display:'block',margin:'0 auto 16px'}}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-              const fb = e.currentTarget.nextElementSibling as HTMLElement;
-              if (fb) fb.style.display = 'flex';
-            }}
-          />
-          <div className="lp-logo-fallback" style={{ display: 'none' }}>📦</div>
+          <FlowxiqLogo color="#FFFFFF" height={30} />
           <h1 className="lp-title">FlowXIQ</h1>
           <div className="lp-sub">
             {mode === "forgot"      ? "Reset Credentials" :

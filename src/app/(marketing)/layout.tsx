@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import MarketingNav from './MarketingNav';
+import FlowxiqLogo from '@/components/FlowxiqLogo';
 
 export const metadata: Metadata = {
   title: 'Flowxiq — Purchasing Workflow Software for Retail',
@@ -121,8 +122,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <div className="mk-footer-inner">
             <div className="mk-footer-col">
               <div style={{marginBottom:20}}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-flowxiq-white.png" alt="flowxiq" style={{height:22,objectFit:'contain'}} />
+                <FlowxiqLogo color="#FFFFFF" height={22} />
               </div>
               <p style={{fontSize:13,color:'var(--mk-text3)',lineHeight:1.6}}>
                 Purchasing workflow software for retail businesses who source from vendors and suppliers.

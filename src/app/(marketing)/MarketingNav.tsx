@@ -1,13 +1,13 @@
 'use client';
 import Link from 'next/link';
+import FlowxiqLogo from '@/components/FlowxiqLogo';
 
 export default function MarketingNav() {
   return (
     <nav className="mk-nav">
       <div className="mk-nav-inner">
         <Link href="/" className="mk-nav-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-flowxiq-white.png" alt="flowxiq" style={{height:24,objectFit:'contain',display:'block'}} />
+          <FlowxiqLogo color="#FFFFFF" height={26} />
         </Link>
         <ul className="mk-nav-links">
           <li><a href="/#features">Features</a></li>
