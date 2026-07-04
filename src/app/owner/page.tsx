@@ -457,6 +457,20 @@ function OwnerPageInner() {
   const [newSizeInput, setNewSizeInput] = useState('');
   const [newVendorInput, setNewVendorInput] = useState('');
   const [timelineLoaded, setTimelineLoaded] = useState(false);
+  const [dashboardAnalytics, setDashboardAnalytics] = useState<{
+    totalRevenue: number;
+    totalOrders: number;
+    openOrders: number;
+    closedOrders: number;
+    submittedOrders: number;
+    avgOrderValue: number;
+    commissionPaid: number;
+    commissionUnpaid: number;
+    topWorkers: { id: string; name: string; count: number; revenue: number }[];
+    topVendors: { id: string; name: string; frequencyScore: number }[];
+    ordersByMonth: { label: string; key: string; count: number; revenue: number }[];
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const searchParams = useSearchParams();
   const location = searchParams.get('location') || '';
   const [orderSearch, setOrderSearch] = useState('');
@@ -631,6 +645,14 @@ function OwnerPageInner() {
     if(tab==='timeline' && !timelineLoaded) {
       setTimelineLoaded(true);
       fetch('/api/timeline').then(r=>r.json()).then(d=>{ if(d.events) setTimelineEvents(d.events); });
+    }
+    if(tab==='analytics') {
+      setAnalyticsLoading(true);
+      fetch('/api/owner/dashboard')
+        .then(r => r.json())
+        .then(d => { if(d.analytics) setDashboardAnalytics(d.analytics); })
+        .catch(() => {})
+        .finally(() => setAnalyticsLoading(false));
     }
     if(tab==='intelligence') {
       fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
@@ -1425,56 +1447,224 @@ function OwnerPageInner() {
 
         {/* -- ANALYTICS TAB -- */}
         {tab==='analytics'&&(()=>{
-          const totalSpend    = orders.reduce((s,o)=>s+(o.totalValue||0),0);
-          const totalShipping = orders.reduce((s,o)=>s+o.shippingCost,0);
-          const totalComm     = orders.reduce((s,o)=>s+o.workerCommission,0);
-          const catMap: Record<string,{count:number,spend:number}> = {};
-          items.forEach(i=>{
-            if(!catMap[i.category]) catMap[i.category]={count:0,spend:0};
-            catMap[i.category].count++;
-            catMap[i.category].spend+=i.price*i.qty;
-          });
+          // Fallback computed from local orders state while API loads
+          const fallbackRevenue = orders.reduce((s,o)=>s+(o.totalValue||0),0);
+          const fallbackOrders  = orders.length;
+          const a = dashboardAnalytics;
+          const totalRevenue   = a ? a.totalRevenue   : fallbackRevenue;
+          const totalOrders    = a ? a.totalOrders    : fallbackOrders;
+          const avgOrderValue  = a ? a.avgOrderValue  : (fallbackOrders>0?fallbackRevenue/fallbackOrders:0);
+          const commUnpaid     = a ? a.commissionUnpaid : orders.filter(o=>!o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
+          const commPaid       = a ? a.commissionPaid   : orders.filter(o=>o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
+          const openCount      = a ? a.openOrders      : orders.filter(o=>o.status==='open').length;
+          const closedCount    = a ? a.closedOrders    : orders.filter(o=>o.status==='imported').length;
+          const submittedCount = a ? a.submittedOrders : orders.filter(o=>o.status==='submitted').length;
+          const topWorkers     = a?.topWorkers || [];
+          const topVendors     = a?.topVendors || [];
+          const monthlyData    = a?.ordersByMonth || [];
+          const maxMonthCount  = Math.max(...monthlyData.map(m=>m.count), 1);
+          const maxMonthRev    = Math.max(...monthlyData.map(m=>m.revenue), 1);
+          const maxWorkerCount = Math.max(...topWorkers.map(w=>w.count), 1);
+          const maxVendorScore = Math.max(...topVendors.map(v=>v.frequencyScore), 1);
+
+          const statCardStyle: React.CSSProperties = {
+            background:'var(--surface)',
+            border:'1px solid var(--border)',
+            borderRadius:'var(--r)',
+            padding:'16px 14px',
+            display:'flex',
+            flexDirection:'column',
+            gap:4,
+          };
+          const statValStyle: React.CSSProperties = {
+            fontSize:22,fontWeight:800,letterSpacing:'-.02em',color:'var(--text)'
+          };
+          const statLblStyle: React.CSSProperties = {
+            fontSize:11,fontWeight:600,textTransform:'uppercase' as const,
+            letterSpacing:'.06em',color:'var(--text-3)'
+          };
+
           return (
             <>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
-                <div className="stat-card"><div className="stat-val">{orders.length}</div><div className="stat-lbl">Total orders</div></div>
-                <div className="stat-card"><div className="stat-val">${totalSpend.toFixed(0)}</div><div className="stat-lbl">Purchase value</div></div>
-                <div className="stat-card"><div className="stat-val">${totalShipping.toFixed(0)}</div><div className="stat-lbl">Shipping paid</div></div>
+              {analyticsLoading && !dashboardAnalytics && (
+                <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'8px 0 12px'}}>Loading analytics&#8230;</div>
+              )}
+
+              {/* ─── TOP KPI ROW ─── */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:14}}>
+                <div style={{...statCardStyle,borderTop:'3px solid var(--green)'}}>
+                  <div style={{...statValStyle,color:'var(--green)'}}>${totalRevenue.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+                  <div style={statLblStyle}>Total Revenue</div>
+                  <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>{totalOrders} orders total</div>
+                </div>
+                <div style={{...statCardStyle,borderTop:'3px solid var(--blue)'}}>
+                  <div style={{...statValStyle,color:'var(--blue)'}}>${avgOrderValue.toFixed(0)}</div>
+                  <div style={statLblStyle}>Avg Order Value</div>
+                  <div style={{display:'flex',gap:8,marginTop:2,flexWrap:'wrap'}}>
+                    <span style={{fontSize:10,background:'var(--amber-light)',color:'var(--amber)',borderRadius:4,padding:'1px 6px',fontWeight:600}}>{openCount} open</span>
+                    <span style={{fontSize:10,background:'var(--blue-bg)',color:'var(--blue)',borderRadius:4,padding:'1px 6px',fontWeight:600}}>{submittedCount} submitted</span>
+                    <span style={{fontSize:10,background:'var(--green-light)',color:'var(--green)',borderRadius:4,padding:'1px 6px',fontWeight:600}}>{closedCount} imported</span>
+                  </div>
+                </div>
+                <div style={{...statCardStyle,borderTop:'3px solid var(--red)'}}>
+                  <div style={{...statValStyle,color:'var(--red)'}}>${commUnpaid.toFixed(2)}</div>
+                  <div style={statLblStyle}>Commission Owed</div>
+                  <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>${commPaid.toFixed(2)} already paid</div>
+                </div>
+                <div style={{...statCardStyle,borderTop:'3px solid #8b5cf6'}}>
+                  <div style={{...statValStyle,color:'#8b5cf6'}}>{totalOrders}</div>
+                  <div style={statLblStyle}>Total Orders</div>
+                  <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>${(totalRevenue+commPaid+commUnpaid).toFixed(0)} incl. commissions</div>
+                </div>
               </div>
-              <div className="card" style={{marginBottom:12}}>
-                <div className="card-title">Orders history</div>
-                {orders.length===0?<div className="empty"><div className="empty-text">No orders yet</div></div>:(
-                  <>
-                    {orders.map(o=>(
-                      <div key={o.id} className="vendor-row">
-                        <div>
-                          <strong>{o.name}</strong>
-                          <div style={{fontSize:12,color:'var(--text-3)'}}>{o.workerName} &middot; {o.startDate} &middot; {o.itemCount} items</div>
+
+              {/* ─── ORDERS BY MONTH BAR CHART ─── */}
+              {monthlyData.length>0&&(
+                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'16px 14px',marginBottom:14}}>
+                  <div style={{fontSize:13,fontWeight:700,marginBottom:14,color:'var(--text)'}}>Orders by month</div>
+                  <div style={{display:'flex',gap:8,alignItems:'flex-end',height:100}}>
+                    {monthlyData.map(m=>(
+                      <div key={m.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                        <div style={{fontSize:9,fontWeight:700,color:'var(--green)',opacity:m.count?1:.3}}>
+                          {m.count>0?m.count:''}
                         </div>
-                        <div style={{textAlign:'right'}}>
-                          <div style={{fontWeight:600}}>${o.totalValue.toFixed(0)}</div>
-                          <div style={{fontSize:11,color:'var(--text-3)'}}>+${o.shippingCost} ship &middot; +${o.workerCommission} comm</div>
+                        <div style={{width:'100%',display:'flex',flexDirection:'column',justifyContent:'flex-end',height:72}}>
+                          <div style={{
+                            width:'100%',
+                            height:Math.max(3,Math.round((m.count/maxMonthCount)*72)),
+                            background:m.count>0
+                              ?'linear-gradient(180deg,var(--green),#16a34a55)'
+                              :'var(--surface-2)',
+                            borderRadius:'4px 4px 0 0',
+                            transition:'height .3s ease',
+                            border:m.count>0?'1px solid var(--green)':'1px solid var(--border)',
+                            borderBottom:'none',
+                          }}/>
                         </div>
+                        <div style={{fontSize:9,color:'var(--text-3)',textAlign:'center',lineHeight:1.2,whiteSpace:'nowrap'}}>{m.label}</div>
                       </div>
                     ))}
-                    <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,paddingTop:10,marginTop:4,borderTop:'2px solid var(--border)'}}>
-                      <span>Grand total</span>
-                      <span>${(totalSpend+totalShipping+totalComm).toFixed(2)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-              {selectedOrder&&items.length>0&&(
-                <div className="card">
-                  <div className="card-title">Current order ' by category</div>
-                  {Object.entries(catMap).sort((a,b)=>b[1].spend-a[1].spend).map(([cat,d])=>(
-                    <div key={cat} className="vendor-row">
-                      <span>{cat} <span style={{fontSize:11,color:'var(--text-3)'}}>({d.count} items)</span></span>
-                      <span style={{fontWeight:600}}>${d.spend.toFixed(0)}</span>
+                  </div>
+                  <div style={{marginTop:12,display:'flex',gap:12,flexWrap:'wrap'}}>
+                    {monthlyData.map(m=>m.revenue>0&&(
+                      <div key={m.key} style={{fontSize:11,color:'var(--text-3)'}}>
+                        <span style={{fontWeight:600,color:'var(--text)'}}>{m.label}</span>: ${m.revenue.toFixed(0)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
+                {/* ─── TOP WORKERS ─── */}
+                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'14px'}}>
+                  <div style={{fontSize:13,fontWeight:700,marginBottom:12,color:'var(--text)',display:'flex',alignItems:'center',gap:6}}>
+                    <span>&#127959;</span> Top Workers
+                  </div>
+                  {topWorkers.length===0?(
+                    <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'16px 0'}}>No data yet</div>
+                  ):topWorkers.map((w,idx)=>(
+                    <div key={w.id} style={{marginBottom:10}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{
+                            fontSize:10,fontWeight:800,
+                            color:idx===0?'#f59e0b':idx===1?'#94a3b8':idx===2?'#cd7c3f':'var(--text-4)',
+                            width:16,textAlign:'center'
+                          }}>#{idx+1}</span>
+                          <span style={{fontSize:12,fontWeight:600,color:'var(--text)'}}>{w.name}</span>
+                        </div>
+                        <span style={{fontSize:11,color:'var(--green)',fontWeight:700}}>{w.count} orders</span>
+                      </div>
+                      <div style={{background:'var(--surface-2)',borderRadius:4,height:5,overflow:'hidden'}}>
+                        <div style={{
+                          height:'100%',
+                          width:`${Math.round((w.count/maxWorkerCount)*100)}%`,
+                          background:idx===0?'linear-gradient(90deg,#f59e0b,#fbbf24)'
+                            :idx===1?'linear-gradient(90deg,#94a3b8,#cbd5e1)'
+                            :'linear-gradient(90deg,var(--green),#4ade80)',
+                          borderRadius:4,
+                          transition:'width .4s ease',
+                        }}/>
+                      </div>
+                      <div style={{fontSize:10,color:'var(--text-3)',marginTop:2}}>${w.revenue.toFixed(0)} revenue</div>
                     </div>
                   ))}
                 </div>
-              )}
+
+                {/* ─── TOP VENDORS ─── */}
+                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'14px'}}>
+                  <div style={{fontSize:13,fontWeight:700,marginBottom:12,color:'var(--text)',display:'flex',alignItems:'center',gap:6}}>
+                    <span>&#127968;</span> Top Vendors
+                  </div>
+                  {topVendors.length===0?(
+                    <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'16px 0'}}>No vendor data yet</div>
+                  ):topVendors.map((v,idx)=>(
+                    <div key={v.id} style={{marginBottom:10}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{
+                            fontSize:10,fontWeight:800,
+                            color:idx===0?'#f59e0b':idx===1?'#94a3b8':idx===2?'#cd7c3f':'var(--text-4)',
+                            width:16,textAlign:'center'
+                          }}>#{idx+1}</span>
+                          <span style={{fontSize:12,fontWeight:600,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:90}}>{v.name}</span>
+                        </div>
+                        <span style={{fontSize:11,color:'var(--blue)',fontWeight:700}}>&#9733; {v.frequencyScore}</span>
+                      </div>
+                      <div style={{background:'var(--surface-2)',borderRadius:4,height:5,overflow:'hidden'}}>
+                        <div style={{
+                          height:'100%',
+                          width:`${Math.round((v.frequencyScore/maxVendorScore)*100)}%`,
+                          background:idx===0?'linear-gradient(90deg,#f59e0b,#fbbf24)'
+                            :'linear-gradient(90deg,#60a5fa,#60a5fa)',
+                          borderRadius:4,
+                          transition:'width .4s ease',
+                        }}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ─── ORDERS HISTORY TABLE ─── */}
+              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
+                <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div style={{fontSize:13,fontWeight:700}}>Orders history</div>
+                  <div style={{fontSize:11,color:'var(--text-3)'}}>{totalOrders} total</div>
+                </div>
+                {orders.length===0?(
+                  <div style={{padding:'24px 14px',textAlign:'center',color:'var(--text-3)',fontSize:13}}>No orders yet</div>
+                ):(
+                  <div style={{maxHeight:300,overflowY:'auto'}}>
+                    {orders.slice(0,25).map((o,idx)=>(
+                      <div key={o.id} style={{
+                        display:'flex',justifyContent:'space-between',alignItems:'center',
+                        padding:'9px 14px',
+                        borderBottom:'1px solid var(--border)',
+                        background:idx%2===0?'transparent':'var(--surface-2)',
+                      }}>
+                        <div style={{minWidth:0,flex:1}}>
+                          <div style={{fontWeight:600,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{o.name}</div>
+                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:1}}>{o.workerName} &middot; {o.startDate} &middot; {o.itemCount} items</div>
+                        </div>
+                        <div style={{textAlign:'right',flexShrink:0,marginLeft:8}}>
+                          <div style={{fontWeight:700,color:'var(--green)',fontSize:13}}>${o.totalValue.toFixed(0)}</div>
+                          <span style={{
+                            fontSize:9,fontWeight:700,textTransform:'uppercase' as const,
+                            color:o.status==='open'?'var(--amber)':o.status==='submitted'?'var(--blue)':'var(--green)'
+                          }}>{o.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {orders.length>25&&(
+                      <div style={{padding:'8px 14px',textAlign:'center',fontSize:11,color:'var(--text-3)'}}>
+                        Showing 25 of {orders.length} orders
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           );
         })()}

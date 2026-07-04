@@ -11,6 +11,24 @@ import {
 } from "lucide-react";
 import FlowxiqCombinedLogo from "@/components/FlowxiqCombinedLogo";
 
+// Platform Stats Interface
+interface PlatformStats {
+  companies: { total: number; active: number; trial: number; paid: number };
+  users: { total: number };
+  orders: { total: number; last30Days: number };
+  integrations: { total: number; connected: number };
+  recentActivity: {
+    id: string;
+    company_id: string | null;
+    actor_name: string | null;
+    actor_role: string | null;
+    action: string;
+    entity_type: string | null;
+    created_at: string;
+  }[];
+  generatedAt: string;
+}
+
 // Platform Interfaces
 interface Company {
   id: string;
@@ -208,9 +226,36 @@ export default function HQPlatformOperations() {
     { service: "Object Storage", health: "99.99%", response: "185ms", load: "42%" }
   ]);
 
+  // --- Platform Stats State ---
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
   // --- Global Settings ---
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [defaultTrialDays, setDefaultTrialDays] = useState(14);
+
+  // Fetch platform-wide stats from the v1 admin API
+  const loadPlatformStats = async () => {
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const res = await fetch("/api/v1/admin/platform-stats");
+      if (res.ok) {
+        const data = await res.json();
+        setPlatformStats(data);
+      } else if (res.status === 403) {
+        setStatsError("ACCESS DENIED — super_admin session required.");
+      } else {
+        setStatsError(`Failed to load platform stats (HTTP ${res.status})`);
+      }
+    } catch (e) {
+      console.error("Platform stats fetch error", e);
+      setStatsError("Network error — could not reach the platform stats API.");
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   // Fetch initial data
   const loadPlatformData = async () => {
@@ -227,6 +272,8 @@ export default function HQPlatformOperations() {
       setLoading(false);
       setRefreshing(false);
     }
+    // Load live platform stats in parallel
+    loadPlatformStats();
   };
 
   // Check session on mount
@@ -823,6 +870,251 @@ export default function HQPlatformOperations() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* ── PLATFORM STATS SECTION ── */}
+              <div style={{ borderTop: "1px solid #16223F", paddingTop: "24px" }}>
+                {/* Section Header */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                  <div>
+                    <h3 className="text-base font-bold text-white tracking-tight" style={{ margin: 0 }}>
+                      📡 Live Platform Stats
+                    </h3>
+                    <p className="text-xs text-[#8A9CB6]" style={{ marginTop: 4 }}>
+                      Real-time cross-tenant metrics pulled directly from the database.
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {platformStats?.generatedAt && (
+                      <span className="font-mono text-[10px] text-[#4E6785]" style={{ whiteSpace: "nowrap" }}>
+                        Generated at:{" "}
+                        {new Date(platformStats.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                      </span>
+                    )}
+                    <button
+                      onClick={loadPlatformStats}
+                      disabled={statsLoading}
+                      className="hq-refresh-btn font-mono"
+                      style={{ padding: "6px 14px", fontSize: 11 }}
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${statsLoading ? "animate-spin text-[#3B82F6]" : ""}`} />
+                      {statsLoading ? "LOADING…" : "REFRESH STATS"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error State */}
+                {statsError && (
+                  <div style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.25)",
+                    borderRadius: 10,
+                    padding: "12px 16px",
+                    marginBottom: 16,
+                    color: "#FCA5A5",
+                    fontFamily: "monospace",
+                    fontSize: 12
+                  }}>
+                    ⚠️ {statsError}
+                  </div>
+                )}
+
+                {/* Loading Skeleton */}
+                {statsLoading && !platformStats && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 16 }}>
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="hq-card" style={{ minHeight: 96, opacity: 0.4, animation: "pulse 1.5s ease-in-out infinite" }} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Stats Cards Grid */}
+                {platformStats && (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+
+                      {/* Total Tenants — blue */}
+                      <div className="hq-card" style={{
+                        borderLeft: "3px solid #3B82F6",
+                        background: "linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(10,17,32,1) 100%)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="kpi-label" style={{ color: "#6FA3EF" }}>TOTAL TENANTS</div>
+                          <Building className="w-4 h-4" style={{ color: "#3B82F6", opacity: 0.7 }} />
+                        </div>
+                        <div className="kpi-val" style={{ color: "#3B82F6" }}>{platformStats.companies.total}</div>
+                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>All registered workspaces</div>
+                      </div>
+
+                      {/* Active Tenants — green */}
+                      <div className="hq-card" style={{
+                        borderLeft: "3px solid #10B981",
+                        background: "linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(10,17,32,1) 100%)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="kpi-label" style={{ color: "#5DDFB8" }}>ACTIVE TENANTS</div>
+                          <CheckCircle2 className="w-4 h-4" style={{ color: "#10B981", opacity: 0.7 }} />
+                        </div>
+                        <div className="kpi-val" style={{ color: "#10B981" }}>{platformStats.companies.active}</div>
+                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Currently live workspaces</div>
+                      </div>
+
+                      {/* Trial vs Paid Split — amber */}
+                      <div className="hq-card" style={{
+                        borderLeft: "3px solid #F59E0B",
+                        background: "linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(10,17,32,1) 100%)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="kpi-label" style={{ color: "#FBD38D" }}>TRIAL vs PAID</div>
+                          <AlertCircle className="w-4 h-4" style={{ color: "#F59E0B", opacity: 0.7 }} />
+                        </div>
+                        <div style={{ display: "flex", gap: 12, alignItems: "baseline", marginTop: 8 }}>
+                          <div>
+                            <span style={{ fontSize: 22, fontWeight: 800, color: "#F59E0B", fontFamily: "monospace" }}>
+                              {platformStats.companies.trial}
+                            </span>
+                            <span className="text-[#8A9CB6] text-[10px] font-mono ml-1">TRIAL</span>
+                          </div>
+                          <span style={{ color: "#4E6785", fontSize: 14 }}>/</span>
+                          <div>
+                            <span style={{ fontSize: 22, fontWeight: 800, color: "#10B981", fontFamily: "monospace" }}>
+                              {platformStats.companies.paid}
+                            </span>
+                            <span className="text-[#8A9CB6] text-[10px] font-mono ml-1">PAID</span>
+                          </div>
+                        </div>
+                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Subscription breakdown</div>
+                      </div>
+
+                      {/* Total Users — blue */}
+                      <div className="hq-card" style={{
+                        borderLeft: "3px solid #3B82F6",
+                        background: "linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(10,17,32,1) 100%)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="kpi-label" style={{ color: "#6FA3EF" }}>TOTAL USERS</div>
+                          <Users className="w-4 h-4" style={{ color: "#3B82F6", opacity: 0.7 }} />
+                        </div>
+                        <div className="kpi-val" style={{ color: "#3B82F6" }}>{platformStats.users.total}</div>
+                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Across all tenant accounts</div>
+                      </div>
+
+                      {/* Total Orders 30d — green */}
+                      <div className="hq-card" style={{
+                        borderLeft: "3px solid #10B981",
+                        background: "linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(10,17,32,1) 100%)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="kpi-label" style={{ color: "#5DDFB8" }}>ORDERS (LAST 30D)</div>
+                          <FileText className="w-4 h-4" style={{ color: "#10B981", opacity: 0.7 }} />
+                        </div>
+                        <div className="kpi-val" style={{ color: "#10B981" }}>{platformStats.orders.last30Days.toLocaleString()}</div>
+                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>
+                          {platformStats.orders.total.toLocaleString()} total all-time
+                        </div>
+                      </div>
+
+                      {/* Connected Integrations — green */}
+                      <div className="hq-card" style={{
+                        borderLeft: "3px solid #10B981",
+                        background: "linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(10,17,32,1) 100%)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="kpi-label" style={{ color: "#5DDFB8" }}>CONNECTED INTEGRATIONS</div>
+                          <Cpu className="w-4 h-4" style={{ color: "#10B981", opacity: 0.7 }} />
+                        </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginTop: 8 }}>
+                          <span style={{ fontSize: 28, fontWeight: 800, color: "#10B981", fontFamily: "monospace" }}>
+                            {platformStats.integrations.connected}
+                          </span>
+                          <span style={{ color: "#4E6785", fontSize: 13, fontFamily: "monospace" }}>
+                            / {platformStats.integrations.total}
+                          </span>
+                        </div>
+                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Active / total configured</div>
+                      </div>
+
+                    </div>
+
+                    {/* Recent Activity Feed */}
+                    <div className="hq-card hq-flex-col" style={{ gap: 14 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <h4 className="text-xs font-bold uppercase tracking-wider font-mono" style={{ color: "#3B82F6", margin: 0 }}>
+                          Recent Cross-Tenant Activity
+                        </h4>
+                        <span className="font-mono text-[10px] text-[#4E6785]">
+                          Last 7 days · up to 20 events
+                        </span>
+                      </div>
+
+                      {platformStats.recentActivity.length === 0 ? (
+                        <div className="text-xs text-[#4E6785] font-mono text-center py-6">
+                          No audit events in the last 7 days.
+                        </div>
+                      ) : (
+                        <div className="hq-flex-col" style={{ gap: 8 }}>
+                          {platformStats.recentActivity.map((evt) => (
+                            <div key={evt.id} className="hq-feed-item">
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                                <span className="hq-feed-dot" style={{ background: "#3B82F6", flexShrink: 0 }} />
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    <span className="font-bold text-white text-xs" style={{ textTransform: "capitalize" }}>
+                                      {evt.action.replace(/_/g, " ")}
+                                    </span>
+                                    {evt.entity_type && (
+                                      <span style={{
+                                        background: "rgba(59,130,246,0.12)",
+                                        border: "1px solid rgba(59,130,246,0.25)",
+                                        color: "#93C5FD",
+                                        fontSize: 9,
+                                        fontFamily: "monospace",
+                                        padding: "1px 6px",
+                                        borderRadius: 4,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em"
+                                      }}>
+                                        {evt.entity_type}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-[#8A9CB6] font-mono" style={{ marginTop: 2 }}>
+                                    {evt.actor_name ?? "System"}
+                                    {evt.actor_role && <span className="text-[#4E6785]"> · {evt.actor_role}</span>}
+                                    {evt.company_id && <span className="text-[#4E6785]"> · {evt.company_id}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="text-[#4E6785] font-mono text-[10px]" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+                                {new Date(evt.created_at).toLocaleString([], {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Empty state when not yet loaded and no error */}
+                {!platformStats && !statsLoading && !statsError && (
+                  <div style={{
+                    textAlign: "center",
+                    padding: "32px 16px",
+                    color: "#4E6785",
+                    fontFamily: "monospace",
+                    fontSize: 12,
+                    border: "1px dashed #16223F",
+                    borderRadius: 10
+                  }}>
+                    Click &quot;REFRESH STATS&quot; to load live platform metrics.
+                  </div>
+                )}
               </div>
             </div>
           )}
