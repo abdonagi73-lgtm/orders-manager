@@ -5,6 +5,7 @@ import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 import { SubscriptionSection, IntegrationsSection, ActivitySection } from './settings-sections';
+import SetupWizard from '@/components/SetupWizard';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
@@ -441,7 +442,24 @@ function OwnerPageInner() {
   const [expandedOrders, setExpandedOrders] = useState<Record<string,boolean>>({});
   const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp
   const [loggedInName, setLoggedInName] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode]         = useState(false);
+  const [setupComplete, setSetupComplete] = useState(true); // default true to avoid flash
+  const [companyNameForWizard, setCompanyNameForWizard] = useState('');
+  // Credential editing state
+  const [credName, setCredName]         = useState('');
+  const [credNameSaving, setCredNameSaving] = useState(false);
+  const [credNameMsg, setCredNameMsg]   = useState('');
+  const [credEmail, setCredEmail]       = useState('');
+  const [credNewEmail, setCredNewEmail] = useState('');
+  const [credEmailPin, setCredEmailPin] = useState('');
+  const [credEmailCode, setCredEmailCode] = useState('');
+  const [credEmailStep, setCredEmailStep] = useState<'idle'|'enter'|'verify'>('idle');
+  const [credEmailMsg, setCredEmailMsg] = useState('');
+  const [credCurPin, setCredCurPin]     = useState('');
+  const [credNewPin, setCredNewPin]     = useState('');
+  const [credConfPin, setCredConfPin]   = useState('');
+  const [credPinSaving, setCredPinSaving] = useState(false);
+  const [credPinMsg, setCredPinMsg]     = useState('');
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
@@ -525,7 +543,14 @@ function OwnerPageInner() {
           logoUrl: sessionRes.company.logo_url || sessionRes.company.logoUrl || null
         });
       }
-      setAuthed(true); loadAll(); loadNotifs();
+      setAuthed(true);
+      // Check setup completion
+      fetch('/api/setup').then(r=>r.json()).then(d=>{
+        const data = d.data ?? d;
+        setSetupComplete(data.setup_complete === 1);
+        setCompanyNameForWizard(sessionRes.company?.name || '');
+      }).catch(()=>setSetupComplete(true));
+      loadAll(); loadNotifs();
     } else setPinError(true);
   }
 
@@ -1024,6 +1049,14 @@ function OwnerPageInner() {
 
   return (
     <div className="page">
+      {/* Setup wizard overlay — shown on first login if setup not complete */}
+      {!setupComplete && (
+        <SetupWizard
+          companyName={companyNameForWizard || company?.name || 'Your Workspace'}
+          onComplete={() => setSetupComplete(true)}
+          onSkip={() => setSetupComplete(true)}
+        />
+      )}
       <div className="header" style={{boxShadow:'0 1px 3px rgba(0,0,0,.05)',borderBottom:'1px solid var(--border)'}}>
         <div className="container-wide">
           <div className="header-inner" style={{height:'auto',minHeight:64,padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
@@ -1989,20 +2022,127 @@ function OwnerPageInner() {
                 {settingsSection==='account'&&(
                   <div className="card">
                     <div className="card-title">👤 Account</div>
+
+                    {/* --- Name --- */}
                     <div className="field">
-                      <label className="label">Owner PIN</label>
-                      <input type="text" inputMode="numeric" value={settings.ownerPin} style={{maxWidth:160}}
-                        onChange={e=>setSettings(s=>({...s,ownerPin:e.target.value}))}/>
+                      <label className="label">Display Name</label>
+                      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                        <input type="text" value={credName||loggedInName}
+                          onChange={e=>setCredName(e.target.value)}
+                          placeholder="Your display name" style={{maxWidth:260}}/>
+                        <button className="btn btn-primary" style={{flexShrink:0}}
+                          disabled={credNameSaving}
+                          onClick={async()=>{
+                            setCredNameSaving(true); setCredNameMsg('');
+                            const r = await fetch('/api/auth/update-credentials',{
+                              method:'PATCH',headers:{'Content-Type':'application/json'},
+                              body:JSON.stringify({field:'name',value:credName||loggedInName})});
+                            const d = await r.json();
+                            setCredNameMsg(r.ok?'✅ Saved':'❌ '+(d.error||'Failed'));
+                            if(r.ok) setLoggedInName(credName||loggedInName);
+                            setCredNameSaving(false);
+                          }}>{credNameSaving?'Saving...':'Save'}</button>
+                      </div>
+                      {credNameMsg&&<div style={{fontSize:12,marginTop:4,color:credNameMsg.startsWith('✅')?'var(--green)':'var(--red)'}}>{credNameMsg}</div>}
                     </div>
+
+                    {/* --- Email --- */}
+                    <div className="field">
+                      <label className="label">Email Address</label>
+                      {credEmailStep==='idle'&&(
+                        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                          <input type="email" value={credEmail} readOnly
+                            placeholder="No email on file" style={{maxWidth:260,opacity:.7}}/>
+                          <button className="btn" style={{flexShrink:0}}
+                            onClick={()=>setCredEmailStep('enter')}>Change</button>
+                        </div>
+                      )}
+                      {credEmailStep==='enter'&&(
+                        <div style={{display:'flex',flexDirection:'column',gap:8,maxWidth:320}}>
+                          <input type="email" value={credNewEmail}
+                            onChange={e=>setCredNewEmail(e.target.value)}
+                            placeholder="New email address"/>
+                          <input type="text" inputMode="numeric" value={credEmailPin}
+                            onChange={e=>setCredEmailPin(e.target.value)}
+                            placeholder="Current PIN (to verify identity)"/>
+                          <div style={{display:'flex',gap:8}}>
+                            <button className="btn btn-primary"
+                              onClick={async()=>{
+                                setCredEmailMsg('');
+                                const r = await fetch('/api/auth/update-credentials',{
+                                  method:'PATCH',headers:{'Content-Type':'application/json'},
+                                  body:JSON.stringify({field:'email',newEmail:credNewEmail,currentPin:credEmailPin})});
+                                const d = await r.json();
+                                if(r.ok){setCredEmailStep('verify');setCredEmailMsg('📧 Code sent — check your new inbox');}
+                                else setCredEmailMsg('❌ '+(d.error||'Failed'));
+                              }}>Send Code</button>
+                            <button className="btn" onClick={()=>{setCredEmailStep('idle');setCredEmailMsg('');}}>Cancel</button>
+                          </div>
+                          {credEmailMsg&&<div style={{fontSize:12,color:credEmailMsg.startsWith('❌')?'var(--red)':'var(--green)'}}>{credEmailMsg}</div>}
+                        </div>
+                      )}
+                      {credEmailStep==='verify'&&(
+                        <div style={{display:'flex',flexDirection:'column',gap:8,maxWidth:320}}>
+                          <div style={{fontSize:13,color:'var(--text-3)'}}>Enter the 6-digit code sent to <strong>{credNewEmail}</strong></div>
+                          <input type="text" inputMode="numeric" value={credEmailCode}
+                            onChange={e=>setCredEmailCode(e.target.value)}
+                            placeholder="6-digit code" style={{maxWidth:160}}/>
+                          <div style={{display:'flex',gap:8}}>
+                            <button className="btn btn-primary"
+                              onClick={async()=>{
+                                const r = await fetch('/api/auth/verify-email-change',{
+                                  method:'POST',headers:{'Content-Type':'application/json'},
+                                  body:JSON.stringify({code:credEmailCode})});
+                                const d = await r.json();
+                                if(r.ok){
+                                  setCredEmail(credNewEmail);
+                                  setCredEmailStep('idle');
+                                  setCredEmailMsg('✅ Email updated!');
+                                  setCredNewEmail(''); setCredEmailPin(''); setCredEmailCode('');
+                                } else setCredEmailMsg('❌ '+(d.error||'Invalid code'));
+                              }}>Verify</button>
+                            <button className="btn" onClick={()=>{setCredEmailStep('idle');setCredEmailMsg('');}}>Cancel</button>
+                          </div>
+                          {credEmailMsg&&<div style={{fontSize:12,color:credEmailMsg.startsWith('❌')?'var(--red)':'var(--green)'}}>{credEmailMsg}</div>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* --- PIN change --- */}
+                    <div className="field">
+                      <label className="label">Change PIN</label>
+                      <div style={{display:'flex',flexDirection:'column',gap:8,maxWidth:220}}>
+                        <input type="text" inputMode="numeric" value={credCurPin}
+                          onChange={e=>setCredCurPin(e.target.value)}
+                          placeholder="Current PIN"/>
+                        <input type="text" inputMode="numeric" value={credNewPin}
+                          onChange={e=>setCredNewPin(e.target.value)}
+                          placeholder="New PIN (4-6 digits)"/>
+                        <input type="text" inputMode="numeric" value={credConfPin}
+                          onChange={e=>setCredConfPin(e.target.value)}
+                          placeholder="Confirm new PIN"/>
+                        <button className="btn btn-primary" disabled={credPinSaving}
+                          onClick={async()=>{
+                            setCredPinMsg('');
+                            if(credNewPin!==credConfPin){setCredPinMsg('❌ PINs do not match');return;}
+                            setCredPinSaving(true);
+                            const r = await fetch('/api/auth/update-credentials',{
+                              method:'PATCH',headers:{'Content-Type':'application/json'},
+                              body:JSON.stringify({field:'pin',currentPin:credCurPin,newPin:credNewPin})});
+                            const d = await r.json();
+                            setCredPinMsg(r.ok?'✅ PIN updated':'❌ '+(d.error||'Failed'));
+                            if(r.ok){setCredCurPin('');setCredNewPin('');setCredConfPin('');}
+                            setCredPinSaving(false);
+                          }}>{credPinSaving?'Saving...':'Update PIN'}</button>
+                        {credPinMsg&&<div style={{fontSize:12,color:credPinMsg.startsWith('✅')?'var(--green)':'var(--red)'}}>{credPinMsg}</div>}
+                      </div>
+                    </div>
+
                     <div style={{padding:'10px 0',borderTop:'1px solid var(--border)',fontSize:13,color:'var(--text-3)'}}>
                       <div>Last login: {new Date().toLocaleDateString()}</div>
                     </div>
-                    <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
-                      {savingSettings?'Saving...':'Save'}
-                    </button>
                   </div>
                 )}
-
 
                 {/* --- BUSINESS --- */}
                 {settingsSection==='business'&&(

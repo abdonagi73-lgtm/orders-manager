@@ -30,6 +30,9 @@ export const companies = sqliteTable('companies', {
   trial_expiration:    text('trial_expiration'),
   owner_name:          text('owner_name'),
   owner_phone:         text('owner_phone'),
+  setup_complete:      integer('setup_complete').default(0).notNull(),
+  pos_type:            text('pos_type'),
+  form_fields:         text('form_fields'),   // JSON array of field definitions
   created_at:          text('created_at').default('').notNull(),
   updated_at:          text('updated_at').default('').notNull(),
   deleted_at:          text('deleted_at'),   // soft delete
