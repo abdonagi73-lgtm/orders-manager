@@ -281,8 +281,20 @@ export default function UnifiedLoginPage() {
 
         {/* ── Logo & Title ── */}
         <div className="lp-logo-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 24 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-flowriq.png" alt="Logo" style={{ width: 48, height: 48, objectFit: 'contain', marginBottom: 12 }} />
+          {/* logo symbol wrapped in a contrasting white card to make it pop */}
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 12,
+            background: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 14,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
+          }}>
+            <img src="/logo-flowriq.png" alt="Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          </div>
           <FlowxiqLogo color="#FFFFFF" height={22} />
           <div className="lp-sub" style={{ marginTop: 8 }}>
             {mode === "forgot"      ? "Reset Credentials" :

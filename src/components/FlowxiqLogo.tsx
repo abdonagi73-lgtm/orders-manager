@@ -6,9 +6,10 @@ interface Props {
   color?: string;
   height?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export default function FlowxiqLogo({ color = '#FFFFFF', height = 28, className }: Props) {
+export default function FlowxiqLogo({ color = '#FFFFFF', height = 28, className, style }: Props) {
   // Aspect ratio of wordmark is approx 4.8:1
   const width = Math.round(height * 4.8);
   return (
@@ -18,12 +19,14 @@ export default function FlowxiqLogo({ color = '#FFFFFF', height = 28, className 
       width={width}
       height={height}
       className={className}
+      style={style}
       aria-label="flowxiq"
       role="img"
     >
       <text
-        x="0"
+        x="50%"
         y="42"
+        textAnchor="middle"
         fontFamily="'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif"
         fontSize="52"
         fontWeight="600"

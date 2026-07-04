@@ -544,9 +544,22 @@ export default function HQPlatformOperations() {
           .sa-key.back { font-size:15px; color:#64748B; }
           .sa-lock-error { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); text-align:center; padding:10px; border-radius:8px; color:#FCA5A5; font-size:12px; font-family:monospace; margin-bottom:16px; }
         `}</style>
-        <div className="sa-lock-card">
-          <FlowxiqLogo color="#FFFFFF" height={32} />
-          <h2 className="sa-lock-title">OPERATIONS COMMAND LOCK</h2>
+        <div className="sa-lock-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: 10,
+            background: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 12,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}>
+            <img src="/logo-flowriq.png" alt="logo" style={{ height: 30, width: 30, objectFit: 'contain' }} />
+          </div>
+          <FlowxiqLogo color="#FFFFFF" height={24} style={{ marginBottom: 16 }} />
+          <h2 className="sa-lock-title" style={{ marginTop: 0 }}>OPERATIONS COMMAND LOCK</h2>
           <div className="sa-lock-sub">SUPER ADMIN SECURITY GATE</div>
 
           <div className="sa-pin-display">
@@ -649,8 +662,20 @@ export default function HQPlatformOperations() {
     <div className="hq-layout">
       {/* Platform Header */}
       <header className="hq-header">
-        <div className="hq-header-left">
-            <FlowxiqLogo color="#FFFFFF" height={22} />
+        <div className="hq-header-left" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+          }}>
+            <img src="/logo-flowriq.png" alt="logo" style={{ height: 20, width: 20, objectFit: 'contain' }} />
+          </div>
+          <FlowxiqLogo color="#FFFFFF" height={18} />
           <div>
             <h1 style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', margin: 0, lineHeight: 1 }}>Platform Operations</h1>
             <p className="text-[#3B82F6] font-mono text-[9px] mt-1 tracking-widest uppercase">HEADQUARTERS CONTROL GATEWAY · v3.0</p>
