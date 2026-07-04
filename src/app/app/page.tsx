@@ -142,7 +142,7 @@ export default function UnifiedLoginPage() {
         *, *::before, *::after { box-sizing: border-box; }
         .lp-wrap {
           min-height: 100vh;
-          background: linear-gradient(135deg, #060B14 0%, #0D1726 60%, #071020 100%);
+          background: linear-gradient(135deg, #060B18 0%, #0C1833 60%, #071528 100%);
           display: flex; align-items: center; justify-content: center;
           padding: 32px 20px;
           font-family: 'Inter', -apple-system, sans-serif;
@@ -150,11 +150,11 @@ export default function UnifiedLoginPage() {
         }
         .lp-card {
           width: 100%; max-width: 420px;
-          background: rgba(15, 26, 48, 0.85);
-          border: 1px solid rgba(59,130,246,.2);
+          background: rgba(12, 24, 51, 0.85);
+          border: 1px solid rgba(59,127,255,.2);
           border-radius: 20px;
           padding: 40px 36px;
-          box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(59,130,246,.05);
+          box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(59,127,255,.05);
           backdrop-filter: blur(12px);
         }
         .lp-logo-wrap {
@@ -282,9 +282,9 @@ export default function UnifiedLoginPage() {
         <div className="lp-logo-wrap">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo-flowriq.png"
+            src="/logo-flowxiq-white.png"
             alt="FlowXIQ"
-            className="lp-logo"
+            style={{height:32,objectFit:'contain',display:'block',margin:'0 auto 16px'}}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = 'none';
               const fb = e.currentTarget.nextElementSibling as HTMLElement;

@@ -11,18 +11,18 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     <>
       <style>{`
         :root {
-          --mk-bg:       #080C14;
-          --mk-bg2:      #0D1221;
-          --mk-surface:  #0F1828;
-          --mk-surface2: #14213A;
-          --mk-border:   #1A2F50;
-          --mk-accent:   #3B82F6;
-          --mk-accent2:  #60A5FA;
+          --mk-bg:       #080F1E;
+          --mk-bg2:      #0C1833;
+          --mk-surface:  #0F1F3D;
+          --mk-surface2: #142847;
+          --mk-border:   #1A3260;
+          --mk-accent:   #3B7FFF;
+          --mk-accent2:  #6EA3FF;
           --mk-green:    #10B981;
           --mk-green2:   #34D399;
-          --mk-text:     #F0F4FF;
-          --mk-text2:    #94A3B8;
-          --mk-text3:    #4E6785;
+          --mk-text:     #F0F6FF;
+          --mk-text2:    #8BADD4;
+          --mk-text3:    #4A6E9E;
         }
         .mk-body {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -47,14 +47,10 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           height: 64px;
         }
         .mk-nav-logo {
-          display: flex; align-items: center; gap: 10px;
+          display: flex; align-items: center;
           text-decoration: none;
         }
-        .mk-nav-logo img { height: 32px; object-fit: contain; }
-        .mk-nav-logo span {
-          font-size: 18px; font-weight: 700;
-          letter-spacing: -.03em; color: var(--mk-text);
-        }
+        .mk-nav-logo img { height: 24px; object-fit: contain; display: block; }
         .mk-nav-links {
           display: flex; align-items: center; gap: 32px;
           list-style: none;
@@ -88,7 +84,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         /* FOOTER */
         .mk-footer {
           border-top: 1px solid var(--mk-border);
-          background: var(--mk-bg2);
+          background: #060C1A;
           padding: 48px 24px 32px;
         }
         .mk-footer-inner {
@@ -126,7 +122,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <div className="mk-footer-col">
               <div style={{marginBottom:20}}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-flowxiq-dark.png" alt="flowxiq" style={{height:22,objectFit:'contain'}} />
+                <img src="/logo-flowxiq-white.png" alt="flowxiq" style={{height:22,objectFit:'contain'}} />
               </div>
               <p style={{fontSize:13,color:'var(--mk-text3)',lineHeight:1.6}}>
                 Purchasing workflow software for retail businesses who source from vendors and suppliers.
