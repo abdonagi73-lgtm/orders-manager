@@ -250,7 +250,7 @@ function OnboardWizard() {
       <div style={cardStyle}>
         {/* Header */}
         <div style={{textAlign:'center',marginBottom:32}}>
-          <img src="/logo-flowriq.png" alt="Flowxiq" style={{height:28,objectFit:'contain',marginBottom:16}} />
+          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{height:28,objectFit:'contain',marginBottom:16}} />
           <h1 style={{fontSize:22,fontWeight:800,letterSpacing:'-.03em',marginBottom:6}}>Set Up Your Workspace</h1>
           {prefill?.business_name && (
             <p style={{fontSize:13,color:'#94A3B8'}}>Welcome, <strong style={{color:'#F0F4FF'}}>{prefill.business_name}</strong></p>

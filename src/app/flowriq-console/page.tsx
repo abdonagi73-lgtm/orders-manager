@@ -272,14 +272,11 @@ export default function FlowxiqConsolePage() {
         {/* Header */}
         <header className="fc-hdr">
           <div className="fc-hdr-inner">
-            <div className="fc-brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-flowriq.png" alt="Flowxiq" />
+              <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 26, objectFit: 'contain', display: 'block' }} />
               <div>
-                <div className="fc-brand-text">Flowxiq</div>
-                <div className="fc-brand-sub">Founder Console</div>
+                <div className="fc-brand-sub" style={{ marginTop: 2 }}>Founder Console</div>
               </div>
-            </div>
             <div style={{display:'flex',gap:10}}>
               <button className="fc-btn" onClick={loadData}>↻ Refresh</button>
               <button className="fc-btn" onClick={async()=>{ await fetch('/api/auth/logout',{method:'POST'}); router.push('/app'); }}>Sign Out</button>

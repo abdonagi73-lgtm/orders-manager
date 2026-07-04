@@ -99,7 +99,7 @@ export default function SignupPage() {
           object-fit: contain;
           margin: 0 auto 16px;
           border: 1px solid #1A2F50;
-          background: #080C14;
+          background: #FFFFFF;
           padding: 6px;
           display: block;
         }

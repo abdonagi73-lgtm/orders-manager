@@ -546,7 +546,7 @@ export default function HQPlatformOperations() {
         `}</style>
         <div className="sa-lock-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-combined-white.png" alt="flowxiq" style={{ height: 36, objectFit: 'contain', display: 'block', marginBottom: 20 }} />
+          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 36, objectFit: 'contain', display: 'block', marginBottom: 20 }} />
           <h2 className="sa-lock-title" style={{ marginTop: 0 }}>OPERATIONS COMMAND LOCK</h2>
           <div className="sa-lock-sub">SUPER ADMIN SECURITY GATE</div>
 
@@ -652,7 +652,7 @@ export default function HQPlatformOperations() {
       <header className="hq-header">
         <div className="hq-header-left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-combined-white.png" alt="flowxiq" style={{ height: 26, objectFit: 'contain', display: 'block' }} />
+          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 26, objectFit: 'contain', display: 'block' }} />
           <div>
             <h1 style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', margin: 0, lineHeight: 1 }}>Platform Operations</h1>
             <p className="text-[#3B82F6] font-mono text-[9px] mt-1 tracking-widest uppercase">HEADQUARTERS CONTROL GATEWAY · v3.0</p>

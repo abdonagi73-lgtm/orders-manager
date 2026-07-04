@@ -123,7 +123,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <div className="mk-footer-col">
               <div style={{ marginBottom: 20 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-combined-white.png" alt="flowxiq" style={{ height: 24, objectFit: 'contain', display: 'block' }} />
+                <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 24, objectFit: 'contain', display: 'block' }} />
               </div>
               <p style={{fontSize:13,color:'var(--mk-text3)',lineHeight:1.6}}>
                 Purchasing workflow software for retail businesses who source from vendors and suppliers.

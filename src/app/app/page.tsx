@@ -282,7 +282,7 @@ export default function UnifiedLoginPage() {
         {/* ── Logo ── */}
         <div className="lp-logo-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 24 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-combined-white.png" alt="flowxiq" style={{ height: 38, objectFit: 'contain', display: 'block', marginBottom: 12 }} />
+          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 38, objectFit: 'contain', display: 'block', marginBottom: 12 }} />
           <div className="lp-sub">
             {mode === "forgot"      ? "Reset Credentials" :
              mode === "reset-code"  ? "Enter Reset Code"  :
