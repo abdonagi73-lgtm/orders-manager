@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, companies, vendors } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { encryptSession, decryptSession } from '@/lib/auth';
 
-async function findUserByPin(pin: string) {
-  const allUsers = await db
-    .select({
-      user: users,
-      company: companies,
-    })
-    .from(users)
-    .innerJoin(companies, eq(users.company_id, companies.id));
+async function findUserByPin(pin: string, companyId?: string) {
+  // Scope to a specific company when possible — avoids scanning the entire users table
+  const conditions = companyId
+    ? and(eq(users.company_id, companyId), isNull(users.deleted_at))
+    : isNull(users.deleted_at);
 
-  for (const row of allUsers) {
-    if (bcrypt.compareSync(pin, row.user.pin_hash)) {
-      return row;
-    }
+  const candidates = await db
+    .select({ user: users, company: companies })
+    .from(users)
+    .innerJoin(companies, eq(users.company_id, companies.id))
+    .where(conditions);
+
+  for (const row of candidates) {
+    const match = await bcrypt.compare(pin, row.user.pin_hash);
+    if (match) return row;
   }
   return null;
 }
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -116,8 +119,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     if (body.action === 'verify-worker') {
-      const result = await findUserByPin(body.pin);
-      if (result && (result.user.role === 'worker' || result.user.role === 'admin')) {
+      const result = await findUserByPin(body.pin, body.companyId);
+      if (result && (result.user.role === 'worker' || result.user.role === 'admin' || result.user.role === 'manager')) {
         const { user, company } = result;
         const token = await encryptSession({
           id: user.id,
@@ -154,8 +157,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === 'verify-owner') {
-      const result = await findUserByPin(body.pin);
-      if (result && (result.user.role === 'admin' || result.user.role === 'super_admin')) {
+      const result = await findUserByPin(body.pin, body.companyId);
+      if (result && (result.user.role === 'admin' || result.user.role === 'owner' || result.user.role === 'manager' || result.user.role === 'super_admin')) {
         const { user, company } = result;
         const token = await encryptSession({
           id: user.id,
