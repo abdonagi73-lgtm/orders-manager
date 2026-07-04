@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import FlowxiqLogo from "@/components/FlowxiqLogo";
+import FlowxiqCombinedLogo from "@/components/FlowxiqCombinedLogo";
 
 const ROLE_DESTINATIONS: Record<string, string> = {
   super_admin: "/super-admin",
@@ -281,8 +281,7 @@ export default function UnifiedLoginPage() {
 
         {/* ── Logo ── */}
         <div className="lp-logo-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 24 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 38, objectFit: 'contain', display: 'block', marginBottom: 12 }} />
+          <FlowxiqCombinedLogo height={38} style={{ marginBottom: 12 }} />
           <div className="lp-sub">
             {mode === "forgot"      ? "Reset Credentials" :
              mode === "reset-code"  ? "Enter Reset Code"  :

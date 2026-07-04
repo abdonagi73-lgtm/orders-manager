@@ -9,7 +9,7 @@ import {
   Phone, Globe, Lock, Play, Ban, AlertTriangle, Cpu, FileText,
   ChevronRight, CheckCircle2, AlertCircle, Trash
 } from "lucide-react";
-import FlowxiqLogo from "@/components/FlowxiqLogo";
+import FlowxiqCombinedLogo from "@/components/FlowxiqCombinedLogo";
 
 // Platform Interfaces
 interface Company {
@@ -545,8 +545,7 @@ export default function HQPlatformOperations() {
           .sa-lock-error { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); text-align:center; padding:10px; border-radius:8px; color:#FCA5A5; font-size:12px; font-family:monospace; margin-bottom:16px; }
         `}</style>
         <div className="sa-lock-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 36, objectFit: 'contain', display: 'block', marginBottom: 20 }} />
+          <FlowxiqCombinedLogo height={36} style={{ marginBottom: 20 }} />
           <h2 className="sa-lock-title" style={{ marginTop: 0 }}>OPERATIONS COMMAND LOCK</h2>
           <div className="sa-lock-sub">SUPER ADMIN SECURITY GATE</div>
 
@@ -651,8 +650,7 @@ export default function HQPlatformOperations() {
       {/* Platform Header */}
       <header className="hq-header">
         <div className="hq-header-left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-combined-white.png?v=3" alt="flowxiq" style={{ height: 26, objectFit: 'contain', display: 'block' }} />
+          <FlowxiqCombinedLogo height={26} />
           <div>
             <h1 style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', margin: 0, lineHeight: 1 }}>Platform Operations</h1>
             <p className="text-[#3B82F6] font-mono text-[9px] mt-1 tracking-widest uppercase">HEADQUARTERS CONTROL GATEWAY · v3.0</p>
