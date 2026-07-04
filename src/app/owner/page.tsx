@@ -2017,20 +2017,50 @@ function OwnerPageInner() {
                         style={{maxWidth:320}}/>
                     </div>
                     <div className="field">
-                      <label className="label">Logo URL</label>
-                      <div style={{display:'flex',gap:10,alignItems:'center'}}>
-                        <input type="url" id="biz-logo" defaultValue={company?.logoUrl||''} placeholder="https://..." style={{flex:1}}/>
-                        {company?.logoUrl && (
-                          <img src={company.logoUrl} alt="logo" style={{width:40,height:40,borderRadius:8,objectFit:'contain',border:'1px solid var(--border)'}}/>
-                        )}
+                      <label className="label">Business Logo</label>
+                      <div style={{display:'flex',gap:14,alignItems:'center',flexWrap:'wrap'}}>
+                        {/* Preview */}
+                        <div style={{width:72,height:72,borderRadius:12,border:'2px dashed var(--border)',
+                          background:'var(--surface-2)',display:'flex',alignItems:'center',justifyContent:'center',
+                          overflow:'hidden',flexShrink:0}}>
+                          {company?.logoUrl
+                            ? <img src={company.logoUrl} alt="logo" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+                            : <span style={{fontSize:24}}>🏢</span>}
+                        </div>
+                        {/* Upload button */}
+                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                          <label htmlFor="biz-logo-file" className="btn btn-sm"
+                            style={{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>
+                            📁 Choose image
+                          </label>
+                          <input id="biz-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                            style={{display:'none'}}
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 2 * 1024 * 1024) { showToast('Image must be under 2 MB'); return; }
+                              const reader = new FileReader();
+                              reader.onload = ev => {
+                                const dataUrl = ev.target?.result as string;
+                                setCompany(c => c ? {...c, logoUrl: dataUrl} : c);
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                          {company?.logoUrl && (
+                            <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)',fontSize:11}}
+                              onClick={() => setCompany(c => c ? {...c, logoUrl: null} : c)}>
+                              ✕ Remove logo
+                            </button>
+                          )}
+                          <div style={{fontSize:11,color:'var(--text-3)'}}>PNG, JPG, WebP · max 2 MB</div>
+                        </div>
                       </div>
-                      <div style={{fontSize:11,color:'var(--text-3)',marginTop:4}}>Paste a public image URL (JPEG, PNG, WebP). This logo appears in the manager and worker portals.</div>
                     </div>
                     <button className="btn btn-primary" style={{marginBottom:20}} onClick={async()=>{
                       const nameEl = document.getElementById('biz-name') as HTMLInputElement;
-                      const logoEl = document.getElementById('biz-logo') as HTMLInputElement;
                       const newName = nameEl?.value.trim() || company?.name || '';
-                      const newLogo = logoEl?.value.trim() || null;
+                      const newLogo = company?.logoUrl || null;
                       const res = await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},
                         body:JSON.stringify({name:newName,logoUrl:newLogo})});
                       const d = await res.json();
