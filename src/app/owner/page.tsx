@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -75,9 +75,9 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
           display:'flex',alignItems:'stretch',zIndex:1}}>
           {[
             {label:'Edit',icon:'Edit',bg:'#F59E0B',fn:onEdit},
-            ...(order.status==='submitted'?[{label:'Import',icon:'&#10004;',bg:'#16a34a',fn:onImport||onEdit}]:[]),
-            {label:'PDF',icon:'&#128220;',bg:'#3B82F6',fn:onPDF},
-            {label:'Delete',icon:'&#128465;',bg:'#EF4444',fn:onDelete},
+            ...(order.status==='submitted'?[{label:'Import',icon:'✔',bg:'#16a34a',fn:onImport||onEdit}]:[]),
+            {label:'PDF',icon:'📜',bg:'#3B82F6',fn:onPDF},
+            {label:'Delete',icon:'🗑',bg:'#EF4444',fn:onDelete},
           ].map(({label,icon,bg,fn})=>(
             <button key={label} style={{flex:1,background:bg,color:'#fff',border:'none',cursor:'pointer',
               fontSize:10,fontWeight:700,display:'flex',flexDirection:'column',
@@ -146,7 +146,7 @@ function ManagerOrderCard({ order, onSelect, onEdit, onImport, onPDF, onDelete, 
           padding:'0 14px 12px'}}>
           <div style={{height:1,background:'var(--border)',margin:'0 0 10px'}}/>
           {!summary?(
-            <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'6px 0'}}>LoadingΓÇª</div>
+            <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'6px 0'}}>LoadingÎ“Ã‡Âª</div>
           ):summary.length===0?(
             <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'6px 0'}}>No items</div>
           ):(
@@ -222,10 +222,10 @@ function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprov
       <div style={{position:'absolute',right:0,top:0,bottom:0,width:ACTION_W,
         display:'flex',alignItems:'stretch',zIndex:1}}>
         {[
-          {label:'Approve',icon:'&#10004;',bg:'#16a34a',fn:onApprove},
-          {label:'Flag',icon:'&#9888;',bg:'#D97706',fn:onFlag},
+          {label:'Approve',icon:'✔',bg:'#16a34a',fn:onApprove},
+          {label:'Flag',icon:'⚠️',bg:'#D97706',fn:onFlag},
           {label:'Edit',icon:'Edit',bg:'#3B82F6',fn:onEdit},
-          {label:'Delete',icon:'&#128465;',bg:'#EF4444',fn:onDelete},
+          {label:'Delete',icon:'🗑',bg:'#EF4444',fn:onDelete},
         ].map(({label,icon,bg,fn})=>(
           <button key={label} style={{flex:1,background:bg,color:'#fff',border:'none',cursor:'pointer',
             fontSize:10,fontWeight:700,display:'flex',flexDirection:'column',
@@ -249,7 +249,7 @@ function SwipeableItemCard({ item, cost, retail, variants, dupeInOrder, onApprov
             <div style={{fontWeight:700,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
             <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>{item.category} &middot; {item.colors.join(', ')} &middot; {item.sizes.join('/')}</div>
             <div style={{fontSize:11,color:'var(--text-2)'}}>Purchase: ${item.price} &middot; Qty: {item.qty}</div>
-            {dupeInOrder&&<div style={{fontSize:10,color:'var(--amber)',fontWeight:600}}>&#9888; Duplicate</div>}
+            {dupeInOrder&&<div style={{fontSize:10,color:'var(--amber)',fontWeight:600}}>⚠️ Duplicate</div>}
             {item.notes&&<div style={{fontSize:10,color:'var(--text-3)'}}>Note: {item.notes}</div>}
             {item.ownerNote&&<div style={{fontSize:10,color:'var(--amber)'}}>Owner: {item.ownerNote}</div>}
             <div style={{marginTop:6,display:'flex',gap:12,fontSize:11}}>
@@ -841,15 +841,15 @@ function OwnerPageInner() {
         body:JSON.stringify({orderId:item.orderId,orderName:'',action:`Item approved: ${item.vendor} &middot; ${item.code}`,by:loggedInName})
       }).catch(()=>{});
     }
-    else showToast('&#9888; Flagged');
+    else showToast('⚠️ Flagged');
   }
 
   async function deleteItem(id: string) {
-    showConfirmModal('&#128465;', 'Remove item?', 'This item will be permanently deleted from the order.',
+    showConfirmModal('🗑', 'Remove item?', 'This item will be permanently deleted from the order.',
       'Yes, remove', async()=>{
         setItems(prev=>prev.filter(i=>i.id!==id));
         await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-        showSuccess('&#128465;', 'Item removed', 'The item has been deleted.');
+        showSuccess('🗑', 'Item removed', 'The item has been deleted.');
       });
   }
 
@@ -864,18 +864,18 @@ function OwnerPageInner() {
     setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));
     await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
     setEditModal(null);
-    showSuccess('Γ£Å', 'Item updated!', `${updated.vendor} &middot; ${updated.code} has been updated successfully.`);
+    showSuccess('Î“Â£Ã…', 'Item updated!', `${updated.vendor} &middot; ${updated.code} has been updated successfully.`);
   }
 
   async function deleteOrderHandler(order: Order) {
-    showConfirmModal('&#128465;', 'Delete order?',
+    showConfirmModal('🗑', 'Delete order?',
       `"${order.name}" and all its items will be permanently deleted. This cannot be undone.`,
       'Yes, delete', async () => {
         await fetch('/api/orders', {method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({action:'delete', orderId: order.id})});
         setOrders(prev => prev.filter(o => o.id !== order.id));
         if(selectedOrder?.id === order.id) { setSelectedOrder(null); setItems([]); }
-        showSuccess('&#128465;', 'Order deleted', `"${order.name}" has been permanently deleted.`);
+        showSuccess('🗑', 'Order deleted', `"${order.name}" has been permanently deleted.`);
       });
   }
 
@@ -885,7 +885,7 @@ function OwnerPageInner() {
     setOrders(prev=>prev.map(o=>o.id===order.id?order:o));
     if(selectedOrder?.id===order.id) setSelectedOrder(order);
     setEditOrderModal(null);
-    showSuccess('≡ƒôï', 'Order updated!', `"${order.name}" has been saved successfully.`);
+    showSuccess('â‰¡Æ’Ã´Ã¯', 'Order updated!', `"${order.name}" has been saved successfully.`);
   }
 
   async function markCommissionPaid(orderId: string, paid: boolean) {
@@ -919,12 +919,12 @@ function OwnerPageInner() {
     const res2 = await fetch(`/api/items?orderId=${targetOrderId}`);
     const d2 = await res2.json();
     if(d2.items) setItems(d2.items);
-    showToast(`&#10004; Copied ${copied} items`);
+    showToast(`✔ Copied ${copied} items`);
   }
 
   async function closeOrder(orderId: string) {
     const order = orders.find(o=>o.id===orderId);
-    showConfirmModal('&#10004;', 'Mark as imported?',
+    showConfirmModal('✔', 'Mark as imported?',
       `"${order?.name}" will be marked as imported and closed. The worker will see it as read-only.`,
       'Mark imported', async()=>{
         await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -936,7 +936,7 @@ function OwnerPageInner() {
 
   async function doExport() {
     if(!selectedOrder) return;
-    showConfirmModal('&#128220;', 'Download Square CSV?',
+    showConfirmModal('📜', 'Download Square CSV?',
       `This will export ${exportableRows} rows for "${selectedOrder.name}" using Tax: ${settings.tax}%, Markup: ${settings.markup}&times;, Shipping: $${settings.shipping}/kg.`,
       'Download CSV', async()=>{
         setExporting(true);
@@ -972,7 +972,7 @@ function OwnerPageInner() {
       const fresh = await fetch('/api/session').then(r=>r.json());
       if(fresh.workers) setWorkers(fresh.workers);
       setNewWorkerName(''); setNewWorkerPin('');
-      showToast('&#10004; Worker saved');
+      showToast('✔ Worker saved');
     } else { showToast('Error saving worker'); }
   }
 
@@ -1049,7 +1049,7 @@ function OwnerPageInner() {
 
   return (
     <div className="page">
-      {/* Setup wizard overlay — shown on first login if setup not complete */}
+      {/* Setup wizard overlay â€” shown on first login if setup not complete */}
       {!setupComplete && (
         <SetupWizard
           companyName={companyNameForWizard || company?.name || 'Your Workspace'}
@@ -1245,7 +1245,7 @@ function OwnerPageInner() {
         {tab==='items'&&(
           <>
             {!selectedOrder?(
-              <div className="empty"><div className="empty-icon">≡ƒæå</div><div className="empty-text">Select an order from the Orders tab</div></div>
+              <div className="empty"><div className="empty-icon">â‰¡Æ’Ã¦Ã¥</div><div className="empty-text">Select an order from the Orders tab</div></div>
             ):(
               <>
                 {/* Status badges + filter */}
@@ -1315,7 +1315,7 @@ function OwnerPageInner() {
                       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
                         <button className="btn btn-sm btn-success" onClick={()=>{
                           filteredItems.filter(i=>i.status==='pending').forEach(i=>updateItemStatus(i,'approved'));
-                        }}>&#10004; Approve all pending</button>
+                        }}>✔ Approve all pending</button>
                       </div>
                     )}
 
@@ -1351,7 +1351,7 @@ function OwnerPageInner() {
                                 onFlag={()=>{setFlagModal({item});setFlagNote('');}}
                                 onEdit={()=>{ setEditModal({item}); setEditPrice(String(item.price)); setEditNotes(item.notes); setEditOwnerNote(item.ownerNote); }}
                                 onDelete={()=>{
-                                  showConfirmModal('&#128465;','Delete item?',`${item.vendor} &middot; ${item.code} will be permanently removed.`,'Delete',()=>deleteItem(item.id));
+                                  showConfirmModal('🗑','Delete item?',`${item.vendor} &middot; ${item.code} will be permanently removed.`,'Delete',()=>deleteItem(item.id));
                                 }}
                               />
                             );
@@ -1450,7 +1450,7 @@ function OwnerPageInner() {
         {tab==='prices'&&(
           <>
             {!selectedOrder?(
-              <div className="empty"><div className="empty-icon">≡ƒæå</div><div className="empty-text">Select an order from the Orders tab first</div></div>
+              <div className="empty"><div className="empty-icon">â‰¡Æ’Ã¦Ã¥</div><div className="empty-text">Select an order from the Orders tab first</div></div>
             ):(
               <>
                 <div style={{fontSize:13,color:'var(--text-3)',marginBottom:14}}>
@@ -1466,7 +1466,7 @@ function OwnerPageInner() {
                         const updated = {...item, price:newPrice};
                         setItems(prev=>prev.map(i=>i.id===item.id?updated:i));
                         await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
-                        showToast(`&#10004; Price updated for ${item.vendor} &middot; ${item.code}`);
+                        showToast(`✔ Price updated for ${item.vendor} &middot; ${item.code}`);
                       }}/>
                   );
                 })}
@@ -1523,7 +1523,7 @@ function OwnerPageInner() {
                 <div style={{fontSize:12,color:'var(--text-3)',textAlign:'center',padding:'8px 0 12px'}}>Loading analytics&#8230;</div>
               )}
 
-              {/* ─── TOP KPI ROW ─── */}
+              {/* â”€â”€â”€ TOP KPI ROW â”€â”€â”€ */}
               <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:14}}>
                 <div style={{...statCardStyle,borderTop:'3px solid var(--green)'}}>
                   <div style={{...statValStyle,color:'var(--green)'}}>${totalRevenue.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
@@ -1551,7 +1551,7 @@ function OwnerPageInner() {
                 </div>
               </div>
 
-              {/* ─── ORDERS BY MONTH BAR CHART ─── */}
+              {/* â”€â”€â”€ ORDERS BY MONTH BAR CHART â”€â”€â”€ */}
               {monthlyData.length>0&&(
                 <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'16px 14px',marginBottom:14}}>
                   <div style={{fontSize:13,fontWeight:700,marginBottom:14,color:'var(--text)'}}>Orders by month</div>
@@ -1589,7 +1589,7 @@ function OwnerPageInner() {
               )}
 
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-                {/* ─── TOP WORKERS ─── */}
+                {/* â”€â”€â”€ TOP WORKERS â”€â”€â”€ */}
                 <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'14px'}}>
                   <div style={{fontSize:13,fontWeight:700,marginBottom:12,color:'var(--text)',display:'flex',alignItems:'center',gap:6}}>
                     <span>&#127959;</span> Top Workers
@@ -1625,7 +1625,7 @@ function OwnerPageInner() {
                   ))}
                 </div>
 
-                {/* ─── TOP VENDORS ─── */}
+                {/* â”€â”€â”€ TOP VENDORS â”€â”€â”€ */}
                 <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'14px'}}>
                   <div style={{fontSize:13,fontWeight:700,marginBottom:12,color:'var(--text)',display:'flex',alignItems:'center',gap:6}}>
                     <span>&#127968;</span> Top Vendors
@@ -1660,7 +1660,7 @@ function OwnerPageInner() {
                 </div>
               </div>
 
-              {/* ─── ORDERS HISTORY TABLE ─── */}
+              {/* â”€â”€â”€ ORDERS HISTORY TABLE â”€â”€â”€ */}
               <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
                 <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <div style={{fontSize:13,fontWeight:700}}>Orders history</div>
@@ -1744,7 +1744,7 @@ function OwnerPageInner() {
                       </div>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
                         <span style={{fontWeight:600,color:'var(--green)'}}>${o.workerCommission.toFixed(2)}</span>
-                        <span className="badge badge-approved">paid &#10004;</span>
+                        <span className="badge badge-approved">paid ✔</span>
                         <button className="btn btn-sm btn-ghost" style={{fontSize:11}} onClick={()=>markCommissionPaid(o.id,false)}>Undo</button>
                       </div>
                     </div>
@@ -1866,7 +1866,7 @@ function OwnerPageInner() {
                   await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({action:'save-managers',managers:newMgr})});
                   setManagers(newMgr); setNewManagerName(''); setNewManagerPin('');
-                  showToast('&#10004; Manager added');
+                  showToast('✔ Manager added');
                 }}>Add</button>
               </div>
             </div>
@@ -1995,17 +1995,17 @@ function OwnerPageInner() {
             <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:16,minHeight:500}}>
               {/* Sidebar */}
               <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:8,height:'fit-content'}}>
-                {sectionBtn('account', '👤', 'Account')}
-                {sectionBtn('business', '🏢', 'Business')}
-                {sectionBtn('catalog', '📋', 'Catalog')}
-                {sectionBtn('workers', '👥', 'Workers')}
-                {sectionBtn('appearance', '🎨', 'Appearance')}
+                {sectionBtn('account', 'ðŸ‘¤', 'Account')}
+                {sectionBtn('business', 'ðŸ¢', 'Business')}
+                {sectionBtn('catalog', 'ðŸ“‹', 'Catalog')}
+                {sectionBtn('workers', 'ðŸ‘¥', 'Workers')}
+                {sectionBtn('appearance', 'ðŸŽ¨', 'Appearance')}
                 <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
-                {sectionBtn('subscription', '💳', 'Subscription')}
-                {sectionBtn('integrations', '🔌', 'Integrations')}
-                {sectionBtn('activity', '📋', 'Activity Log')}
+                {sectionBtn('subscription', 'ðŸ’³', 'Subscription')}
+                {sectionBtn('integrations', 'ðŸ”Œ', 'Integrations')}
+                {sectionBtn('activity', 'ðŸ“‹', 'Activity Log')}
                 <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
-                {sectionBtn('about', 'ℹ️', 'About')}
+                {sectionBtn('about', 'â„¹ï¸', 'About')}
                 <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
                   <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={async()=>{
                     await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
@@ -2021,7 +2021,7 @@ function OwnerPageInner() {
                 {/* --- ACCOUNT --- */}
                 {settingsSection==='account'&&(
                   <div className="card">
-                    <div className="card-title">👤 Account</div>
+                    <div className="card-title">ðŸ‘¤ Account</div>
 
                     {/* --- Name --- */}
                     <div className="field">
@@ -2038,12 +2038,12 @@ function OwnerPageInner() {
                               method:'PATCH',headers:{'Content-Type':'application/json'},
                               body:JSON.stringify({field:'name',value:credName||loggedInName})});
                             const d = await r.json();
-                            setCredNameMsg(r.ok?'✅ Saved':'❌ '+(d.error||'Failed'));
+                            setCredNameMsg(r.ok?'âœ… Saved':'âŒ '+(d.error||'Failed'));
                             if(r.ok) setLoggedInName(credName||loggedInName);
                             setCredNameSaving(false);
                           }}>{credNameSaving?'Saving...':'Save'}</button>
                       </div>
-                      {credNameMsg&&<div style={{fontSize:12,marginTop:4,color:credNameMsg.startsWith('✅')?'var(--green)':'var(--red)'}}>{credNameMsg}</div>}
+                      {credNameMsg&&<div style={{fontSize:12,marginTop:4,color:credNameMsg.startsWith('âœ…')?'var(--green)':'var(--red)'}}>{credNameMsg}</div>}
                     </div>
 
                     {/* --- Email --- */}
@@ -2073,12 +2073,12 @@ function OwnerPageInner() {
                                   method:'PATCH',headers:{'Content-Type':'application/json'},
                                   body:JSON.stringify({field:'email',newEmail:credNewEmail,currentPin:credEmailPin})});
                                 const d = await r.json();
-                                if(r.ok){setCredEmailStep('verify');setCredEmailMsg('📧 Code sent — check your new inbox');}
-                                else setCredEmailMsg('❌ '+(d.error||'Failed'));
+                                if(r.ok){setCredEmailStep('verify');setCredEmailMsg('ðŸ“§ Code sent â€” check your new inbox');}
+                                else setCredEmailMsg('âŒ '+(d.error||'Failed'));
                               }}>Send Code</button>
                             <button className="btn" onClick={()=>{setCredEmailStep('idle');setCredEmailMsg('');}}>Cancel</button>
                           </div>
-                          {credEmailMsg&&<div style={{fontSize:12,color:credEmailMsg.startsWith('❌')?'var(--red)':'var(--green)'}}>{credEmailMsg}</div>}
+                          {credEmailMsg&&<div style={{fontSize:12,color:credEmailMsg.startsWith('âŒ')?'var(--red)':'var(--green)'}}>{credEmailMsg}</div>}
                         </div>
                       )}
                       {credEmailStep==='verify'&&(
@@ -2097,13 +2097,13 @@ function OwnerPageInner() {
                                 if(r.ok){
                                   setCredEmail(credNewEmail);
                                   setCredEmailStep('idle');
-                                  setCredEmailMsg('✅ Email updated!');
+                                  setCredEmailMsg('âœ… Email updated!');
                                   setCredNewEmail(''); setCredEmailPin(''); setCredEmailCode('');
-                                } else setCredEmailMsg('❌ '+(d.error||'Invalid code'));
+                                } else setCredEmailMsg('âŒ '+(d.error||'Invalid code'));
                               }}>Verify</button>
                             <button className="btn" onClick={()=>{setCredEmailStep('idle');setCredEmailMsg('');}}>Cancel</button>
                           </div>
-                          {credEmailMsg&&<div style={{fontSize:12,color:credEmailMsg.startsWith('❌')?'var(--red)':'var(--green)'}}>{credEmailMsg}</div>}
+                          {credEmailMsg&&<div style={{fontSize:12,color:credEmailMsg.startsWith('âŒ')?'var(--red)':'var(--green)'}}>{credEmailMsg}</div>}
                         </div>
                       )}
                     </div>
@@ -2124,17 +2124,17 @@ function OwnerPageInner() {
                         <button className="btn btn-primary" disabled={credPinSaving}
                           onClick={async()=>{
                             setCredPinMsg('');
-                            if(credNewPin!==credConfPin){setCredPinMsg('❌ PINs do not match');return;}
+                            if(credNewPin!==credConfPin){setCredPinMsg('âŒ PINs do not match');return;}
                             setCredPinSaving(true);
                             const r = await fetch('/api/auth/update-credentials',{
                               method:'PATCH',headers:{'Content-Type':'application/json'},
                               body:JSON.stringify({field:'pin',currentPin:credCurPin,newPin:credNewPin})});
                             const d = await r.json();
-                            setCredPinMsg(r.ok?'✅ PIN updated':'❌ '+(d.error||'Failed'));
+                            setCredPinMsg(r.ok?'âœ… PIN updated':'âŒ '+(d.error||'Failed'));
                             if(r.ok){setCredCurPin('');setCredNewPin('');setCredConfPin('');}
                             setCredPinSaving(false);
                           }}>{credPinSaving?'Saving...':'Update PIN'}</button>
-                        {credPinMsg&&<div style={{fontSize:12,color:credPinMsg.startsWith('✅')?'var(--green)':'var(--red)'}}>{credPinMsg}</div>}
+                        {credPinMsg&&<div style={{fontSize:12,color:credPinMsg.startsWith('âœ…')?'var(--green)':'var(--red)'}}>{credPinMsg}</div>}
                       </div>
                     </div>
 
@@ -2147,7 +2147,7 @@ function OwnerPageInner() {
                 {/* --- BUSINESS --- */}
                 {settingsSection==='business'&&(
                   <div className="card">
-                    <div className="card-title">🏢 Business</div>
+                    <div className="card-title">ðŸ¢ Business</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Update your business name, logo, and pricing settings.</div>
 
                     {/* Business name + logo */}
@@ -2165,13 +2165,13 @@ function OwnerPageInner() {
                           overflow:'hidden',flexShrink:0}}>
                           {company?.logoUrl
                             ? <img src={company.logoUrl} alt="logo" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
-                            : <span style={{fontSize:24}}>🏢</span>}
+                            : <span style={{fontSize:24}}>ðŸ¢</span>}
                         </div>
                         {/* Upload button */}
                         <div style={{display:'flex',flexDirection:'column',gap:6}}>
                           <label htmlFor="biz-logo-file" className="btn btn-sm"
                             style={{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>
-                            📁 Choose image
+                            ðŸ“ Choose image
                           </label>
                           <input id="biz-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                             style={{display:'none'}}
@@ -2190,10 +2190,10 @@ function OwnerPageInner() {
                           {company?.logoUrl && (
                             <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)',fontSize:11}}
                               onClick={() => setCompany(c => c ? {...c, logoUrl: null} : c)}>
-                              ✕ Remove logo
+                              âœ• Remove logo
                             </button>
                           )}
-                          <div style={{fontSize:11,color:'var(--text-3)'}}>PNG, JPG, WebP · max 2 MB</div>
+                          <div style={{fontSize:11,color:'var(--text-3)'}}>PNG, JPG, WebP Â· max 2 MB</div>
                         </div>
                       </div>
                     </div>
@@ -2244,7 +2244,7 @@ function OwnerPageInner() {
                 {settingsSection==='catalog'&&(
                   <div>
                     <div className="card" style={{marginBottom:12}}>
-                      <div className="card-title">📋 Categories</div>
+                      <div className="card-title">ðŸ“‹ Categories</div>
                       <div style={{fontSize:12,color:'var(--text-3)',marginBottom:10}}>Sorted by most used. Add, remove, or reorder.</div>
                       <CatalogList
                         type="categories" items={catList} input={newCatInput} setInput={setNewCatInput}
@@ -2254,7 +2254,7 @@ function OwnerPageInner() {
                       />
                     </div>
                     <div className="card" style={{marginBottom:12}}>
-                      <div className="card-title">🎨 Colors</div>
+                      <div className="card-title">ðŸŽ¨ Colors</div>
                       <CatalogList
                         type="colors" items={colorList} input={newColorInput} setInput={setNewColorInput}
                         placeholder="e.g. Rust Orange"
@@ -2263,7 +2263,7 @@ function OwnerPageInner() {
                       />
                     </div>
                     <div className="card" style={{marginBottom:12}}>
-                      <div className="card-title">📏 Sizes</div>
+                      <div className="card-title">ðŸ“ Sizes</div>
                       <CatalogList
                         type="sizes" items={sizeList} input={newSizeInput} setInput={setNewSizeInput}
                         placeholder="e.g. 29, XXS, One Size"
@@ -2289,7 +2289,7 @@ function OwnerPageInner() {
                 {/* -- WORKERS -- (reuse existing workers tab content) */}
                 {settingsSection==='workers'&&(
                   <div className="card">
-                    <div className="card-title">👥 Workers</div>
+                    <div className="card-title">ðŸ‘¥ Workers</div>
                     <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Manage workers and their commission settings.</div>
                     {workers.map((w:any)=>(
                       <div key={w.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
@@ -2329,7 +2329,7 @@ function OwnerPageInner() {
                 {/* -- APPEARANCE -- */}
                 {settingsSection==='appearance'&&(
                   <div className="card">
-                    <div className="card-title">🎨 Appearance</div>
+                    <div className="card-title">ðŸŽ¨ Appearance</div>
                     <div style={{marginBottom:16}}>
                       <div className="label" style={{marginBottom:8}}>Theme</div>
                       <div style={{display:'flex',gap:8}}>
@@ -2342,7 +2342,7 @@ function OwnerPageInner() {
                               localStorage.setItem(`darkMode_owner_${loggedInName}`,String(next));
                               window.dispatchEvent(new Event('darkModeChange'));
                             }}>
-                            {t==='Dark'?'🌙':t==='Light'?'☀️':'🖥'} {t}
+                            {t==='Dark'?'ðŸŒ™':t==='Light'?'â˜€ï¸':'ðŸ–¥'} {t}
                           </button>
                         ))}
                       </div>
@@ -2364,7 +2364,7 @@ function OwnerPageInner() {
                         {label:'Active vendors',value:String(Object.keys(usage.vendors||{}).length)},
                         {label:'Workers',value:String(workers.length)},
                         {label:'Built for',value:company?.name || 'Flowxiq'},
-                        {label:'Copyright',value:'┬⌐ '+new Date().getFullYear()+' Abdo Alasaadi'},
+                        {label:'Copyright',value:'â”¬âŒ '+new Date().getFullYear()+' Abdo Alasaadi'},
                       ].map(({label,value})=>(
                         <div key={label} style={{background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>
                           <div style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text-3)',marginBottom:3}}>{label}</div>
@@ -2480,7 +2480,7 @@ function OwnerPageInner() {
                 <input type="number" step="0.5" value={editPrice}
                   onChange={e=>setEditPrice(e.target.value)} style={{fontSize:16}}/>
                 {editPrice&&<div style={{fontSize:12,color:'var(--green)',marginTop:4}}>
-                  ΓåÆ Retail: <strong>${(Math.floor(calcUnitCost(Number(editPrice),item.category,settings)*settings.markup)+0.99).toFixed(2)}</strong>
+                  Î“Ã¥Ã† Retail: <strong>${(Math.floor(calcUnitCost(Number(editPrice),item.category,settings)*settings.markup)+0.99).toFixed(2)}</strong>
                 </div>}
               </div>
 
@@ -2642,3 +2642,5 @@ function OwnerPageInner() {
 export default function OwnerPage() {
   return <Suspense><OwnerPageInner /></Suspense>;
 }
+
+

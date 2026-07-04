@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    SUBSCRIPTION SECTION
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export function SubscriptionSection() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +44,7 @@ export function SubscriptionSection() {
     enterprise:   'Enterprise',
   };
 
-  if (loading) return <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Loading plan info…</div>;
+  if (loading) return <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Loading plan infoâ€¦</div>;
 
   const plan = data?.plan ?? 'trial';
   const status = data?.status ?? 'active';
@@ -91,7 +91,7 @@ export function SubscriptionSection() {
           </div>
           <div style={{ width: 48, height: 48, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: `${planColor}18`, border: `1px solid ${planColor}30`, fontSize: 22 }}>
-            {plan === 'trial' ? '🎯' : plan === 'professional' ? '⚡' : plan === 'business' ? '🚀' : '🏆'}
+            {plan === 'trial' ? 'ðŸŽ¯' : plan === 'professional' ? 'âš¡' : plan === 'business' ? 'ðŸš€' : 'ðŸ†'}
           </div>
         </div>
 
@@ -101,7 +101,7 @@ export function SubscriptionSection() {
             background: daysLeft <= 7 ? 'rgba(239,68,68,.08)' : 'rgba(245,158,11,.08)',
             border: `1px solid ${daysLeft <= 7 ? 'rgba(239,68,68,.2)' : 'rgba(245,158,11,.2)'}`,
             color: daysLeft <= 7 ? '#EF4444' : '#F59E0B', fontSize: 13, fontWeight: 500 }}>
-            ⏰ {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining in your free trial
+            â° {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining in your free trial
           </div>
         )}
 
@@ -109,7 +109,7 @@ export function SubscriptionSection() {
         <div style={{ marginBottom: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }}>
             <span>Workers used</span>
-            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{workers} / {maxWorkers === null ? '∞' : maxWorkers}</span>
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{workers} / {maxWorkers === null ? 'âˆž' : maxWorkers}</span>
           </div>
           {maxWorkers !== null && (
             <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 3, overflow: 'hidden' }}>
@@ -123,7 +123,7 @@ export function SubscriptionSection() {
 
       {/* Features */}
       <div className="card">
-        <div className="card-title">✅ Included Features</div>
+        <div className="card-title">âœ… Included Features</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {Object.entries(featureLabels).map(([key, label]) => {
             const included = features.includes(key);
@@ -131,7 +131,7 @@ export function SubscriptionSection() {
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
                 borderRadius: 8, background: included ? 'rgba(16,185,129,.06)' : 'var(--surface-2)',
                 border: `1px solid ${included ? 'rgba(16,185,129,.15)' : 'var(--border)'}` }}>
-                <span style={{ fontSize: 14 }}>{included ? '✅' : '❌'}</span>
+                <span style={{ fontSize: 14 }}>{included ? 'âœ…' : 'âŒ'}</span>
                 <span style={{ fontSize: 13, color: included ? 'var(--text)' : 'var(--text-3)', fontWeight: included ? 500 : 400 }}>{label}</span>
               </div>
             );
@@ -142,11 +142,11 @@ export function SubscriptionSection() {
       {/* Upgrade */}
       {plan !== 'enterprise' && (
         <div className="card">
-          <div className="card-title">⬆️ Upgrade Your Plan</div>
+          <div className="card-title">â¬†ï¸ Upgrade Your Plan</div>
           {upgraded ? (
             <div style={{ padding: '14px 16px', borderRadius: 8, background: 'rgba(16,185,129,.08)',
               border: '1px solid rgba(16,185,129,.2)', color: '#10B981', fontSize: 14 }}>
-              ✅ Upgrade request submitted! Our team will reach out within 1 business day.
+              âœ… Upgrade request submitted! Our team will reach out within 1 business day.
             </div>
           ) : (
             <>
@@ -171,7 +171,7 @@ export function SubscriptionSection() {
               </div>
               <button className="btn btn-primary" onClick={requestUpgrade} disabled={upgrading}
                 style={{ width: '100%', padding: '12px', fontSize: 14 }}>
-                {upgrading ? 'Submitting…' : `Request Upgrade to ${planLabel[targetPlan] || targetPlan}`}
+                {upgrading ? 'Submittingâ€¦' : `Request Upgrade to ${planLabel[targetPlan] || targetPlan}`}
               </button>
             </>
           )}
@@ -181,14 +181,14 @@ export function SubscriptionSection() {
   );
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    INTEGRATIONS SECTION
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const PROVIDER_META: Record<string, { name: string; icon: string; color: string; desc: string }> = {
-  square:     { name: 'Square',     icon: '◼', color: '#00B057', desc: 'Export products directly to your Square catalog' },
-  shopify:    { name: 'Shopify',    icon: '🛍️', color: '#96BF48', desc: 'Push products to your Shopify store' },
-  clover:     { name: 'Clover',     icon: '🍀', color: '#1DA462', desc: 'Sync inventory with Clover POS' },
-  lightspeed: { name: 'Lightspeed', icon: '⚡', color: '#FF6900', desc: 'Connect to Lightspeed Retail' },
+  square:     { name: 'Square',     icon: 'â—¼', color: '#00B057', desc: 'Export products directly to your Square catalog' },
+  shopify:    { name: 'Shopify',    icon: 'ðŸ›ï¸', color: '#96BF48', desc: 'Push products to your Shopify store' },
+  clover:     { name: 'Clover',     icon: 'ðŸ€', color: '#1DA462', desc: 'Sync inventory with Clover POS' },
+  lightspeed: { name: 'Lightspeed', icon: 'âš¡', color: '#FF6900', desc: 'Connect to Lightspeed Retail' },
 };
 
 const FIELDS: Record<string, { key: string; label: string; type: string; placeholder: string }[]> = {
@@ -265,7 +265,7 @@ export function IntegrationsSection() {
     load();
   }
 
-  if (loading) return <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Loading integrations…</div>;
+  if (loading) return <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Loading integrationsâ€¦</div>;
 
   const connected: any[]  = data?.connected  ?? [];
   const available: any[]  = data?.available  ?? [];
@@ -277,10 +277,10 @@ export function IntegrationsSection() {
       {/* Connected */}
       {connected.length > 0 && (
         <div className="card">
-          <div className="card-title">🔗 Connected</div>
+          <div className="card-title">ðŸ”— Connected</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {connected.map((int: any) => {
-              const meta = PROVIDER_META[int.provider] || { name: int.provider, icon: '🔌', color: '#6B7280', desc: '' };
+              const meta = PROVIDER_META[int.provider] || { name: int.provider, icon: 'ðŸ”Œ', color: '#6B7280', desc: '' };
               const tr   = testResult[int.id];
               return (
                 <div key={int.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
@@ -306,18 +306,18 @@ export function IntegrationsSection() {
                     </div>
                     {tr && (
                       <div style={{ marginTop: 4, fontSize: 12, color: tr.ok ? '#10B981' : '#EF4444' }}>
-                        {tr.ok ? '✅' : '❌'} {tr.msg}
+                        {tr.ok ? 'âœ…' : 'âŒ'} {tr.msg}
                       </div>
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button className="btn btn-sm" onClick={() => testConn(int.id)} disabled={testing === int.id}
                       style={{ fontSize: 12 }}>
-                      {testing === int.id ? '…' : 'Test'}
+                      {testing === int.id ? 'â€¦' : 'Test'}
                     </button>
                     <button className="btn btn-sm" onClick={() => remove(int.id)} disabled={removing === int.id}
                       style={{ fontSize: 12, color: 'var(--red)', borderColor: 'var(--red-border)' }}>
-                      {removing === int.id ? '…' : 'Remove'}
+                      {removing === int.id ? 'â€¦' : 'Remove'}
                     </button>
                   </div>
                 </div>
@@ -330,7 +330,7 @@ export function IntegrationsSection() {
       {/* Plan locked */}
       {isPlanLocked && (
         <div className="card" style={{ textAlign: 'center', padding: '32px 24px' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>ðŸ”’</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>POS Integrations require a paid plan</div>
           <div style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 16 }}>Upgrade to Professional or higher to connect Square, Shopify, Clover, and Lightspeed.</div>
           <button className="btn btn-primary" onClick={() => {/* open subscription tab */}}>View Plans</button>
@@ -344,7 +344,7 @@ export function IntegrationsSection() {
             <div className="card-title" style={{ marginBottom: 0 }}>
               Connect {PROVIDER_META[adding]?.name || adding}
             </div>
-            <button className="btn btn-sm" onClick={() => { setAdding(null); setCreds({}); setError(''); }}>✕ Cancel</button>
+            <button className="btn btn-sm" onClick={() => { setAdding(null); setCreds({}); setError(''); }}>âœ• Cancel</button>
           </div>
           {(FIELDS[adding] || []).map(f => (
             <div key={f.key} className="field">
@@ -353,9 +353,9 @@ export function IntegrationsSection() {
                 onChange={e => setCreds(p => ({ ...p, [f.key]: e.target.value }))} />
             </div>
           ))}
-          {error && <div style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>⚠️ {error}</div>}
+          {error && <div style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>âš ï¸ {error}</div>}
           <button className="btn btn-primary" onClick={connect} disabled={saving} style={{ width: '100%', marginTop: 8 }}>
-            {saving ? 'Connecting…' : 'Connect'}
+            {saving ? 'Connectingâ€¦' : 'Connect'}
           </button>
         </div>
       )}
@@ -363,10 +363,10 @@ export function IntegrationsSection() {
       {/* Available to connect */}
       {!adding && available.length > 0 && (
         <div className="card">
-          <div className="card-title">➕ Add Integration</div>
+          <div className="card-title">âž• Add Integration</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {available.map((a: any) => {
-              const meta = PROVIDER_META[a.provider] || { name: a.displayName, icon: '🔌', color: '#6B7280', desc: '' };
+              const meta = PROVIDER_META[a.provider] || { name: a.displayName, icon: 'ðŸ”Œ', color: '#6B7280', desc: '' };
               return (
                 <button key={a.provider} onClick={() => { setAdding(a.provider); setCreds({}); setError(''); }}
                   style={{ padding: '14px 12px', borderRadius: 10, border: '1px solid var(--border)',
@@ -395,9 +395,9 @@ export function IntegrationsSection() {
   );
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    ACTIVITY LOG SECTION
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const ACTION_COLORS: Record<string, string> = {
   'order.created':    '#3B82F6',
   'order.deleted':    '#EF4444',
@@ -452,9 +452,9 @@ export function ActivitySection() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>📋 Activity Log</div>
+          <div className="card-title" style={{ marginBottom: 0 }}>ðŸ“‹ Activity Log</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input placeholder="Filter by action…" value={filter} onChange={e => setFilter(e.target.value)}
+            <input placeholder="Filter by actionâ€¦" value={filter} onChange={e => setFilter(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && search()}
               style={{ padding: '6px 10px', fontSize: 13, width: 180 }} />
             <button className="btn btn-sm btn-primary" onClick={search}>Search</button>
@@ -462,10 +462,10 @@ export function ActivitySection() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>Loading activity…</div>
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>Loading activityâ€¦</div>
         ) : logs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>ðŸ“­</div>
             No activity recorded yet
           </div>
         ) : (
@@ -490,8 +490,8 @@ export function ActivitySection() {
                       </span>
                       <span style={{ fontSize: 13, color: 'var(--text-3)' }}>
                         {log.action.replace(/\./g, ' ')}
-                        {meta.orderName ? ` — ${meta.orderName}` : ''}
-                        {meta.name ? ` — ${meta.name}` : ''}
+                        {meta.orderName ? ` â€” ${meta.orderName}` : ''}
+                        {meta.name ? ` â€” ${meta.name}` : ''}
                         {meta.provider ? ` (${meta.provider})` : ''}
                       </span>
                     </div>
@@ -513,12 +513,12 @@ export function ActivitySection() {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn btn-sm" disabled={page <= 1}
-                onClick={() => { const p = page - 1; setPage(p); load(p, filter); }}>← Prev</button>
+                onClick={() => { const p = page - 1; setPage(p); load(p, filter); }}>â† Prev</button>
               <span style={{ fontSize: 13, padding: '4px 8px', color: 'var(--text-3)' }}>
                 Page {page} of {Math.ceil(meta.total / 20)}
               </span>
               <button className="btn btn-sm" disabled={!meta.hasMore}
-                onClick={() => { const p = page + 1; setPage(p); load(p, filter); }}>Next →</button>
+                onClick={() => { const p = page + 1; setPage(p); load(p, filter); }}>Next â†’</button>
             </div>
           </div>
         )}
@@ -526,3 +526,4 @@ export function ActivitySection() {
     </div>
   );
 }
+
