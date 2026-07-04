@@ -503,6 +503,7 @@ function OwnerPageInner() {
       else {
         const mgr = managers.find((m:any)=>m.pin===pin);
         setLoggedInName(mgr?.name || 'Manager');
+      }
       if(sessionRes.company) {
         setCompany({
           name: sessionRes.company.name,
