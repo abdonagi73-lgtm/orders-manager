@@ -27,7 +27,7 @@ export const Platform = {
   email: {
     provider: 'resend' as const,
     apiKey: process.env.RESEND_API_KEY || '',
-    from: 'Flowxiq <onboarding@resend.dev>',   // TODO: change to noreply@flowxiq.com after verifying domain in Resend
+    from: 'Flowxiq <noreply@flowxiq.com>',
     replyTo: 'support@flowxiq.com',
   },
 
