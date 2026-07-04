@@ -725,7 +725,7 @@ function FieldFastInner() {
       if(d.registry) setVendors(Object.keys(d.registry));
       if(d.company && d.company.name !== 'System Administration') {
         setCompanyName(d.company.name);
-        setLogoUrl(d.company.logoUrl);
+        setLogoUrl(d.company.logo_url || d.company.logoUrl || null);
       }
       // 3. Auto-auth: if already signed in as worker via /app email login, skip the PIN screen
       if(!savedWorker && d.user && d.user.role === 'worker') {
@@ -1490,7 +1490,11 @@ function FieldFastInner() {
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
         <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+            {logoUrl ? (
+              <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain',flexShrink:0}} />
+            ) : (
+              <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>&#128218;</div>
+            )}
             <div><div className="header-title">{t('myEarnings')}</div><div className="header-sub">{worker?.name}</div></div>
           </div>
           <div style={{display:'flex',gap:6,alignItems:'center'}}>
@@ -1543,7 +1547,11 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+          {logoUrl ? (
+            <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain',flexShrink:0}} />
+          ) : (
+            <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>&#128218;</div>
+          )}
           <div><div className="header-title">{worker?.name}</div><div className="header-sub">{t('startOrder')}</div></div>
         </div>
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
@@ -1616,7 +1624,11 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+          {logoUrl ? (
+            <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain',flexShrink:0}} />
+          ) : (
+            <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>&#128218;</div>
+          )}
           <div><div className="header-title">{t('review')}</div>
             <div className="header-sub">{orderName} · {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')} · ${cartTotal.toFixed(2)}</div></div>
         </div>
@@ -1734,7 +1746,11 @@ function FieldFastInner() {
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <a href="/"><Image src="/logo.png" alt="logo" width={28} height={28} style={{borderRadius:6}}/></a>
+          {logoUrl ? (
+            <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain',flexShrink:0}} />
+          ) : (
+            <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>&#128218;</div>
+          )}
           <div><div className="header-title">{orderName||'Order'}</div>
             <div className="header-sub">
               {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')}

@@ -121,8 +121,10 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <footer className="mk-footer">
           <div className="mk-footer-inner">
             <div className="mk-footer-col">
-              <div style={{marginBottom:20}}>
-                <FlowxiqLogo color="#FFFFFF" height={22} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-flowriq.png" alt="logo" style={{ height: 22, width: 22, objectFit: 'contain' }} />
+                <FlowxiqLogo color="#FFFFFF" height={18} />
               </div>
               <p style={{fontSize:13,color:'var(--mk-text3)',lineHeight:1.6}}>
                 Purchasing workflow software for retail businesses who source from vendors and suppliers.

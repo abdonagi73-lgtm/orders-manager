@@ -503,8 +503,12 @@ function OwnerPageInner() {
       else {
         const mgr = managers.find((m:any)=>m.pin===pin);
         setLoggedInName(mgr?.name || 'Manager');
+      if(sessionRes.company) {
+        setCompany({
+          name: sessionRes.company.name,
+          logoUrl: sessionRes.company.logo_url || sessionRes.company.logoUrl || null
+        });
       }
-      if(sessionRes.company) setCompany(sessionRes.company);
       setAuthed(true); loadAll(); loadNotifs();
     } else setPinError(true);
   }
@@ -604,7 +608,12 @@ function OwnerPageInner() {
     if(sessionRes.registry) setRegistry(sessionRes.registry);
     if(sessionRes.workers) setWorkers(sessionRes.workers);
     if(sessionRes.managers) setManagers(sessionRes.managers);
-    if(sessionRes.company) setCompany(sessionRes.company);
+    if(sessionRes.company) {
+      setCompany({
+        name: sessionRes.company.name,
+        logoUrl: sessionRes.company.logo_url || sessionRes.company.logoUrl || null
+      });
+    }
   },[]);
 
   // Live search debounce
@@ -735,9 +744,13 @@ function OwnerPageInner() {
           loadNotifs();
           fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
         } else {
-          // No valid session — show company name on PIN screen
           fetch('/api/session').then(r=>r.json()).then(d=>{
-            if(d.company && d.company.name !== 'System Administration') setCompany(d.company);
+            if(d.company && d.company.name !== 'System Administration') {
+              setCompany({
+                name: d.company.name,
+                logoUrl: d.company.logo_url || d.company.logoUrl || null
+              });
+            }
           });
         }
         setAuthChecking(false);

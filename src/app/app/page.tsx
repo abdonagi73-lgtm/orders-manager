@@ -280,10 +280,11 @@ export default function UnifiedLoginPage() {
       <div className="lp-card">
 
         {/* ── Logo & Title ── */}
-        <div className="lp-logo-wrap">
-          <FlowxiqLogo color="#FFFFFF" height={30} />
-          <h1 className="lp-title">FlowXIQ</h1>
-          <div className="lp-sub">
+        <div className="lp-logo-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 24 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-flowriq.png" alt="Logo" style={{ width: 48, height: 48, objectFit: 'contain', marginBottom: 12 }} />
+          <FlowxiqLogo color="#FFFFFF" height={22} />
+          <div className="lp-sub" style={{ marginTop: 8 }}>
             {mode === "forgot"      ? "Reset Credentials" :
              mode === "reset-code"  ? "Enter Reset Code"  :
              mode === "workspace"   ? "Select Workspace"  :
