@@ -1,10 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { Resend } from 'resend';
 
-// Legacy test endpoint — Google Sheets notifications have been deprecated.
-// Kept as a stub to avoid build errors from cached references.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const to = req.nextUrl.searchParams.get('to');
+  if (!to) {
+    return NextResponse.json({ error: 'Pass ?to=your@email.com' }, { status: 400 });
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: 'RESEND_API_KEY not set in environment' }, { status: 500 });
+  }
+
+  const resend = new Resend(apiKey);
+
+  const result = await resend.emails.send({
+    from:    'Flowxiq <noreply@flowxiq.com>',
+    to:      [to],
+    subject: 'Flowxiq email test',
+    html:    '<p>This is a test email from Flowxiq. If you received this, email delivery is working ✅</p>',
+  });
+
   return NextResponse.json({
-    ok: false,
-    message: 'This endpoint is deprecated. Flowxiq uses a database-backed notification system.',
-  }, { status: 410 });
+    to,
+    apiKeyPrefix: apiKey.slice(0, 8) + '...',
+    result,
+  });
 }

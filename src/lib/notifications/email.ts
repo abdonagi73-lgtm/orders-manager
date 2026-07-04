@@ -30,20 +30,19 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   try {
     const resend = getResend();
-    const { error } = await resend.emails.send({
-      from:     Platform.email.from,
-      to:       options.to,
-      subject:  options.subject,
-      html:     options.html,
-      replyTo:  options.replyTo ?? Platform.email.replyTo,
+    const { data, error } = await resend.emails.send({
+      from:    Platform.email.from,
+      to:      [options.to],            // Resend v6 requires array
+      subject: options.subject,
+      html:    options.html,
     });
 
     if (error) {
-      logger.error('Resend email failed', { to: options.to, subject: options.subject, error: String(error) });
+      logger.error('Resend email failed', { to: options.to, subject: options.subject, error: JSON.stringify(error) });
       return false;
     }
 
-    logger.info('Email sent', { to: options.to, subject: options.subject });
+    logger.info('Email sent', { to: options.to, subject: options.subject, id: (data as any)?.id });
     return true;
   } catch (error) {
     logger.error('Email send exception', { to: options.to, error: String(error) });
