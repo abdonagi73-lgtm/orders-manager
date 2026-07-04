@@ -242,8 +242,10 @@ export default function HQPlatformOperations() {
     try {
       const res = await fetch("/api/v1/admin/platform-stats");
       if (res.ok) {
-        const data = await res.json();
-        setPlatformStats(data);
+        const json = await res.json();
+        // ok() wraps payload as { success: true, data: { ... } }
+        const stats = json.data ?? json;
+        setPlatformStats(stats);
       } else if (res.status === 403) {
         setStatsError("ACCESS DENIED — super_admin session required.");
       } else {

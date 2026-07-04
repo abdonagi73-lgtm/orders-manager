@@ -139,7 +139,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               <h4>Platform</h4>
               <a href="/app">Worker Login</a>
               <a href="/app">Manager Login</a>
-              <a href="/signup">Create Workspace</a>
             </div>
             <div className="mk-footer-col">
               <h4>Legal</h4>
