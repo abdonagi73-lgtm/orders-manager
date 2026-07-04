@@ -106,10 +106,10 @@ export default function UnifiedLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail.trim() }) });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok || data.success) {
         setFpMsg("A 6-digit reset code has been sent to your email.");
         setMode("reset-code");
-      } else { setFpError(data.error || "Could not send reset code. Check your email address."); }
+      } else { setFpError(data.error?.message || data.error || "Could not send reset code. Check your email address."); }
     } catch { setFpError("Connection error."); }
     setFpLoading(false);
   };
@@ -125,7 +125,7 @@ export default function UnifiedLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail, code: resetCode.trim(), newPassword }) });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok || data.success) {
         setFpMsg("Password updated! You can now sign in.");
         setMode("login");
         setLoginInput(forgotEmail);

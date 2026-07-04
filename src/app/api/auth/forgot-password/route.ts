@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Always return the same response to prevent email enumeration
-    return ok({ message: 'If this email exists, a reset code was sent.' });
+    // Return both ok:true (legacy) and success:true (v1 standard)
+    return ok({ ok: true, message: 'If this email exists, a reset code was sent.' });
   } catch (error: unknown) {
     console.error('[forgot-password]', error);
     return internalError();
