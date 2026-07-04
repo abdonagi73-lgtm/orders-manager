@@ -963,25 +963,30 @@ function OwnerPageInner() {
 
   async function addWorker() {
     if(!newWorkerName.trim()||!newWorkerPin.trim()){ showToast('Enter name and PIN'); return; }
-    const newId = 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    const updated = [...workers, {id:newId, name:newWorkerName.trim(), pin:newWorkerPin.trim()}];
-    const res = await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'save-workers',workers:updated})});
+    const res = await fetch('/api/owner/team',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:newWorkerName.trim(), pin:newWorkerPin.trim(), role:'worker'})});
     const d = await res.json();
-    if(d.ok){
-      const fresh = await fetch('/api/session').then(r=>r.json());
-      if(fresh.workers) setWorkers(fresh.workers);
+    if(res.ok && d.success){
+      // Reload workers from DB
+      const fresh = await fetch('/api/owner/team').then(r=>r.json());
+      const workerList = Array.isArray(fresh)
+        ? fresh.filter((u:any)=>u.role==='worker').map((u:any)=>({id:u.id,name:u.name,pin:'****'}))
+        : [];
+      setWorkers(workerList);
       setNewWorkerName(''); setNewWorkerPin('');
-      showToast('&#10004; Worker saved');
-    } else { showToast('Error saving worker'); }
+      showToast('✔ Worker added');
+    } else { showToast('Error: '+(d.error||'Failed to add worker')); }
   }
 
   async function removeWorker(id: string) {
     if(!confirm('Remove this worker?')) return;
-    const updated = workers.filter(w=>w.id!==id);
-    await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'save-workers',workers:updated})});
-    setWorkers(updated); showToast('Worker removed');
+    const res = await fetch('/api/owner/team',{method:'DELETE',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:id})});
+    const d = await res.json();
+    if(res.ok && d.success){
+      setWorkers(prev=>prev.filter(w=>w.id!==id));
+      showToast('Worker removed');
+    } else { showToast('Error: '+(d.error||'Failed to remove')); }
   }
 
   const filteredItems = items.filter(i=>!itemFilterStatus||i.status===itemFilterStatus)
