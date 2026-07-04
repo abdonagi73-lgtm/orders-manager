@@ -1974,10 +1974,10 @@ function OwnerPageInner() {
                 <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
                 {sectionBtn('about', 'ℹ️', 'About')}
                 <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
-                  <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={()=>{
-                    fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})}).finally(()=>{
-                      window.location.href='/login';
-                    });
+                  <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={async()=>{
+                    await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
+                    sessionStorage.clear();
+                    window.location.href='/app';
                   }}>Sign out</button>
                 </div>
               </div>
@@ -2202,7 +2202,7 @@ function OwnerPageInner() {
                               localStorage.setItem(`darkMode_owner_${loggedInName}`,String(next));
                               window.dispatchEvent(new Event('darkModeChange'));
                             }}>
-                            {t==='Dark'?'≡ƒîÖ':t==='Light'?'ΓÿÇ':'ΓÜÖ'} {t}
+                            {t==='Dark'?'🌙':t==='Light'?'☀️':'🖥'} {t}
                           </button>
                         ))}
                       </div>
