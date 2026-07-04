@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
       });
 
       // Send real email via Resend
-      void dispatch(
+      // NOTE: must await — Vercel serverless kills the function on response return,
+      // so fire-and-forget (void) never completes.
+      await dispatch(
         {
           event: 'auth.password_reset',
           recipientEmail: user.email ?? undefined,

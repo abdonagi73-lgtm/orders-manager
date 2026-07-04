@@ -22,9 +22,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/onboard') ||
     pathname.startsWith('/api/onboard') ||
     pathname === '/field-fast' ||      // Worker portal uses internal PIN auth
-    pathname.startsWith('/field-fast/') ||
-    pathname === '/owner' ||           // Owner portal uses internal PIN auth
+    pathname.startsWith('/field-fast/') ||\n    pathname === '/owner' ||           // Owner portal uses internal PIN auth
     pathname.startsWith('/owner/') ||
+    pathname === '/api/test-notif' ||  // Email diagnostic endpoint (no sensitive data)
     (pathname.startsWith('/api/access-requests') && request.method === 'POST');
 
   if (isPublic) {
