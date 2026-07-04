@@ -7,3 +7,5 @@ out/
 *.log
 local.db
 *.db
+.vercel
+.env*
