@@ -2466,6 +2466,38 @@ function OwnerPageInner() {
                 </select>
               </div>
             </div>
+
+            {/* Worker assignment */}
+            <div className="field">
+              <label className="label">Assigned worker</label>
+              {workers.length === 0 ? (
+                <div style={{fontSize:13,color:'var(--text-3)'}}>No workers added yet — add workers in Settings → Workers.</div>
+              ) : (
+                <select
+                  value={editOrderModal.workerId || ''}
+                  onChange={e => {
+                    const w = workers.find(w => w.id === e.target.value);
+                    setEditOrderModal({
+                      ...editOrderModal,
+                      workerId:   w?.id   || '',
+                      workerName: w?.name || '',
+                    });
+                  }}
+                  style={{maxWidth:260}}
+                >
+                  <option value="">— Unassigned —</option>
+                  {workers.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              )}
+              {editOrderModal.workerName && (
+                <div style={{fontSize:12,color:'var(--text-3)',marginTop:4}}>
+                  Currently: <strong>{editOrderModal.workerName}</strong>
+                </div>
+              )}
+            </div>
+
             <div style={{display:'flex',gap:8,marginTop:8}}>
               <button className="btn" style={{flex:1}} onClick={()=>setEditOrderModal(null)}>Cancel</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={()=>saveOrderEdit(editOrderModal)}>Save changes</button>
