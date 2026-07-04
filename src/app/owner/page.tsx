@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import type { Order, OrderItem, SessionSettings, Worker } from '@/lib/types';
 import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
+import { SubscriptionSection, IntegrationsSection, ActivitySection } from './settings-sections';
 
 type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
 
@@ -445,7 +446,7 @@ function OwnerPageInner() {
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
   // Settings tab state ' must live at component level (React hook rules)
-  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'experimental'|'about'>('business');
+  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'subscription'|'integrations'|'activity'|'about'>('business');
   const [catList, setCatList] = useState<string[]>([]);
   const [colorList, setColorList] = useState<string[]>([]);
   const [sizeList, setSizeList] = useState<string[]>([]);
@@ -1776,7 +1777,11 @@ function OwnerPageInner() {
                 {sectionBtn('catalog', '📋', 'Catalog')}
                 {sectionBtn('workers', '👥', 'Workers')}
                 {sectionBtn('appearance', '🎨', 'Appearance')}
-                {sectionBtn('experimental' as any, '⭐', 'Subscription')}
+                <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
+                {sectionBtn('subscription', '💳', 'Subscription')}
+                {sectionBtn('integrations', '🔌', 'Integrations')}
+                {sectionBtn('activity', '📋', 'Activity Log')}
+                <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
                 {sectionBtn('about', 'ℹ️', 'About')}
                 <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
                   <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={()=>{
@@ -1808,45 +1813,6 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* --- SUBSCRIPTION --- */}
-                {settingsSection==='experimental'&&(
-                  <div className="card">
-                    <div className="card-title">⭐ Subscription</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-                      <div style={{background:'var(--surface-2)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'18px 20px'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-                          <div style={{background:'var(--green-light)',border:'1px solid var(--green-border)',borderRadius:8,padding:'4px 14px',color:'var(--green)',fontSize:14,fontWeight:700,textTransform:'capitalize'}}>
-                            {company?.name ? 'Growth' : 'Free'} Plan
-                          </div>
-                          <span style={{fontSize:12,color:'var(--green)',fontWeight:600}}>Active</span>
-                        </div>
-                        <div style={{fontSize:13,color:'var(--text-2)',lineHeight:1.6}}>
-                          <div>Workspace: <strong>{company?.name || 'Your Business'}</strong></div>
-                          <div style={{marginTop:4}}>Orders Manager • Worker Tracking • Analytics • PDF Export</div>
-                        </div>
-                      </div>
-                      <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'16px 20px'}}>
-                        <div style={{fontWeight:600,fontSize:14,marginBottom:10}}>What's included</div>
-                        {[
-                          'Unlimited orders & items',
-                          'Worker & manager accounts',
-                          'Prices, analytics & commission',
-                          'Vendor intelligence',
-                          'Square POS export',
-                          'PDF order reports',
-                          'Order timeline & history',
-                        ].map(f=>(
-                          <div key={f} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--text-2)',marginBottom:6}}>
-                            <span style={{color:'var(--green)',fontWeight:700}}>✓</span> {f}
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{background:'var(--amber-light)',border:'1px solid var(--amber-border)',borderRadius:'var(--r)',padding:'14px 18px',fontSize:13,color:'var(--text-2)'}}>
-                        To upgrade your plan or manage billing, contact <strong>FlowXIQ support</strong>.
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* --- BUSINESS --- */}
                 {settingsSection==='business'&&(
@@ -2024,33 +1990,6 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* -- EXPERIMENTAL -- */}
-                {settingsSection==='experimental'&&(
-                  <div className="card">
-                    <div className="card-title">&#128007; Experimental Features</div>
-                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Future AI and advanced features. Toggle to enable early access.</div>
-                    {[
-                      {key:'aiPriceAnomaly',label:'AI price anomaly detection',desc:'Flags items with unusual pricing compared to similar codes'},
-                      {key:'ocrScanning',label:'OCR item scanning',desc:'Scan physical tags to auto-fill item codes'},
-                      {key:'voiceEntry',label:'Voice entry',desc:'Dictate item codes and details hands-free'},
-                      {key:'smartVendor',label:'Smart vendor suggestions',desc:'AI suggests vendors based on category and history'},
-                      {key:'liveCollab',label:'Live collaboration',desc:'See changes from other workers in real-time'},
-                    ].map(f=>(
-                      <div key={f.key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-                        padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
-                        <div>
-                          <div style={{fontSize:14,fontWeight:500}}>{f.label}</div>
-                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>{f.desc}</div>
-                        </div>
-                        <div style={{width:44,height:26,borderRadius:13,background:'var(--border-strong)',
-                          position:'relative',flexShrink:0,opacity:.5,cursor:'not-allowed'}}>
-                          <div style={{position:'absolute',top:3,left:3,width:20,height:20,
-                            borderRadius:'50%',background:'#fff',boxShadow:'0 1px 3px rgba(0,0,0,.2)'}}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {/* -- ABOUT -- */}
                 {settingsSection==='about'&&(
@@ -2074,6 +2013,21 @@ function OwnerPageInner() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* -- SUBSCRIPTION -- */}
+                {settingsSection==='subscription'&&(
+                  <SubscriptionSection />
+                )}
+
+                {/* -- INTEGRATIONS -- */}
+                {settingsSection==='integrations'&&(
+                  <IntegrationsSection />
+                )}
+
+                {/* -- ACTIVITY LOG -- */}
+                {settingsSection==='activity'&&(
+                  <ActivitySection />
                 )}
 
               </div>
