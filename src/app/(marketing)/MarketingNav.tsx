@@ -6,20 +6,9 @@ export default function MarketingNav() {
   return (
     <nav className="mk-nav">
       <div className="mk-nav-inner">
-        <Link href="/" className="mk-nav-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-          }}>
-            <img src="/logo-flowriq.png" alt="logo" style={{ height: 20, width: 20, objectFit: 'contain' }} />
-          </div>
-          <FlowxiqLogo color="#FFFFFF" height={20} />
+        <Link href="/" className="mk-nav-logo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-combined-white.png" alt="flowxiq" style={{ height: 28, objectFit: 'contain', display: 'block' }} />
         </Link>
         <ul className="mk-nav-links">
           <li><a href="/#features">Features</a></li>
