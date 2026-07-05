@@ -235,6 +235,81 @@ export default function HQPlatformOperations() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [defaultTrialDays, setDefaultTrialDays] = useState(14);
 
+  // --- My Profile ---
+  const [saName, setSaName]                 = useState('');
+  const [saEmail, setSaEmail]               = useState('');
+  const [saNameEdit, setSaNameEdit]         = useState('');
+  const [saNameSaving, setSaNameSaving]     = useState(false);
+  const [saNameMsg, setSaNameMsg]           = useState('');
+  // PIN change
+  const [saCurPin, setSaCurPin]             = useState('');
+  const [saNewPin, setSaNewPin]             = useState('');
+  const [saPinSaving, setSaPinSaving]       = useState(false);
+  const [saPinMsg, setSaPinMsg]             = useState('');
+  // Email change
+  const [saNewEmail, setSaNewEmail]         = useState('');
+  const [saEmailPin, setSaEmailPin]         = useState('');
+  const [saEmailStep, setSaEmailStep]       = useState<'idle'|'enter'|'verify'>('idle');
+  const [saEmailCode, setSaEmailCode]       = useState('');
+  const [saEmailSaving, setSaEmailSaving]   = useState(false);
+  const [saEmailMsg, setSaEmailMsg]         = useState('');
+
+  // Load own profile info on first mount
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(d => {
+      if (d.name)  setSaName(d.name),  setSaNameEdit(d.name);
+      if (d.email) setSaEmail(d.email), setSaNewEmail(d.email);
+    }).catch(() => {});
+  }, []);
+
+  async function saveSaName() {
+    if (!saNameEdit.trim()) return;
+    setSaNameSaving(true); setSaNameMsg('');
+    const r = await fetch('/api/auth/update-credentials', { method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field: 'name', value: saNameEdit.trim() }) });
+    const d = await r.json();
+    setSaNameSaving(false);
+    if (r.ok) { setSaName(saNameEdit.trim()); setSaNameMsg('✓ Name updated'); }
+    else setSaNameMsg(d.error || 'Failed to update');
+  }
+
+  async function requestSaEmailChange() {
+    setSaEmailSaving(true); setSaEmailMsg('');
+    const r = await fetch('/api/auth/update-credentials', { method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field: 'email', newEmail: saNewEmail.trim(), currentPin: saEmailPin }) });
+    const d = await r.json();
+    setSaEmailSaving(false);
+    if (r.ok) { setSaEmailStep('verify'); setSaEmailMsg('Code sent to new email'); }
+    else setSaEmailMsg(d.error || 'Failed to send code');
+  }
+
+  async function confirmSaEmailChange() {
+    setSaEmailSaving(true); setSaEmailMsg('');
+    const r = await fetch('/api/auth/verify-email-change', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: saEmailCode }) });
+    const d = await r.json();
+    setSaEmailSaving(false);
+    if (r.ok) {
+      setSaEmail(saNewEmail.trim()); setSaEmailStep('idle');
+      setSaEmailCode(''); setSaEmailPin(''); setSaEmailMsg('✓ Email updated successfully');
+    } else setSaEmailMsg(d.error || 'Incorrect or expired code');
+  }
+
+  async function saveSaPin() {
+    if (!saCurPin || !saNewPin) return;
+    setSaPinSaving(true); setSaPinMsg('');
+    const r = await fetch('/api/auth/update-credentials', { method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field: 'pin', currentPin: saCurPin, newPin: saNewPin }) });
+    const d = await r.json();
+    setSaPinSaving(false);
+    if (r.ok) { setSaCurPin(''); setSaNewPin(''); setSaPinMsg('✓ PIN updated'); }
+    else setSaPinMsg(d.error || 'Failed to update PIN');
+  }
+
   // Fetch platform-wide stats from the v1 admin API
   const loadPlatformStats = async () => {
     setStatsLoading(true);
@@ -2690,7 +2765,101 @@ export default function HQPlatformOperations() {
             <div className="hq-flex-col" style={{ gap: "24px" }}>
               <div>
                 <h2 className="text-xl font-bold text-white tracking-tight">Platform Configuration Settings</h2>
-                <p className="text-xs text-[#8A9CB6]">Configure default trial durations, maintenance mode toggles, notification templates, and branding assets.</p>
+                <p className="text-xs text-[#8A9CB6]">Configure your profile, default trial durations, maintenance mode toggles, notification templates, and branding assets.</p>
+              </div>
+
+              {/* ── MY PROFILE ───────────────────────────────────────── */}
+              <div className="hq-card hq-flex-col" style={{ gap: "20px" }}>
+                <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">My Profile</h3>
+
+                {/* Name */}
+                <div style={{ borderBottom: "1px solid #16223F", paddingBottom: 16 }}>
+                  <div className="text-xs font-bold text-white mb-1">Display Name</div>
+                  <div className="text-[10px] text-[#8A9CB6] mb-3">Currently: <span className="text-white font-mono">{saName || '—'}</span></div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      value={saNameEdit}
+                      onChange={e => setSaNameEdit(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveSaName()}
+                      placeholder="New display name"
+                      className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none flex-1"
+                      style={{ maxWidth: 280 }}
+                    />
+                    <button onClick={saveSaName} disabled={saNameSaving || saNameEdit === saName}
+                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                      {saNameSaving ? 'SAVING…' : 'SAVE'}
+                    </button>
+                  </div>
+                  {saNameMsg && <div className={`text-xs mt-2 ${saNameMsg.startsWith('✓') ? 'text-[#10B981]' : 'text-red-400'}`}>{saNameMsg}</div>}
+                </div>
+
+                {/* Email change */}
+                <div style={{ borderBottom: "1px solid #16223F", paddingBottom: 16 }}>
+                  <div className="text-xs font-bold text-white mb-1">Email Address</div>
+                  <div className="text-[10px] text-[#8A9CB6] mb-3">Currently: <span className="text-white font-mono">{saEmail || '—'}</span></div>
+                  {saEmailStep === 'idle' && (
+                    <button onClick={() => setSaEmailStep('enter')}
+                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all">
+                      CHANGE EMAIL
+                    </button>
+                  )}
+                  {saEmailStep === 'enter' && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 340 }}>
+                      <input value={saNewEmail} onChange={e => setSaNewEmail(e.target.value)}
+                        placeholder="New email address"
+                        className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none" />
+                      <input value={saEmailPin} onChange={e => setSaEmailPin(e.target.value)}
+                        type="password" placeholder="Current PIN to confirm"
+                        className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none" />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={requestSaEmailChange} disabled={saEmailSaving}
+                          className="border border-[#3B82F6] text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40">
+                          {saEmailSaving ? 'SENDING…' : 'SEND CODE'}
+                        </button>
+                        <button onClick={() => { setSaEmailStep('idle'); setSaEmailMsg(''); }}
+                          className="border border-[#1E2E4F] text-[#8A9CB6] py-1.5 px-3 rounded text-xs font-mono">CANCEL</button>
+                      </div>
+                    </div>
+                  )}
+                  {saEmailStep === 'verify' && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 340 }}>
+                      <div className="text-[10px] text-[#8A9CB6]">Enter the 6-digit code sent to <span className="text-white">{saNewEmail}</span></div>
+                      <input value={saEmailCode} onChange={e => setSaEmailCode(e.target.value)}
+                        placeholder="6-digit code"
+                        className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none font-mono tracking-widest" />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={confirmSaEmailChange} disabled={saEmailSaving}
+                          className="border border-[#10B981] text-[#10B981] hover:bg-[#10B981] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40">
+                          {saEmailSaving ? 'VERIFYING…' : 'VERIFY & CONFIRM'}
+                        </button>
+                        <button onClick={() => { setSaEmailStep('idle'); setSaEmailMsg(''); }}
+                          className="border border-[#1E2E4F] text-[#8A9CB6] py-1.5 px-3 rounded text-xs font-mono">CANCEL</button>
+                      </div>
+                    </div>
+                  )}
+                  {saEmailMsg && <div className={`text-xs mt-2 ${saEmailMsg.startsWith('✓') || saEmailMsg.startsWith('Code') ? 'text-[#10B981]' : 'text-red-400'}`}>{saEmailMsg}</div>}
+                </div>
+
+                {/* PIN change */}
+                <div>
+                  <div className="text-xs font-bold text-white mb-1">Change PIN</div>
+                  <div className="text-[10px] text-[#8A9CB6] mb-3">Minimum 4 digits, maximum 6.</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <input value={saCurPin} onChange={e => setSaCurPin(e.target.value)}
+                      type="password" placeholder="Current PIN"
+                      className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none font-mono"
+                      style={{ width: 130 }} />
+                    <input value={saNewPin} onChange={e => setSaNewPin(e.target.value)}
+                      type="password" placeholder="New PIN (4-6 digits)"
+                      className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none font-mono"
+                      style={{ width: 160 }} />
+                    <button onClick={saveSaPin} disabled={saPinSaving || !saCurPin || !saNewPin}
+                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                      {saPinSaving ? 'SAVING…' : 'UPDATE PIN'}
+                    </button>
+                  </div>
+                  {saPinMsg && <div className={`text-xs mt-2 ${saPinMsg.startsWith('✓') ? 'text-[#10B981]' : 'text-red-400'}`}>{saPinMsg}</div>}
+                </div>
               </div>
 
               <div className="hq-card hq-flex-col" style={{ gap: "20px" }}>

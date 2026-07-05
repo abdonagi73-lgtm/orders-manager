@@ -25,9 +25,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/field-fast/') ||
     pathname === '/owner' ||           // Owner portal uses internal PIN auth
     pathname.startsWith('/owner/') ||
-    pathname === '/privacy' ||         // Public legal pages
-    pathname === '/terms' ||
-    pathname === '/security' ||
+    pathname.startsWith('/privacy') || // Public legal pages (startsWith covers /privacy and /privacy/)
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/security') ||
     (pathname.startsWith('/api/access-requests') && request.method === 'POST');
 
   if (isPublic) {

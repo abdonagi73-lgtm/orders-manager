@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,10 +13,13 @@ export interface FormField {
 }
 
 interface Props {
-  companyName: string;
-  onComplete:  () => void;
-  onSkip:      () => void;
-  inline?:     boolean;  // render as card inside settings instead of fullscreen overlay
+  companyName:    string;
+  onComplete:     () => void;
+  onSkip:         () => void;
+  inline?:        boolean;   // render as card inside settings instead of fullscreen overlay
+  initialBizType?: string;   // pre-populate from saved company data
+  initialPosType?: string;
+  initialFields?:  FormField[];
 }
 
 // ── POS Field Templates ────────────────────────────────────────────────────────
@@ -109,13 +112,38 @@ function StepDot({ n, current, label }: { n: number; current: number; label: str
 
 // ── Main Wizard ───────────────────────────────────────────────────────────────
 
-export default function SetupWizard({ companyName, onComplete, onSkip, inline }: Props) {
+export default function SetupWizard({ companyName, onComplete, onSkip, inline, initialBizType, initialPosType, initialFields }: Props) {
   const [step, setStep]               = useState(1);
-  const [bizType, setBizType]         = useState('');
-  const [posType, setPosType]         = useState('');
-  const [fields, setFields]           = useState<FormField[]>([]);
+  const [bizType, setBizType]         = useState(initialBizType ?? '');
+  const [posType, setPosType]         = useState(initialPosType ?? '');
+  const [fields, setFields]           = useState<FormField[]>(initialFields ?? []);
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
+  const [loading, setLoading]         = useState(inline && !initialBizType); // load from API if no initials given
+
+  // When rendered inline (settings), auto-load saved values from the API
+  useEffect(() => {
+    if (!inline || initialBizType) return; // skip if not inline or already pre-populated
+    setLoading(true);
+    fetch('/api/setup')
+      .then(r => r.json())
+      .then(data => {
+        if (data.business_type) setBizType(data.business_type);
+        if (data.pos_type) {
+          setPosType(data.pos_type);
+          const template = POS_TEMPLATES[data.pos_type] ?? POS_TEMPLATES['none'];
+          // Merge saved form_fields (custom fields) on top of POS template
+          if (data.form_fields?.length) {
+            setFields(data.form_fields);
+          } else {
+            setFields(template.map((f: FormField) => ({ ...f })));
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Custom field form
   const [cfLabel,    setCfLabel]      = useState('');
@@ -195,6 +223,15 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline }:
   const stepLabels = ['Business', 'POS', 'Fields', 'Custom', 'Launch'];
 
   // ── Wrapper: overlay (first-login) or inline card (settings) ─────────────
+  if (loading) {
+    return (
+      <div style={{ padding: '40px 32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
+        <div style={{ fontSize: 24, marginBottom: 12 }}>⚙️</div>
+        Loading your setup…
+      </div>
+    );
+  }
+
   const inner = (
     <div style={{
       width: '100%', maxWidth: inline ? '100%' : 640, background: 'var(--surface)',
@@ -202,6 +239,7 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline }:
       boxShadow: inline ? 'none' : '0 32px 80px rgba(0,0,0,.6)',
       maxHeight: inline ? 'none' : '90vh', overflowY: inline ? 'visible' : 'auto',
     }}>
+
         {/* Header */}
         <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '.08em',
