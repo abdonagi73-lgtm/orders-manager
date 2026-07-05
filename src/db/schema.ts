@@ -42,16 +42,18 @@ export const companies = sqliteTable('companies', {
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 export const users = sqliteTable('users', {
-  id:           text('id').primaryKey(),
-  company_id:   text('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
-  name:         text('name').notNull(),
-  email:        text('email'),
-  pin_hash:     text('pin_hash').notNull(),
-  role:         text('role').default('worker').notNull(),   // worker | manager | owner | admin | super_admin
-  is_activated: integer('is_activated', { mode: 'boolean' }).default(false).notNull(),
-  created_at:   text('created_at').default('').notNull(),
-  updated_at:   text('updated_at').default('').notNull(),
-  deleted_at:   text('deleted_at'),   // soft delete
+  id:                  text('id').primaryKey(),
+  company_id:          text('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
+  name:                text('name').notNull(),
+  email:               text('email'),
+  pin_hash:            text('pin_hash').notNull(),
+  role:                text('role').default('worker').notNull(),   // worker | manager | owner | admin | super_admin
+  is_activated:        integer('is_activated', { mode: 'boolean' }).default(false).notNull(),
+  reset_code:          text('reset_code'),          // 6-digit code, null when not pending
+  reset_code_expires:  text('reset_code_expires'),  // ISO timestamp
+  created_at:          text('created_at').default('').notNull(),
+  updated_at:          text('updated_at').default('').notNull(),
+  deleted_at:          text('deleted_at'),   // soft delete
 }, (t) => ({
   idx_users_company: index('idx_users_company_id').on(t.company_id),
   idx_users_email:   index('idx_users_email').on(t.email),

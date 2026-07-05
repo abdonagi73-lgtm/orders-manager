@@ -1,6 +1,7 @@
 /**
  * POST /api/auth/verify-email-change
- * Verifies the 6-digit code sent to the new email and applies the change
+ * Verifies the 6-digit code sent to the new email and applies the change.
+ * Codes are stored in the DB (not in-memory) to survive serverless cold starts.
  */
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
@@ -9,7 +10,6 @@ import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { ok, internalError } from '@/lib/api/response';
-import { resetCodes } from '@/lib/resetCodes';
 
 async function getSession() {
   const token = cookies().get('session')?.value;
@@ -29,30 +29,51 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Code is required' }), { status: 400 });
     }
 
-    const cacheKey = `email-change:${session.id}`;
-    const entry = resetCodes.get(cacheKey) as any;
+    // Load the pending email-change code from DB
+    const [user] = await db
+      .select({
+        reset_code:         users.reset_code,
+        reset_code_expires: users.reset_code_expires,
+        // The new email is stored temporarily in reset_code_expires with a pipe separator
+        // Format: "<expires_iso>|<new_email>"
+      })
+      .from(users)
+      .where(eq(users.id, session.id))
+      .limit(1);
 
-    if (!entry) {
+    if (!user?.reset_code) {
       return new Response(JSON.stringify({ error: 'No pending email change — please start over' }), { status: 400 });
     }
 
-    if (Date.now() > entry.expires) {
-      resetCodes.delete(cacheKey);
+    // Parse stored value: "expires_iso|new_email"
+    const stored = user.reset_code_expires ?? '';
+    const pipeIdx = stored.indexOf('|');
+    if (pipeIdx === -1) {
+      return new Response(JSON.stringify({ error: 'Invalid state — please start over' }), { status: 400 });
+    }
+    const expiresIso = stored.substring(0, pipeIdx);
+    const newEmail   = stored.substring(pipeIdx + 1);
+
+    if (Date.now() > new Date(expiresIso).getTime()) {
+      await db.update(users).set({ reset_code: null, reset_code_expires: null }).where(eq(users.id, session.id));
       return new Response(JSON.stringify({ error: 'Code expired — please start over' }), { status: 400 });
     }
 
-    if (entry.code !== String(code)) {
+    if (user.reset_code !== String(code)) {
       return new Response(JSON.stringify({ error: 'Incorrect code' }), { status: 400 });
     }
 
-    // Apply the email change
+    // Apply the email change and clear the code
     await db.update(users)
-      .set({ email: entry.newEmail, updated_at: new Date().toISOString() })
+      .set({
+        email:              newEmail,
+        reset_code:         null,
+        reset_code_expires: null,
+        updated_at:         new Date().toISOString(),
+      })
       .where(eq(users.id, session.id));
 
-    resetCodes.delete(cacheKey);
-
-    return ok({ success: true, newEmail: entry.newEmail });
+    return ok({ success: true, newEmail });
   } catch (e) {
     console.error('[verify-email-change POST]', e);
     return internalError();

@@ -9,7 +9,6 @@ import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { eq, sql, and, isNull } from 'drizzle-orm';
 import { ok, internalError } from '@/lib/api/response';
-import { resetCodes } from '@/lib/resetCodes';
 import { dispatch } from '@/lib/notifications/dispatch';
 import bcrypt from 'bcryptjs';
 
@@ -64,15 +63,18 @@ export async function PATCH(req: NextRequest) {
         return new Response(JSON.stringify({ error: 'This email is already in use' }), { status: 409 });
       }
 
-      // Generate 6-digit code and send to new email
-      const code = String(Math.floor(100000 + Math.random() * 900000));
-      const cacheKey = `email-change:${session.id}`;
-      resetCodes.set(cacheKey, {
-        code,
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-        // Store new email in the code entry
-        newEmail: newEmail.trim(),
-      } as any);
+      // Generate 6-digit code and store in DB (survives serverless cold starts)
+      const code    = String(Math.floor(100000 + Math.random() * 900000));
+      const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      // Pack "expires_iso|new_email" into reset_code_expires
+      await db
+        .update(users)
+        .set({
+          reset_code:         code,
+          reset_code_expires: `${expires}|${newEmail.trim()}`,
+        })
+        .where(eq(users.id, session.id));
 
       // Send verification code to the NEW email
       await dispatch({
