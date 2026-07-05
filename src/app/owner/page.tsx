@@ -1103,7 +1103,7 @@ function OwnerPageInner() {
             </span>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               {!suspended && (
-                <button onClick={()=>setTab('settings')||setSettingsSection('subscription')}
+                <button onClick={()=>{ setTab('settings'); setSettingsSection('subscription'); }}
                   style={{background:'#F59E0B',color:'#000',border:'none',borderRadius:6,padding:'5px 14px',fontSize:12,fontWeight:700,cursor:'pointer'}}>
                   Upgrade Now
                 </button>
