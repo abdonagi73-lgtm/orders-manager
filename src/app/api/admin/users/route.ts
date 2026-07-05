@@ -1,19 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
+import { getSession } from '@/lib/serverAuth';
 
-// GET: Retrieve all users belonging to the caller's company (retrieved from header)
-// Super_admin can query any company via ?company= query param
-export async function GET(request: Request) {
-  const role = request.headers.get('x-user-role');
-  const headerCompanyId = request.headers.get('x-company-id');
+// GET: Retrieve all users belonging to the caller's company
+// Super_admin (verified via cookie) can query any company via ?company= query param
+export async function GET(request: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const url = new URL(request.url);
   const queryCompanyId = url.searchParams.get('company');
 
-  // Super_admin can target any company; others use their own header
-  const companyId = role === 'super_admin' && queryCompanyId ? queryCompanyId : headerCompanyId;
+  // Super_admin can target any company; all others are scoped to their own
+  const companyId = session.role === 'super_admin' && queryCompanyId
+    ? queryCompanyId
+    : session.companyId;
 
   if (!companyId) {
     return NextResponse.json({ error: 'Company identifier missing' }, { status: 400 });

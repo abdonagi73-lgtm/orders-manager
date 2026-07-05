@@ -1,31 +1,14 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { db } from '@/db/db';
 import { companies, users } from '@/db/schema';
 import { eq, ne } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
-import { cookies } from 'next/headers';
-import { decryptSession } from '@/lib/auth';
-
-// Auth: accept super_admin from session cookie OR x-user-role header (for backward compat)
-async function isSuperAdmin(request: NextRequest): Promise<boolean> {
-  // 1. Check session cookie first (browser clients)
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-    if (sessionCookie?.value) {
-      const session = await decryptSession(sessionCookie.value);
-      if (session?.role === 'super_admin') return true;
-    }
-  } catch {}
-
-  // 2. Fallback to x-user-role header (server-to-server)
-  return request.headers.get('x-user-role') === 'super_admin';
-}
+import { isSuperAdmin } from '@/lib/serverAuth';
 
 // GET: Retrieve all companies (except internal administration)
 export async function GET(request: NextRequest) {
-  if (!(await isSuperAdmin(request))) {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Unauthorized system access' }, { status: 403 });
   }
 
@@ -42,7 +25,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new customer workspace and administrative owner account
 export async function POST(request: NextRequest) {
-  if (!(await isSuperAdmin(request))) {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Unauthorized system access' }, { status: 403 });
   }
 
@@ -147,7 +130,7 @@ export async function POST(request: NextRequest) {
 
 // PUT: Modify any company field(s)
 export async function PUT(request: NextRequest) {
-  if (!(await isSuperAdmin(request))) {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Unauthorized system access' }, { status: 403 });
   }
 
@@ -186,7 +169,7 @@ export { PUT as PATCH };
 
 // DELETE: Permanently remove a customer workspace and its owner account
 export async function DELETE(request: NextRequest) {
-  if (!(await isSuperAdmin(request))) {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 

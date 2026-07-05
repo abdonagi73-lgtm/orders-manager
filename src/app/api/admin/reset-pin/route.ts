@@ -3,11 +3,11 @@ import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
+import { isSuperAdmin } from '@/lib/serverAuth';
 
 // POST /api/admin/reset-pin — super_admin resets any user's PIN
 export async function POST(req: NextRequest) {
-  const role = req.headers.get('x-user-role');
-  if (role !== 'super_admin') {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

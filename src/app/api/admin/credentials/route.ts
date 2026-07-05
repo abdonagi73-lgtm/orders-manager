@@ -3,24 +3,11 @@ import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
-import { cookies } from 'next/headers';
-import { decryptSession } from '@/lib/auth';
-
-async function isSuperAdmin(request: NextRequest): Promise<boolean> {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-    if (sessionCookie?.value) {
-      const session = await decryptSession(sessionCookie.value);
-      if (session?.role === 'super_admin') return true;
-    }
-  } catch {}
-  return request.headers.get('x-user-role') === 'super_admin';
-}
+import { isSuperAdmin } from '@/lib/serverAuth';
 
 // GET: Fetch owner credentials for a given companyId
 export async function GET(request: NextRequest) {
-  if (!(await isSuperAdmin(request))) {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -66,7 +53,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Generate a new activation passcode for an owner (resets their access)
 export async function POST(request: NextRequest) {
-  if (!(await isSuperAdmin(request))) {
+  if (!(await isSuperAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -96,3 +83,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to reset credentials' }, { status: 500 });
   }
 }
+

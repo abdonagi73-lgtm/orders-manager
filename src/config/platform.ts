@@ -16,7 +16,11 @@ export const Platform = {
   },
 
   auth: {
-    secret: process.env.JWT_SECRET || 'super-secret-temporary-saas-key-2026-luxury-streetwear',
+    secret: (() => {
+      const s = process.env.JWT_SECRET;
+      if (!s) throw new Error('[FATAL] JWT_SECRET environment variable is not set. Set it in Vercel → Settings → Environment Variables.');
+      return s;
+    })(),
     sessionTTL: '24h',
     activationTTL: '7d',
     resetCodeTTLMs: 15 * 60 * 1000, // 15 minutes
@@ -33,7 +37,11 @@ export const Platform = {
 
   encryption: {
     // 64-char hex string = 32 bytes for AES-256-GCM
-    key: process.env.PLATFORM_ENCRYPTION_KEY || '0'.repeat(64),
+    key: (() => {
+      const k = process.env.PLATFORM_ENCRYPTION_KEY;
+      if (!k) throw new Error('[FATAL] PLATFORM_ENCRYPTION_KEY environment variable is not set. Set it in Vercel → Settings → Environment Variables.');
+      return k;
+    })(),
   },
 
   storage: {

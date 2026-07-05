@@ -4,6 +4,7 @@ import { users, companies, vendors } from '@/db/schema';
 import { eq, and, desc, isNull } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { encryptSession, decryptSession } from '@/lib/auth';
+import { rateLimit, getClientIp } from '@/lib/api/rateLimit';
 
 async function findUserByPin(pin: string, companyId?: string) {
   // Scope to a specific company when possible — avoids scanning the entire users table
@@ -119,6 +120,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     if (body.action === 'verify-worker') {
+      // Rate limit: 10 PIN attempts per 5 minutes per IP
+      const ip = getClientIp(req);
+      const limit = rateLimit(`pin-worker:${ip}`, 10, 5 * 60 * 1000);
+      if (!limit.allowed) {
+        return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
+      }
+
       const result = await findUserByPin(body.pin, body.companyId);
       if (result && (result.user.role === 'worker' || result.user.role === 'admin' || result.user.role === 'manager')) {
         const { user, company } = result;
@@ -157,6 +165,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === 'verify-owner') {
+      // Rate limit: 10 PIN attempts per 5 minutes per IP
+      const ip = getClientIp(req);
+      const limit = rateLimit(`pin-owner:${ip}`, 10, 5 * 60 * 1000);
+      if (!limit.allowed) {
+        return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
+      }
+
       const result = await findUserByPin(body.pin, body.companyId);
       if (result && (result.user.role === 'admin' || result.user.role === 'owner' || result.user.role === 'manager' || result.user.role === 'super_admin')) {
         const { user, company } = result;
@@ -187,11 +202,30 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === 'change-worker-pin') {
+      // Require a valid session and verify same company
+      const sessionToken = req.cookies.get('session')?.value;
+      const session = sessionToken ? await decryptSession(sessionToken) : null;
+      if (!session?.companyId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
       const { workerId, newPin } = body;
-      if (!workerId || !newPin || newPin.length < 4) {
+      if (!workerId || !newPin || String(newPin).length < 4) {
         return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
       }
-      const pinHash = bcrypt.hashSync(newPin, 10);
+
+      // Verify target worker belongs to the same company as the caller
+      const target = await db
+        .select({ id: users.id, company_id: users.company_id })
+        .from(users)
+        .where(and(eq(users.id, workerId), eq(users.company_id, session.companyId)))
+        .limit(1);
+
+      if (target.length === 0) {
+        return NextResponse.json({ error: 'Worker not found or access denied' }, { status: 403 });
+      }
+
+      const pinHash = bcrypt.hashSync(String(newPin), 10);
       await db.update(users).set({ pin_hash: pinHash }).where(eq(users.id, workerId));
       return NextResponse.json({ ok: true });
     }

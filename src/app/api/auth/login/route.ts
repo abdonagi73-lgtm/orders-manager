@@ -27,25 +27,8 @@ async function buildSessionResponse(user: typeof users.$inferSelect, company: ty
   return response;
 }
 
-// GET: Retrieve users by companyId for worker/manager dropdown
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const companyId = searchParams.get('companyId');
-
-  if (!companyId) {
-    return NextResponse.json({ error: 'Company ID required' }, { status: 400 });
-  }
-
-  try {
-    const list = await db
-      .select({ id: users.id, name: users.name, role: users.role })
-      .from(users)
-      .where(eq(users.company_id, companyId));
-    return NextResponse.json(list);
-  } catch {
-    return NextResponse.json({ error: 'Failed to retrieve user profiles' }, { status: 500 });
-  }
-}
+// NOTE: The GET endpoint that listed all users by companyId has been removed.
+// It exposed user names and roles to unauthenticated callers. Use /api/owner/team (authenticated) instead.
 
 // POST: Authenticate any user — routes based on role, detects first-time owners
 export async function POST(request: Request) {
@@ -105,7 +88,8 @@ export async function POST(request: Request) {
       );
 
     if (results.length === 0) {
-      return NextResponse.json({ error: 'No account found with those details' }, { status: 404 });
+      // Use identical error to password mismatch — prevents user enumeration
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     // Filter by matching password
@@ -114,7 +98,7 @@ export async function POST(request: Request) {
     );
 
     if (validMatches.length === 0) {
-      return NextResponse.json({ error: 'Incorrect password or PIN' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     // Exactly one match
