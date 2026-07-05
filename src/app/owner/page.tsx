@@ -528,8 +528,9 @@ function OwnerPageInner() {
     ]);
     setPinLoading(false);
     if(verifyRes.ok){
-      // Load dark mode pref
-      const dm = localStorage.getItem(`darkMode_owner_${pin}`);
+      // Load dark mode pref — keyed by company so it persists across sessions
+      const themeKey = `darkMode_${verifyRes.companyId || 'owner'}`;
+      const dm = localStorage.getItem(themeKey);
       if(dm==='true') { setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
       // Load usage
       fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
@@ -2411,7 +2412,9 @@ function OwnerPageInner() {
                               const next=t==='Dark';
                               const el=document.documentElement;
                               el.setAttribute('data-theme',next?'dark':'');
-                              localStorage.setItem(`darkMode_owner_${loggedInName}`,String(next));
+                              setDarkMode(next);
+                              const themeKey = `darkMode_${company?.id||'owner'}`;
+                              localStorage.setItem(themeKey,String(next));
                               window.dispatchEvent(new Event('darkModeChange'));
                             }}>
                             {t==='Dark'?'🌙':t==='Light'?'☀️':'🖥'} {t}

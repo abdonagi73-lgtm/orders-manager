@@ -157,7 +157,6 @@ export async function POST(req: NextRequest) {
           path: '/',
         });
 
-        console.log(`[AUTH] Worker login verified: ${user.name} (${company.name})`);
         return response;
       }
       return NextResponse.json({ ok: false, error: 'Incorrect PIN' });
@@ -194,7 +193,6 @@ export async function POST(req: NextRequest) {
           path: '/',
         });
 
-        console.log(`[AUTH] Owner/Manager login verified: ${user.name} (${company.name})`);
         return response;
       }
       return NextResponse.json({ ok: false, error: 'Incorrect PIN' });
