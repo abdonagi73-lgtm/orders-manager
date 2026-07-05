@@ -606,6 +606,7 @@ function FieldFastInner() {
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [deletedServerIds, setDeletedServerIds] = useState<string[]>([]);
@@ -850,8 +851,16 @@ function FieldFastInner() {
               code:updated.code,category:updated.category,colors:updated.colors,
               sizes:updated.sizes,price:updated.price,qty:updated.qty,notes:updated.notes})}).catch(()=>{});
           if(photo&&photo!==existing.photo){
-            fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({itemId:existing.serverId,photo})}).catch(()=>{});
+            // If photo is still base64 (upload failed), try sending to DB via /api/photos
+            // If it's already a URL, just update the item record with the URL
+            if(photo.startsWith('data:')){
+              fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({itemId:existing.serverId,photo})}).catch(()=>{});
+            } else {
+              // It's a CDN URL — update the item record directly
+              fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({itemId:existing.serverId,photo})}).catch(()=>{});
+            }
           }
         }
         setCart(prev=>prev.map(i=>i.tempId===editingTempId?{...i,...updated}:i));
@@ -864,6 +873,7 @@ function FieldFastInner() {
         const itemData=await r.json();
         const serverId=itemData.item?.id;
         if(serverId&&photo){
+          // Store the photo URL (or base64 fallback) in the item record
           fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({itemId:serverId,photo})}).catch(()=>{});
         }
@@ -1087,12 +1097,27 @@ function FieldFastInner() {
     const reader=new FileReader();
     reader.onload=ev=>{
       const img=new window.Image();
-      img.onload=()=>{
+      img.onload=async ()=>{
         const canvas=document.createElement('canvas');
-        const maxW=400; const scale=Math.min(1,maxW/img.width);
+        const maxW=800; const scale=Math.min(1,maxW/img.width);
         canvas.width=Math.round(img.width*scale); canvas.height=Math.round(img.height*scale);
         canvas.getContext('2d')!.drawImage(img,0,0,canvas.width,canvas.height);
-        setPhoto(canvas.toDataURL('image/jpeg',0.6));
+        const b64=canvas.toDataURL('image/jpeg',0.7);
+        // Show compressed preview immediately
+        setPhoto(b64);
+        // Upload to Vercel Blob in background
+        setPhotoUploading(true);
+        try {
+          const res=await fetch('/api/photos/upload',{method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({photo:b64})});
+          if(res.ok){
+            const {url}=await res.json();
+            setPhoto(url); // Replace base64 with CDN URL
+          }
+          // If upload fails: keep base64 in state (fallback, still works)
+        } catch { /* keep base64 as fallback */ }
+        finally { setPhotoUploading(false); }
       };
       img.src=ev.target?.result as string;
     };
@@ -1934,8 +1959,19 @@ function FieldFastInner() {
                   <label className="label">{lang==='ar'?'صورة القماش':'Photo'} {orderType==='online'?<span style={{color:'var(--red)'}}>{lang==='ar'?'*مطلوب':'*required'}</span>:<span>{lang==='ar'?'(اختياري)':'(optional)'}</span>}</label>
                   {photo?(
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
-                       <img src={photo} alt="" style={{width:56,height:56,borderRadius:8,objectFit:'cover'}}/>
-                       <button className="btn btn-sm" onClick={()=>setPhoto('')}>{lang==='ar'?'إزالة':'Remove'}</button>
+                       <div style={{position:'relative',display:'inline-block'}}>
+                         <img src={photo} alt="" style={{width:56,height:56,borderRadius:8,objectFit:'cover',opacity:photoUploading?0.6:1}}/>
+                         {photoUploading&&(
+                           <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8,background:'rgba(0,0,0,0.4)'}}>
+                             <span style={{fontSize:9,color:'#fff',fontWeight:700,animation:'pulse 1s infinite'}}>⏳</span>
+                           </div>
+                         )}
+                       </div>
+                       {photoUploading?(
+                         <span style={{fontSize:12,color:'var(--text-3)'}}>Uploading…</span>
+                       ):(
+                         <button className="btn btn-sm" onClick={()=>setPhoto('')}>{lang==='ar'?'إزالة':'Remove'}</button>
+                       )}
                     </div>
                   ):(
                     <label className="btn btn-sm" style={{cursor:'pointer'}}>{t('takePhoto')}
