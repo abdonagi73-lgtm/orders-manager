@@ -408,8 +408,9 @@ export default function HQPlatformOperations() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/app");
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    sessionStorage.clear();
+    router.replace("/app");
   };
 
   // Suspend / Activate Customer Workspace status
@@ -1259,7 +1260,7 @@ export default function HQPlatformOperations() {
                             </div>
                           </td>
                           <td className="font-mono text-xs text-[#3B82F6]">
-                            <a href={`http://localhost:3000/app`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            <a href="/app" target="_blank" rel="noopener noreferrer" className="hover:underline">
                               {c.id}.flowxiq.com
                             </a>
                           </td>

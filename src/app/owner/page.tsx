@@ -1139,10 +1139,10 @@ function OwnerPageInner() {
               </button>
               <button className="btn btn-sm"
                 style={{borderColor:'var(--red-border)',background:'var(--red-light)',color:'var(--red)',fontWeight:600}}
-                onClick={async()=>{
+                 onClick={async()=>{
                   await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
                   sessionStorage.clear();
-                  window.location.href='/app';
+                  window.location.replace('/app');
                 }}>Sign out</button>
             </div>
           </div>
@@ -2014,9 +2014,9 @@ function OwnerPageInner() {
                 {sectionBtn('about', 'ℹ️', 'About')}
                 <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
                   <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={async()=>{
-                    await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
+                  await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
                     sessionStorage.clear();
-                    window.location.href='/app';
+                    window.location.replace('/app');
                   }}>Sign out</button>
                 </div>
               </div>
@@ -2389,7 +2389,7 @@ function OwnerPageInner() {
                         {label:'Active vendors',value:String(Object.keys(usage.vendors||{}).length)},
                         {label:'Workers',value:String(workers.length)},
                         {label:'Built for',value:company?.name || 'Flowxiq'},
-                        {label:'Copyright',value:'┬⌐ '+new Date().getFullYear()+' Abdo Alasaadi'},
+                        {label:'Copyright',value:'© '+new Date().getFullYear()+' Flowxiq'},
                       ].map(({label,value})=>(
                         <div key={label} style={{background:'var(--surface-2)',borderRadius:'var(--r)',padding:'10px 14px'}}>
                           <div style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text-3)',marginBottom:3}}>{label}</div>
