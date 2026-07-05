@@ -2,6 +2,9 @@
  * Platform Configuration
  * Single source of truth for all platform-level constants.
  * Nothing in the codebase imports process.env directly — use this file instead.
+ *
+ * NOTE: Required secrets use ES `get` accessors so they are validated lazily
+ * at request time, not at module import time (which would break next build).
  */
 
 export const Platform = {
@@ -16,11 +19,11 @@ export const Platform = {
   },
 
   auth: {
-    secret: (() => {
+    get secret(): string {
       const s = process.env.JWT_SECRET;
       if (!s) throw new Error('[FATAL] JWT_SECRET environment variable is not set. Set it in Vercel → Settings → Environment Variables.');
       return s;
-    })(),
+    },
     sessionTTL: '24h',
     activationTTL: '7d',
     resetCodeTTLMs: 15 * 60 * 1000, // 15 minutes
@@ -37,11 +40,11 @@ export const Platform = {
 
   encryption: {
     // 64-char hex string = 32 bytes for AES-256-GCM
-    key: (() => {
+    get key(): string {
       const k = process.env.PLATFORM_ENCRYPTION_KEY;
       if (!k) throw new Error('[FATAL] PLATFORM_ENCRYPTION_KEY environment variable is not set. Set it in Vercel → Settings → Environment Variables.');
       return k;
-    })(),
+    },
   },
 
   storage: {
@@ -58,6 +61,6 @@ export const Platform = {
     // Internal platform admin identifier — never exposed to clients
     role: 'super_admin' as const,
   },
-} as const;
+};
 
 export type PlatformConfig = typeof Platform;
