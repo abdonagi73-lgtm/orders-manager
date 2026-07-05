@@ -91,12 +91,11 @@ export async function GET(req: NextRequest) {
       }, {} as Record<string, number>);
     }
 
-    // Settings config
+    // Settings config — these are defaults; per-company overrides come from the settings table
     const settings = {
       tax: 6,
       markup: 3.5,
       shipping: 6.10,
-      ownerPin: '9999',
     };
 
     // 4. Build user context from session cookie

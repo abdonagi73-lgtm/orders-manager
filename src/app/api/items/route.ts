@@ -1,35 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { orders, orderItems, notifications } from '@/db/schema';
+import { orders, orderItems, notifications, companies } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import type { OrderItem } from '@/lib/types';
 
 async function refreshOrderStats(orderId: string, companyId: string) {
-  const itemsList = await db
-    .select({
-      item: orderItems
-    })
-    .from(orderItems)
-    .innerJoin(orders, eq(orderItems.order_id, orders.id))
-    .where(and(eq(orders.id, orderId), eq(orders.company_id, companyId)));
+  // Load items (only non-deleted) and company commission rate in parallel
+  const [itemsList, companyList] = await Promise.all([
+    db
+      .select({ item: orderItems })
+      .from(orderItems)
+      .innerJoin(orders, eq(orderItems.order_id, orders.id))
+      .where(and(
+        eq(orders.id, orderId),
+        eq(orders.company_id, companyId),
+      )),
+    db
+      .select({ commission_rate: companies.commission_rate, shippingCost: orders.shippingCost })
+      .from(orders)
+      .innerJoin(companies, eq(orders.company_id, companies.id))
+      .where(and(eq(orders.id, orderId), eq(orders.company_id, companyId)))
+      .limit(1),
+  ]);
 
-  const itemCount = itemsList.length;
-  const totalValue = itemsList.reduce((sum, row) => sum + (row.item.price * row.item.qty), 0);
-  const commission = parseFloat((totalValue * 0.03).toFixed(2));
-  
-  // Load existing shipping cost
-  const orderList = await db.select({ shippingCost: orders.shippingCost }).from(orders).where(eq(orders.id, orderId));
-  const shippingCost = orderList[0]?.shippingCost || 0;
+  const itemCount    = itemsList.length;
+  const totalValue   = itemsList.reduce((sum, row) => sum + (row.item.price * row.item.qty), 0);
+  // Use the company's actual commission rate (falls back to 3% if not configured)
+  const rate         = companyList[0]?.commission_rate ?? 0.03;
+  const commission   = parseFloat((totalValue * rate).toFixed(2));
+  const shippingCost = companyList[0]?.shippingCost ?? 0;
   const totalOrderCost = parseFloat((totalValue + shippingCost + commission).toFixed(2));
 
   await db
     .update(orders)
-    .set({
-      itemCount,
-      totalValue,
-      workerCommission: commission,
-      totalOrderCost,
-    })
+    .set({ itemCount, totalValue, workerCommission: commission, totalOrderCost })
     .where(and(eq(orders.id, orderId), eq(orders.company_id, companyId)));
 }
 
@@ -174,7 +178,7 @@ export async function PATCH(req: NextRequest) {
 
     if (item.status === 'flagged' && item.workerId) {
       await db.insert(notifications).values({
-        id: 'n_' + Date.now(),
+        id: crypto.randomUUID(),
         company_id: companyId,
         type: 'item_flagged',
         for_who: 'worker',
@@ -184,7 +188,7 @@ export async function PATCH(req: NextRequest) {
         order_name: '',
         item_id: item.id,
         item_code: item.code,
-        message: `${item.vendor} · ${item.code} was flagged${item.ownerNote ? ': ' + item.ownerNote : ' — please review'}`,
+        message: `${item.vendor} Â· ${item.code} was flagged${item.ownerNote ? ': ' + item.ownerNote : ' â€” please review'}`,
         read: false,
         created_at: new Date().toISOString(),
       });
@@ -226,3 +230,4 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+

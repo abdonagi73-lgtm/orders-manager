@@ -52,7 +52,11 @@ export const users = sqliteTable('users', {
   created_at:   text('created_at').default('').notNull(),
   updated_at:   text('updated_at').default('').notNull(),
   deleted_at:   text('deleted_at'),   // soft delete
-});
+}, (t) => ({
+  idx_users_company: index('idx_users_company_id').on(t.company_id),
+  idx_users_email:   index('idx_users_email').on(t.email),
+  idx_users_role:    index('idx_users_role').on(t.role),
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VENDORS
@@ -64,7 +68,9 @@ export const vendors = sqliteTable('vendors', {
   frequency_score: integer('frequency_score').default(0).notNull(),
   created_at:      text('created_at').default('').notNull(),
   deleted_at:      text('deleted_at'),   // soft delete
-});
+}, (t) => ({
+  idx_vendors_company: index('idx_vendors_company_id').on(t.company_id),
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ORDERS
@@ -87,7 +93,12 @@ export const orders = sqliteTable('orders', {
   itemCount:        integer('itemCount').default(0).notNull(),
   totalValue:       real('totalValue').default(0).notNull(),
   deleted_at:       text('deleted_at'),   // soft delete
-});
+}, (t) => ({
+  idx_orders_company:    index('idx_orders_company_id').on(t.company_id),
+  idx_orders_worker:     index('idx_orders_worker_id').on(t.workerId),
+  idx_orders_status:     index('idx_orders_status').on(t.status),
+  idx_orders_created:    index('idx_orders_created_at').on(t.createdAt),
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ORDER ITEMS
@@ -109,7 +120,11 @@ export const orderItems = sqliteTable('order_items', {
   createdAt:  text('createdAt').notNull(),
   photo:      text('photo').default('').notNull(),   // Base64 or URL
   deleted_at: text('deleted_at'),   // soft delete
-});
+}, (t) => ({
+  idx_items_order:   index('idx_items_order_id').on(t.order_id),
+  idx_items_worker:  index('idx_items_worker_id').on(t.workerId),
+  idx_items_status:  index('idx_items_status').on(t.status),
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NOTIFICATIONS
@@ -128,7 +143,11 @@ export const notifications = sqliteTable('notifications', {
   message:      text('message').notNull(),
   read:         integer('read', { mode: 'boolean' }).default(false).notNull(),
   created_at:   text('created_at').notNull(),
-});
+}, (t) => ({
+  idx_notif_company: index('idx_notifications_company_id').on(t.company_id),
+  idx_notif_worker:  index('idx_notifications_worker_id').on(t.worker_id),
+  idx_notif_read:    index('idx_notifications_read').on(t.read),
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TIMELINE (order-scoped activity — kept for backwards compat)
@@ -248,7 +267,11 @@ export const audit_log = sqliteTable('audit_log', {
   ip_address:  text('ip_address'),
   request_id:  text('request_id'),
   created_at:  text('created_at').notNull(),
-});
+}, (t) => ({
+  idx_audit_company: index('idx_audit_log_company_id').on(t.company_id),
+  idx_audit_actor:   index('idx_audit_log_actor_id').on(t.actor_id),
+  idx_audit_action:  index('idx_audit_log_action').on(t.action),
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS (flexible key-value config per company)

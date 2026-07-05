@@ -5,6 +5,7 @@ import { eq, ne } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { decryptSession } from '@/lib/auth';
+import { checkWorkerLimit } from '@/lib/subscription/gate';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -66,6 +67,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Role must be worker or manager' }, { status: 400 });
     }
 
+    // Enforce subscription worker limit (workers only, not managers)
+    if (role === 'worker') {
+      const gate = await checkWorkerLimit(db, session.companyId);
+      if (!gate.allowed) {
+        return NextResponse.json({
+          error: gate.reason ?? 'Worker limit reached for your current plan',
+          upgradeRequired: gate.upgradeRequired ?? true,
+          currentCount: gate.currentCount,
+          limit: gate.limit,
+        }, { status: 403 });
+      }
+    }
+
     const userId = `${session.companyId}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
     const pinHash = bcrypt.hashSync(pin.toString(), 10);
 
@@ -76,7 +90,7 @@ export async function POST(request: Request) {
       email: email?.trim().toLowerCase() || null,
       pin_hash: pinHash,
       role,
-      is_activated: true, // Workers/managers are immediately active — they use PIN
+      is_activated: true,
     });
 
     return NextResponse.json({ success: true, userId, name: name.trim(), role });

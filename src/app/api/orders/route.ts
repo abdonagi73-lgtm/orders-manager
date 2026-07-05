@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { orders, orderItems, notifications } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, count } from 'drizzle-orm';
 import type { Order } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -12,23 +12,23 @@ export async function GET(req: NextRequest) {
     }
 
     const workerId = req.nextUrl.searchParams.get('workerId');
+    // Pagination: default 50 per page, max 200
+    const limit  = Math.min(Number(req.nextUrl.searchParams.get('limit')  ?? 50), 200);
+    const offset = Math.max(Number(req.nextUrl.searchParams.get('offset') ?? 0),  0);
 
-    let dbOrders = [];
-    if (workerId) {
-      dbOrders = await db
-        .select()
-        .from(orders)
-        .where(and(eq(orders.company_id, companyId), eq(orders.workerId, workerId)))
-        .orderBy(desc(orders.createdAt));
-    } else {
-      dbOrders = await db
-        .select()
-        .from(orders)
-        .where(eq(orders.company_id, companyId))
-        .orderBy(desc(orders.createdAt));
-    }
+    const whereClause = workerId
+      ? and(eq(orders.company_id, companyId), eq(orders.workerId, workerId))
+      : eq(orders.company_id, companyId);
 
-    return NextResponse.json({ orders: dbOrders });
+    const [dbOrders, [{ total }]] = await Promise.all([
+      db.select().from(orders).where(whereClause)
+        .orderBy(desc(orders.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: count() }).from(orders).where(whereClause),
+    ]);
+
+    return NextResponse.json({ orders: dbOrders, total, limit, offset });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
         company_id: companyId,
         name: body.name.trim(),
         startDate: body.startDate,
-        workerId: body.workerId,
-        workerName: body.workerName,
+        workerId:   body.workerId   ?? '',
+        workerName: body.workerName ?? '',
         status: 'open' as const,
         shippingCost: 0,
         workerCommission: 0,
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
       // Create notification
       await db.insert(notifications).values({
-        id: 'n_' + Date.now(),
+        id: crypto.randomUUID(),
         company_id: companyId,
         type: 'order_started',
         for_who: 'owner',
@@ -106,15 +106,15 @@ export async function POST(req: NextRequest) {
           closedAt: order.closedAt || '',
           itemCount: Number(order.itemCount) || 0,
           totalValue: Number(order.totalValue) || 0,
-          // Worker reassignment by manager
-          workerId:   order.workerId   ?? undefined,
-          workerName: order.workerName ?? undefined,
+          // Worker reassignment by manager — default to empty string if clearing
+          workerId:   order.workerId   ?? '',
+          workerName: order.workerName ?? '',
         })
         .where(and(eq(orders.id, order.id), eq(orders.company_id, companyId)));
 
       if (order.status === 'submitted') {
         await db.insert(notifications).values({
-          id: 'n_' + Date.now(),
+          id: crypto.randomUUID(),
           company_id: companyId,
           type: 'order_submitted',
           for_who: 'owner',
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
           order_name: order.name,
           item_id: '',
           item_code: '',
-          message: `${order.workerName} submitted "${order.name}" — ready for review`,
+          message: `${order.workerName} submitted "${order.name}" â€” ready for review`,
           read: false,
           created_at: new Date().toISOString(),
         });
@@ -168,3 +168,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+

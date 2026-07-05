@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { notifications } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     if (body.action === 'create') {
       const newNotif = {
-        id: 'n_' + Date.now(),
+        id: crypto.randomUUID(),
         company_id: companyId,
         type: body.type,
         for_who: body.for,
@@ -89,3 +89,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
