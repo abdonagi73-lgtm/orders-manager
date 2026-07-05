@@ -2050,9 +2050,21 @@ function OwnerPageInner() {
           }
 
           return (
-            <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:16,minHeight:500}}>
-              {/* Sidebar */}
-              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:8,height:'fit-content'}}>
+            <>
+              <style>{`
+                .settings-layout { display: grid; grid-template-columns: 180px 1fr; gap: 16px; min-height: 500px; }
+                .settings-nav-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 8px; height: fit-content; }
+                @media (max-width: 640px) {
+                  .settings-layout { grid-template-columns: 1fr; gap: 0; min-height: auto; }
+                  .settings-nav-sidebar { border-radius: var(--r); padding: 4px; display: flex; flex-wrap: wrap; gap: 2px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; }
+                  .settings-nav-sidebar hr { display: none; }
+                  .settings-nav-sidebar .settings-nav-divider { display: none; }
+                  .settings-nav-sidebar .settings-sign-out { display: none; }
+                }
+              `}</style>
+            <div className="settings-layout">
+              {/* Sidebar nav */}
+              <div className="settings-nav-sidebar">
                 {sectionBtn('account', '👤', 'Account')}
                 {sectionBtn('business', '🏢', 'Business')}
                 {sectionBtn('catalog', '📋', 'Catalog')}
@@ -2064,8 +2076,9 @@ function OwnerPageInner() {
                 {sectionBtn('activity', '📋', 'Activity Log')}
                 {sectionBtn('formsetup', '📝', 'Form Setup')}
                 <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
+                <div className="settings-nav-divider" style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
                 {sectionBtn('about', 'ℹ️', 'About')}
-                <div style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+                <div className="settings-sign-out" style={{marginTop:20,paddingTop:10,borderTop:'1px solid var(--border)'}}>
                   <button className="btn" style={{width:'100%',color:'var(--red)',border:'1px solid var(--red-border)'}} onClick={async()=>{
                   await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
                     sessionStorage.clear();
@@ -2470,6 +2483,7 @@ function OwnerPageInner() {
 
               </div>
             </div>
+            </>
           );
         })()}
       </div>
