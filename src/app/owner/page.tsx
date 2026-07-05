@@ -462,6 +462,7 @@ function OwnerPageInner() {
   const [credPinMsg, setCredPinMsg]     = useState('');
   const [usage, setUsage] = useState<any>({vendors:{},categories:{},colors:{},sizes:{}});
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [currentCompanyId, setCurrentCompanyId] = useState<string>('');
 
   // Settings tab state ' must live at component level (React hook rules)
   const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'subscription'|'integrations'|'activity'|'about'|'formsetup'>('business');
@@ -530,6 +531,7 @@ function OwnerPageInner() {
     if(verifyRes.ok){
       // Load dark mode pref — keyed by company so it persists across sessions
       const themeKey = `darkMode_${verifyRes.companyId || 'owner'}`;
+      if (verifyRes.companyId) setCurrentCompanyId(verifyRes.companyId);
       const dm = localStorage.getItem(themeKey);
       if(dm==='true') { setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
       // Load usage
@@ -2413,7 +2415,7 @@ function OwnerPageInner() {
                               const el=document.documentElement;
                               el.setAttribute('data-theme',next?'dark':'');
                               setDarkMode(next);
-                              const themeKey = `darkMode_${company?.id||'owner'}`;
+                              const themeKey = `darkMode_${currentCompanyId||'owner'}`;
                               localStorage.setItem(themeKey,String(next));
                               window.dispatchEvent(new Event('darkModeChange'));
                             }}>
