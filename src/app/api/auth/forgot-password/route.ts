@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         .where(eq(users.id, user.id));
 
       // Send email — must await on Vercel serverless (lambda killed on response return)
-      const sent = await dispatch(
+      const emailSent = await dispatch(
         {
           event:          'auth.password_reset',
           recipientEmail: user.email ?? undefined,
@@ -49,8 +49,17 @@ export async function POST(req: NextRequest) {
         { channels: ['email'] }
       );
 
-      // Log outcome for Vercel logs (visible in dashboard)
-      console.log(`[forgot-password] code generated for ${user.email}, email sent: ${sent !== undefined}`);
+      if (!emailSent) {
+        console.error(`[forgot-password] Resend failed for ${user.email} — RESEND_API_KEY may be missing or domain not verified`);
+        // Return a real error so the user knows something went wrong
+        // (We still keep the code in DB so they can retry after fixing config)
+        return new Response(
+          JSON.stringify({ error: 'Failed to send email. Please contact support or try again later.' }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`[forgot-password] Reset code sent to ${user.email}`);
     }
 
     // Always return the same response — never reveal if email exists

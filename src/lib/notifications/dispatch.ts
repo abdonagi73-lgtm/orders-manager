@@ -1,7 +1,6 @@
 /**
  * Notification Dispatcher
  * Routes notification events through the appropriate channels.
- * Always fire-and-forget: never await at call sites.
  */
 
 import { sendEmail } from './email';
@@ -13,26 +12,20 @@ export type { NotificationEvent, NotificationPayload };
 
 /**
  * Dispatch a notification through the specified channels.
- * Call with void — never await.
- *
- * Example:
- *   void dispatch({
- *     event: 'auth.password_reset',
- *     recipientEmail: user.email,
- *     recipientName: user.name,
- *     data: { name: user.name, code: '483920' },
- *   }, { channels: ['email'] });
+ * Returns true if the email was sent successfully, false otherwise.
  */
 export async function dispatch(
   payload: NotificationPayload,
   options: DispatchOptions = { channels: ['email'] }
-): Promise<void> {
+): Promise<boolean> {
   const { event, recipientEmail, recipientName, data } = payload;
+  let allSucceeded = true;
 
   for (const channel of options.channels) {
     if (channel === 'email') {
       if (!recipientEmail) {
         logger.warn('dispatch: email channel requested but no recipientEmail provided', { event });
+        allSucceeded = false;
         continue;
       }
 
@@ -40,16 +33,24 @@ export async function dispatch(
 
       if (!template) {
         logger.warn('dispatch: no email template found for event', { event });
+        allSucceeded = false;
         continue;
       }
 
-      await sendEmail({
+      const sent = await sendEmail({
         to:      recipientEmail,
         subject: template.subject,
         html:    template.html,
       });
+
+      if (!sent) {
+        logger.error('dispatch: sendEmail returned false', { event, to: recipientEmail });
+        allSucceeded = false;
+      }
     }
     // Future: 'in_app' channel writes to notifications table
     // Future: 'push' channel sends FCM/APNs push
   }
+
+  return allSucceeded;
 }
