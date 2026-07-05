@@ -119,14 +119,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     if (body.action === 'verify-worker') {
-      // Rate limit: 10 PIN attempts per 5 minutes per IP
+      // Rate limit: 10 password attempts per 5 minutes per IP
       const ip = getClientIp(req);
-      const limit = rateLimit(`pin-worker:${ip}`, 10, 5 * 60 * 1000);
+      const limit = rateLimit(`pw-worker:${ip}`, 10, 5 * 60 * 1000);
       if (!limit.allowed) {
         return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
       }
 
-      const result = await findUserByPin(body.pin, body.companyId);
+      const password = body.password ?? body.pin; // backwards-compatible
+      const result = await findUserByPin(password, body.companyId);
       if (result && (result.user.role === 'worker' || result.user.role === 'admin' || result.user.role === 'manager')) {
         const { user, company } = result;
         const token = await encryptSession({
@@ -159,18 +160,19 @@ export async function POST(req: NextRequest) {
 
         return response;
       }
-      return NextResponse.json({ ok: false, error: 'Incorrect PIN' });
+      return NextResponse.json({ ok: false, error: 'Incorrect password' });
     }
 
     if (body.action === 'verify-owner') {
-      // Rate limit: 10 PIN attempts per 5 minutes per IP
+      // Rate limit: 10 password attempts per 5 minutes per IP
       const ip = getClientIp(req);
-      const limit = rateLimit(`pin-owner:${ip}`, 10, 5 * 60 * 1000);
+      const limit = rateLimit(`pw-owner:${ip}`, 10, 5 * 60 * 1000);
       if (!limit.allowed) {
         return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
       }
 
-      const result = await findUserByPin(body.pin, body.companyId);
+      const password = body.password ?? body.pin; // backwards-compatible
+      const result = await findUserByPin(password, body.companyId);
       if (result && (result.user.role === 'admin' || result.user.role === 'owner' || result.user.role === 'manager' || result.user.role === 'super_admin')) {
         const { user, company } = result;
         const token = await encryptSession({
@@ -183,7 +185,7 @@ export async function POST(req: NextRequest) {
           commissionRate: company.commission_rate,
         });
 
-        const response = NextResponse.json({ ok: true });
+        const response = NextResponse.json({ ok: true, companyId: company.id });
 
         response.cookies.set('session', token, {
           httpOnly: true,
@@ -195,10 +197,10 @@ export async function POST(req: NextRequest) {
 
         return response;
       }
-      return NextResponse.json({ ok: false, error: 'Incorrect PIN' });
+      return NextResponse.json({ ok: false, error: 'Incorrect password' });
     }
 
-    if (body.action === 'change-worker-pin') {
+    if (body.action === 'change-worker-pin' || body.action === 'change-worker-password') {
       // Require a valid session and verify same company
       const sessionToken = req.cookies.get('session')?.value;
       const session = sessionToken ? await decryptSession(sessionToken) : null;
@@ -207,8 +209,9 @@ export async function POST(req: NextRequest) {
       }
 
       const { workerId, newPin } = body;
-      if (!workerId || !newPin || String(newPin).length < 4) {
-        return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+      const newPassword = body.newPassword ?? newPin;
+      if (!workerId || !newPassword || String(newPassword).length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
       }
 
       // Verify target worker belongs to the same company as the caller
@@ -222,7 +225,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Worker not found or access denied' }, { status: 403 });
       }
 
-      const pinHash = bcrypt.hashSync(String(newPin), 10);
+      const pinHash = bcrypt.hashSync(String(newPassword), 10);
       await db.update(users).set({ pin_hash: pinHash }).where(eq(users.id, workerId));
       return NextResponse.json({ ok: true });
     }

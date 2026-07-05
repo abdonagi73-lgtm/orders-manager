@@ -375,20 +375,17 @@ export default function HQPlatformOperations() {
     checkAuth();
   }, []);
 
-  // Handle direct lock screen passcode submission
+  // Handle lock screen password submission
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin.length !== 4 || isNaN(Number(pin))) {
-      setAuthError("PIN MUST BE EXACTLY 4 DIGITS");
-      return;
-    }
+    if (pin.length === 0) return;
     setAuthSubmitting(true);
     setAuthError("");
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "super-admin-user", pin }),
+        body: JSON.stringify({ userId: "super-admin-user", password: pin }),
       });
       const data = await res.json();
       if (res.ok && data.role === "super_admin") {
@@ -657,98 +654,43 @@ export default function HQPlatformOperations() {
           .sa-lock-card { width:100%; max-width:400px; background:#0A1120; border:1px solid #1E2E4F; border-radius:20px; padding:40px 32px; box-shadow: 0 24px 80px rgba(0,0,0,.6); text-align:center; }
           .sa-lock-title { font-size:18px; font-weight:900; letter-spacing:-.02em; margin-top:16px; text-transform:uppercase; }
           .sa-lock-sub { font-size:10px; color:#3B82F6; font-family:monospace; tracking-widest: .08em; margin-top:4px; text-transform:uppercase; }
-          .sa-pin-display { display:flex; justify-content:center; gap:16px; margin:24px 0; }
-          .sa-pin-dot { width:14px; height:14px; border-radius:50%; border:2px solid #1E2E4F; transition:all .15s; }
-          .sa-pin-dot.filled { background:#3B82F6; border-color:#3B82F6; box-shadow:0 0 10px rgba(59,130,246,.5); }
           .sa-lock-logo { width:52px; height:52px; border-radius:12px; border:1px solid #1E2E4F; background:#060A13; padding:6px; margin:0 auto; object-fit:contain; }
-          .sa-keypad { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:20px; }
-          .sa-key { background:rgba(255,255,255,.02); border:1px solid #1E2E4F; border-radius:12px; padding:16px; font-size:18px; font-weight:700; cursor:pointer; color:#FFF; font-family:inherit; transition:all .1s; aspect-ratio:1; display:flex; align-items:center; justify-content:center; }
-          .sa-key:hover { background:rgba(59,130,246,.08); border-color:#3B82F6; }
-          .sa-key:active { transform:scale(.95); }
-          .sa-key.empty { background:transparent; border:none; cursor:default; }
-          .sa-key.back { font-size:15px; color:#64748B; }
           .sa-lock-error { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); text-align:center; padding:10px; border-radius:8px; color:#FCA5A5; font-size:12px; font-family:monospace; margin-bottom:16px; }
+          .sa-pw-field { margin:24px 0 16px; text-align:left; }
+          .sa-pw-label { display:block; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#64748B; margin-bottom:8px; }
+          .sa-pw-input { width:100%; background:#060A13; border:1px solid #1E2E4F; border-radius:10px; padding:13px 14px; color:#E0E6ED; font-size:15px; font-family:inherit; outline:none; box-sizing:border-box; transition:border-color .15s; }
+          .sa-pw-input:focus { border-color:#3B82F6; box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+          .sa-sign-btn { width:100%; background:#1D4ED8; border:none; border-radius:10px; padding:13px; color:#fff; font-size:14px; font-weight:700; letter-spacing:.04em; cursor:pointer; transition:background .15s; }
+          .sa-sign-btn:hover:not(:disabled) { background:#2563EB; }
+          .sa-sign-btn:disabled { opacity:.5; cursor:not-allowed; }
         `}</style>
         <div className="sa-lock-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <FlowxiqCombinedLogo height={36} style={{ marginBottom: 20 }} />
           <h2 className="sa-lock-title" style={{ marginTop: 0 }}>OPERATIONS COMMAND LOCK</h2>
           <div className="sa-lock-sub">SUPER ADMIN SECURITY GATE</div>
 
-          <div className="sa-pin-display">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className={`sa-pin-dot${i < pin.length ? " filled" : ""}`} />
-            ))}
-          </div>
+          {authError && <div className="sa-lock-error" style={{marginTop:20}}>{authError}</div>}
 
-          {authError && <div className="sa-lock-error">{authError}</div>}
-
-          <form onSubmit={handlePinSubmit}>
-            <input
-              type="password"
-              maxLength={4}
-              value={pin}
-              readOnly
-              className="sr-only"
-            />
-            <div className="sa-keypad">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map((k, idx) => {
-                if (k === "") return <div key={idx} className="sa-key empty" />;
-                if (k === "⌫") {
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      className="sa-key back"
-                      onClick={() => {
-                        setPin((p) => p.slice(0, -1));
-                        setAuthError("");
-                      }}
-                    >
-                      ⌫
-                    </button>
-                  );
-                }
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className="sa-key"
-                    onClick={async () => {
-                      if (pin.length >= 4) return;
-                      const nextPin = pin + k;
-                      setPin(nextPin);
-                      setAuthError("");
-                      if (nextPin.length === 4) {
-                        setAuthSubmitting(true);
-                        try {
-                          const res = await fetch("/api/auth/login", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ userId: "super-admin-user", pin: nextPin }),
-                          });
-                          const data = await res.json();
-                          if (res.ok && data.role === "super_admin") {
-                            setIsAuthenticated(true);
-                            setPin("");
-                            setLoading(true);
-                            loadPlatformData();
-                          } else {
-                            setAuthError(data.error || "INVALID PLATFORM PASSCODE");
-                            setPin("");
-                          }
-                        } catch {
-                          setAuthError("SECURE CONNECTION TIMEOUT");
-                        } finally {
-                          setAuthSubmitting(false);
-                        }
-                      }
-                    }}
-                  >
-                    {k}
-                  </button>
-                );
-              })}
+          <form onSubmit={handlePinSubmit} style={{width:'100%'}}>
+            <div className="sa-pw-field">
+              <label className="sa-pw-label">Admin Password</label>
+              <input
+                type="password"
+                className="sa-pw-input"
+                value={pin}
+                onChange={(e) => { setPin(e.target.value); setAuthError(""); }}
+                placeholder="Enter your admin password"
+                autoFocus
+                autoComplete="current-password"
+              />
             </div>
+            <button
+              type="submit"
+              className="sa-sign-btn"
+              disabled={authSubmitting || pin.length === 0}
+            >
+              {authSubmitting ? "VERIFYING..." : "UNLOCK COMMAND CENTER"}
+            </button>
           </form>
         </div>
       </div>

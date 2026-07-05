@@ -469,7 +469,7 @@ function FieldFastInner() {
   // Comprehensive translations for worker portal
   const T:{[k:string]:{[k:string]:string}} = {
     en:{
-      signIn: 'Sign in', pin: 'Worker PIN', incorrectPin: 'Incorrect PIN',
+      signIn: 'Sign in', pin: 'Password', incorrectPin: 'Incorrect password',
       backToHome: 'Back to home', earnings: 'Earnings', signOut: 'Sign out',
       startOrder: '+ Start new order', orderEntry: 'Order Entry', back: 'Back',
       vendor: 'Vendor', addItem: '+ Add item code under', saveItem: '+ Add item',
@@ -501,11 +501,11 @@ function FieldFastInner() {
       itemSavedToast: 'Item saved', itemUpdatedToast: 'Item updated',
       itemRemovedToast: 'Item removed', orderSubmittedToast: 'Order submitted!',
       packLabel: 'pack', packsLabel: 'packs', itemsLabel: 'items',
-      newPinInput: 'New PIN', changePIN: 'Change PIN', workerID: 'Worker ID',
+      newPinInput: 'New password', changePIN: 'Change password', workerID: 'Worker ID',
       voiceBtn: '🎙️ Voice', listening: 'Listening...', matchForm: 'Form pre-filled! Please review and modify.'
     },
     ar:{
-      signIn: 'تسجيل الدخول', pin: 'رمز الموظف', incorrectPin: 'الرمز غير صحيح',
+      signIn: 'تسجيل الدخول', pin: 'كلمة المرور', incorrectPin: 'كلمة المرور غير صحيحة',
       backToHome: 'العودة للرئيسية', earnings: 'الأرباح', signOut: 'خروج',
       startOrder: '+ بدء طلب جديد', orderEntry: 'إدخال الطلب', back: 'رجوع',
       vendor: 'المورد', addItem: '+ أضف كود تحت', saveItem: '+ إضافة منتج',
@@ -537,11 +537,11 @@ function FieldFastInner() {
       itemSavedToast: 'تم حفظ المنتج', itemUpdatedToast: 'تم تحديث المنتج',
       itemRemovedToast: 'تم إزالة المنتج', orderSubmittedToast: 'تم إرسال الطلب!',
       packLabel: 'حزمة', packsLabel: 'حزم', itemsLabel: 'منتجات',
-      newPinInput: 'رمز جديد', changePIN: 'تغيير الرمز', workerID: 'معرّف الموظف',
+      newPinInput: 'كلمة مرور جديدة', changePIN: 'تغيير كلمة المرور', workerID: 'رقم العامل',
       voiceBtn: '🎙️ صوتي', listening: 'جاري الاستماع...', matchForm: 'تم ملء النموذج! يرجى المراجعة والتعديل.'
     },
     tr:{
-      signIn: 'Giriş yap', pin: 'Çalışan PIN', incorrectPin: 'Geçersiz PIN',
+      signIn: 'Giriş yap', pin: 'Çalışan şifresi', incorrectPin: 'Hatalı şifre',
       backToHome: 'Ana sayfaya dön', earnings: 'Kazanç', signOut: 'Çıkış',
       startOrder: '+ Yeni sipariş', orderEntry: 'Sipariş Girişi', back: 'Geri',
       vendor: 'Satıcı', addItem: '+ Ürün kodu ekle', saveItem: '+ Ürün ekle',
@@ -573,7 +573,7 @@ function FieldFastInner() {
       itemSavedToast: 'Ürün kaydedildi', itemUpdatedToast: 'Ürün güncellendi',
       itemRemovedToast: 'Ürün silindi', orderSubmittedToast: 'Sipariş gönderildi!',
       packLabel: 'seri', packsLabel: 'seri', itemsLabel: 'ürün',
-      newPinInput: 'Yeni PIN', changePIN: 'PIN Değiştir', workerID: 'Çalışan ID',
+      newPinInput: 'Yeni şifre', changePIN: 'Şifre değiştir', workerID: 'Çalışan ID',
       voiceBtn: '🎙️ Sesli', listening: 'Dinleniyor...', matchForm: 'Form dolduruldu! Lütfen kontrol edin.'
     }
   };
@@ -1275,9 +1275,9 @@ function FieldFastInner() {
           <div className="login-sub" style={{textAlign:'center'}}>{companyName}{location?` · ${location}`:''}</div>
           <div className="field" style={{marginTop:20}}>
             <label className="label">{t('pin')}</label>
-            <input type="password" inputMode="numeric" value={pin} autoFocus
+            <input type="password" value={pin} autoFocus
               onChange={e=>{setPin(e.target.value);setPinError(false);}}
-              onKeyDown={e=>e.key==='Enter'&&verifyPin()} placeholder={t('newPinInput')}/>
+              onKeyDown={e=>e.key==='Enter'&&verifyPin()} placeholder="Your password"/>
             {pinError&&<div className="field-error">{t('incorrectPin')}</div>}
           </div>
           <button className="btn btn-primary" style={{width:'100%'}} onClick={verifyPin} disabled={pinLoading}>

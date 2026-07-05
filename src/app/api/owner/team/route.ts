@@ -58,10 +58,10 @@ export async function POST(request: Request) {
     const { name, role, pin, email } = await request.json();
 
     if (!name || !role || !pin) {
-      return NextResponse.json({ error: 'Name, role, and PIN are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Name, role, and password are required' }, { status: 400 });
     }
-    if (pin.toString().length < 4) {
-      return NextResponse.json({ error: 'PIN must be at least 4 digits' }, { status: 400 });
+    if (pin.toString().length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
     if (!['worker', 'manager'].includes(role)) {
       return NextResponse.json({ error: 'Role must be worker or manager' }, { status: 400 });

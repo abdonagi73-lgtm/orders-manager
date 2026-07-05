@@ -977,7 +977,7 @@ function OwnerPageInner() {
   }
 
   async function addWorker() {
-    if(!newWorkerName.trim()||!newWorkerPin.trim()){ showToast('Enter name and PIN'); return; }
+    if(!newWorkerName.trim()||!newWorkerPin.trim()){ showToast('Enter name and password'); return; }
     const res = await fetch('/api/owner/team',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name:newWorkerName.trim(), pin:newWorkerPin.trim(), role:'worker'})});
     const d = await res.json();
@@ -1037,12 +1037,12 @@ function OwnerPageInner() {
         </div>
         <div className="login-form">
           <div className="field">
-            <label className="label">Management PIN</label>
-            <input type="password" inputMode="numeric" placeholder="&bull;&bull;&bull;&bull;"
+            <label className="label">Password</label>
+            <input type="password" placeholder="Your management password"
               value={pin} onChange={e=>setPin(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&verifyPin()}
-              className="login-pin-input" autoFocus/>
-            {pinError&&<div className="field-error">Incorrect PIN &mdash; try again</div>}
+              autoFocus/>
+            {pinError&&<div className="field-error">Incorrect password &mdash; try again</div>}
 
           </div>
           <button className="btn btn-primary btn-lg btn-full"
@@ -1919,10 +1919,10 @@ function OwnerPageInner() {
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:10,alignItems:'end'}}>
                 <div><label className="label">Name</label>
                   <input type="text" placeholder="Manager name" value={newManagerName} onChange={e=>setNewManagerName(e.target.value)}/></div>
-                <div><label className="label">PIN</label>
-                  <input type="text" inputMode="numeric" placeholder="PIN" value={newManagerPin} onChange={e=>setNewManagerPin(e.target.value)}/></div>
+              <div><label className="label">Password</label>
+                  <input type="password" placeholder="Password" value={newManagerPin} onChange={e=>setNewManagerPin(e.target.value)}/></div>
                 <button className="btn btn-primary" onClick={async()=>{
-                  if(!newManagerName.trim()||!newManagerPin.trim()){showToast('Enter name and PIN');return;}
+                  if(!newManagerName.trim()||!newManagerPin.trim()){showToast('Enter name and password');return;}
                   const newMgr=[...managers,{id:'m_'+Date.now(),name:newManagerName.trim(),pin:newManagerPin.trim()}];
                   await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({action:'save-managers',managers:newMgr})});
@@ -1937,7 +1937,7 @@ function OwnerPageInner() {
                 {managers.map((m:any)=>(
                   <div key={m.id} className="vendor-row">
                     <div><strong>{m.name}</strong>
-                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-3)'}}>PIN: {m.pin}</span>
+                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-3)'}}>••••••</span>
                       <span className="badge badge-info" style={{marginLeft:8}}>Manager</span>
                     </div>
                     <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
@@ -1961,8 +1961,8 @@ function OwnerPageInner() {
                   <input type="text" placeholder="Worker name" value={newWorkerName} onChange={e=>setNewWorkerName(e.target.value)}/>
                 </div>
                 <div>
-                  <label className="label">PIN</label>
-                  <input type="text" inputMode="numeric" placeholder="4-digit PIN" value={newWorkerPin} onChange={e=>setNewWorkerPin(e.target.value)}/>
+                  <label className="label">Password</label>
+                  <input type="password" placeholder="Password (min 8 chars)" value={newWorkerPin} onChange={e=>setNewWorkerPin(e.target.value)}/>
                 </div>
                 <button className="btn btn-primary" onClick={addWorker}>Add</button>
               </div>
@@ -1976,7 +1976,7 @@ function OwnerPageInner() {
                   <div key={w.id} className="vendor-row">
                     <div>
                       <strong>{w.name}</strong>
-                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-2)'}}>PIN: {w.pin}</span>
+                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-2)'}}>••••••</span>
                     </div>
                     <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
                       onClick={()=>removeWorker(w.id)}>Remove</button>
@@ -2137,9 +2137,9 @@ function OwnerPageInner() {
                           <input type="email" value={credNewEmail}
                             onChange={e=>setCredNewEmail(e.target.value)}
                             placeholder="New email address"/>
-                          <input type="text" inputMode="numeric" value={credEmailPin}
+                          <input type="password" value={credEmailPin}
                             onChange={e=>setCredEmailPin(e.target.value)}
-                            placeholder="Current PIN (to verify identity)"/>
+                            placeholder="Current password (to verify identity)"/>
                           <div style={{display:'flex',gap:8}}>
                             <button className="btn btn-primary"
                               onClick={async()=>{
@@ -2183,29 +2183,30 @@ function OwnerPageInner() {
                       )}
                     </div>
 
-                    {/* --- PIN change --- */}
+                    {/* --- Password change --- */}
                     <div className="field">
-                      <label className="label">Change PIN</label>
-                      <div style={{display:'flex',flexDirection:'column',gap:8,maxWidth:220}}>
-                        <input type="text" inputMode="numeric" value={credCurPin}
+                      <label className="label">Change Password</label>
+                      <div style={{display:'flex',flexDirection:'column',gap:8,maxWidth:280}}>
+                        <input type="password" value={credCurPin}
                           onChange={e=>setCredCurPin(e.target.value)}
-                          placeholder="Current PIN"/>
-                        <input type="text" inputMode="numeric" value={credNewPin}
+                          placeholder="Current password"/>
+                        <input type="password" value={credNewPin}
                           onChange={e=>setCredNewPin(e.target.value)}
-                          placeholder="New PIN (4-6 digits)"/>
-                        <input type="text" inputMode="numeric" value={credConfPin}
+                          placeholder="New password (min 8 chars)"/>
+                        <input type="password" value={credConfPin}
                           onChange={e=>setCredConfPin(e.target.value)}
-                          placeholder="Confirm new PIN"/>
+                          placeholder="Confirm new password"/>
                         <button className="btn btn-primary" disabled={credPinSaving}
                           onClick={async()=>{
                             setCredPinMsg('');
-                            if(credNewPin!==credConfPin){setCredPinMsg('❌ PINs do not match');return;}
+                            if(credNewPin!==credConfPin){setCredPinMsg('❌ Passwords do not match');return;}
+                            if(credNewPin.length<8){setCredPinMsg('❌ Password must be at least 8 characters');return;}
                             setCredPinSaving(true);
                             const r = await fetch('/api/auth/update-credentials',{
                               method:'PATCH',headers:{'Content-Type':'application/json'},
                               body:JSON.stringify({field:'pin',currentPin:credCurPin,newPin:credNewPin})});
                             const d = await r.json();
-                            setCredPinMsg(r.ok?'✅ PIN updated':'❌ '+(d.error||'Failed'));
+                            setCredPinMsg(r.ok?'✅ Password updated':'❌ '+(d.error||'Failed'));
                             if(r.ok){setCredCurPin('');setCredNewPin('');setCredConfPin('');}
                             setCredPinSaving(false);
                           }}>{credPinSaving?'Saving...':'Update PIN'}</button>
