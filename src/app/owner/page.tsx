@@ -500,6 +500,10 @@ function OwnerPageInner() {
   const [newManagerPin, setNewManagerPin] = useState('');
   const [managers, setManagers] = useState<{id:string;name:string;pin:string}[]>([]);
 
+  // Subscription / trial banner
+  const [subInfo, setSubInfo] = useState<{plan:string;status:string;trialEndsAt?:string}|null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
   const [modal, setModal] = useState<{
     type: 'confirm'|'success'|'error';
     icon: string; title: string; message: string;
@@ -707,6 +711,14 @@ function OwnerPageInner() {
       });
     },30000);
     return ()=>clearInterval(iv);
+  },[authed]);
+
+  // Fetch subscription info once on login → powers trial banner
+  useEffect(()=>{ if(!authed) return;
+    fetch('/api/v1/subscription')
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(d?.success && d.data) setSubInfo(d.data); })
+      .catch(()=>{});
   },[authed]);
 
   // Sync current order summary dynamically when items change in manager dashboard
@@ -975,6 +987,10 @@ function OwnerPageInner() {
       setWorkers(workerList);
       setNewWorkerName(''); setNewWorkerPin('');
       showToast('✔ Worker added');
+    } else if(res.status===403 && d.upgradeRequired){
+      // Plan limit reached — redirect to subscription settings
+      showToast(`⚠️ ${d.error || 'Worker limit reached'} — tap Subscription to upgrade.`);
+      setTab('settings'); setSettingsSection('subscription');
     } else { showToast('Error: '+(d.error||'Failed to add worker')); }
   }
 
@@ -1062,6 +1078,43 @@ function OwnerPageInner() {
           onSkip={() => setSetupComplete(true)}
         />
       )}
+
+      {/* ── Trial / Suspended Banner ─────────────────────────── */}
+      {(() => {
+        if (bannerDismissed || !subInfo) return null;
+        const { plan, status, trialEndsAt } = subInfo;
+        const suspended = status === 'suspended' || status === 'cancelled';
+        const expired   = plan === 'trial' && trialEndsAt && new Date(trialEndsAt) < new Date();
+        const daysLeft  = trialEndsAt ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000)) : null;
+        const nearExpiry = plan === 'trial' && daysLeft !== null && daysLeft <= 7 && !expired;
+        if (!suspended && !expired && !nearExpiry) return null;
+        const isRed = suspended || expired;
+        return (
+          <div style={{
+            background: isRed ? '#7F1D1D' : '#78350F',
+            borderBottom: `1px solid ${isRed ? '#991B1B' : '#92400E'}`,
+            padding: '10px 24px', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+          }}>
+            <span style={{fontSize:13,color:'#FEF3C7',fontWeight:500}}>
+              {suspended ? '⛔ Your account is suspended. Contact support to reactivate.'
+                : expired ? '🔴 Your free trial has expired. Upgrade to continue.'
+                : `⚠️ Your free trial expires in ${daysLeft} day${daysLeft===1?'':'s'}. Upgrade to keep full access.`}
+            </span>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              {!suspended && (
+                <button onClick={()=>setTab('settings')||setSettingsSection('subscription')}
+                  style={{background:'#F59E0B',color:'#000',border:'none',borderRadius:6,padding:'5px 14px',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                  Upgrade Now
+                </button>
+              )}
+              <button onClick={()=>setBannerDismissed(true)}
+                style={{background:'transparent',border:'none',color:'#FEF3C7',fontSize:18,cursor:'pointer',lineHeight:1}}>×</button>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="header" style={{boxShadow:'0 1px 3px rgba(0,0,0,.05)',borderBottom:'1px solid var(--border)'}}>
         <div className="container-wide">
           <div className="header-inner" style={{height:'auto',minHeight:64,padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>

@@ -4,6 +4,7 @@ import { users } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/serverAuth';
+import { checkWorkerLimit } from '@/lib/subscription/gate';
 
 // GET: Retrieve all users belonging to the caller's company
 // Super_admin (verified via cookie) can query any company via ?company= query param
@@ -54,15 +55,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name and PIN code are required' }, { status: 400 });
     }
 
-    const userId = `${companyId}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    // Only gate the worker role — managers/admins are not plan-limited
+    if (!role || role === 'worker') {
+      const gate = await checkWorkerLimit(db, companyId);
+      if (!gate.allowed) {
+        return NextResponse.json({
+          error: gate.reason ?? 'Worker limit reached for your current plan.',
+          upgradeRequired: true,
+          currentCount: gate.currentCount,
+          limit: gate.limit,
+        }, { status: 403 });
+      }
+    }
+
+    const userId = `${companyId}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
     const pinHash = bcrypt.hashSync(pin, 10);
 
     await db.insert(users).values({
       id: userId,
-      company_id: companyId, // Hardcoded from x-company-id header for multi-tenant isolation
+      company_id: companyId,
       name,
       pin_hash: pinHash,
       role: role || 'worker',
+      is_activated: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
 
     return NextResponse.json({
