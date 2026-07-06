@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     if (body.action === 'verify-worker') {
       // Rate limit: 10 password attempts per 5 minutes per IP
       const ip = getClientIp(req);
-      const limit = rateLimit(`pw-worker:${ip}`, 10, 5 * 60 * 1000);
+      const limit = await rateLimit(`pw-worker:${ip}`, 10, 5 * 60 * 1000);
       if (!limit.allowed) {
         return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
       }
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
     if (body.action === 'verify-owner') {
       // Rate limit: 10 password attempts per 5 minutes per IP
       const ip = getClientIp(req);
-      const limit = rateLimit(`pw-owner:${ip}`, 10, 5 * 60 * 1000);
+      const limit = await rateLimit(`pw-owner:${ip}`, 10, 5 * 60 * 1000);
       if (!limit.allowed) {
         return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
       }

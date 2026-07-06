@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     // Rate limit: 5 attempts per hour per IP (was 3 — generous enough for real users, tight for bots)
     const ip = getClientIp(req);
-    const limit = rateLimit(`forgot-pw:${ip}`, 5, 60 * 60 * 1000);
+    const limit = await rateLimit(`forgot-pw:${ip}`, 5, 60 * 60 * 1000);
     if (!limit.allowed) return rateLimited();
 
     const { email } = await req.json();
