@@ -18,9 +18,8 @@ const TAG_LENGTH = 16; // 128-bit auth tag
 
 function getKey(): Buffer {
   const hex = Platform.encryption.key;
-  if (hex.length !== 64) {
-    logger.warn('PLATFORM_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). Using fallback — NOT SAFE FOR PRODUCTION.');
-    return Buffer.alloc(32, 0);
+  if (!hex || hex.length !== 64) {
+    throw new Error('FATAL CONFIGURATION ERROR: PLATFORM_ENCRYPTION_KEY environment variable must be configured as a 64-character hex string (32 bytes).');
   }
   return Buffer.from(hex, 'hex');
 }

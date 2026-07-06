@@ -607,6 +607,7 @@ function FieldFastInner() {
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState(true);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [deletedServerIds, setDeletedServerIds] = useState<string[]>([]);
@@ -622,6 +623,70 @@ function FieldFastInner() {
 
   const [toast, setToast] = useState('');
   const [errorBox, setErrorBox] = useState<{title:string;items:string[]}|null>(null);
+  
+  // ── Offline First Synchronization Queue ──
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
+
+  const addOfflineQueue = (type: 'order' | 'item', payload: any) => {
+    const queue = JSON.parse(localStorage.getItem('flowxiq_offline_queue') || '[]');
+    queue.push({ id: 'off_' + Date.now() + Math.random(), type, payload, timestamp: new Date().toISOString() });
+    localStorage.setItem('flowxiq_offline_queue', JSON.stringify(queue));
+    setOfflineQueue(queue);
+    showToast(`Saved to offline queue (${queue.length} pending)`);
+  };
+
+  const runOfflineSync = useCallback(async () => {
+    if (!navigator.onLine) return;
+    const queue = JSON.parse(localStorage.getItem('flowxiq_offline_queue') || '[]');
+    if (queue.length === 0) return;
+
+    showToast("Reconnected! Syncing offline work...");
+    const remaining = [];
+
+    for (const item of queue) {
+      try {
+        if (item.type === 'order') {
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item.payload),
+          });
+          if (!res.ok) throw new Error();
+        } else if (item.type === 'item') {
+          // If the item has a temp order ID that was updated during sync, swap it
+          if (item.payload.orderId && item.payload.orderId.startsWith('offline-')) {
+            // Find if there is a mapping cached
+            const mapping = localStorage.getItem(`flowxiq_id_map_${item.payload.orderId}`);
+            if (mapping) {
+              item.payload.orderId = mapping;
+            } else {
+              // Wait for the order to finish syncing
+              remaining.push(item);
+              continue;
+            }
+          }
+          const res = await fetch('/api/items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item.payload),
+          });
+          if (!res.ok) throw new Error();
+        }
+      } catch (err) {
+        remaining.push(item);
+      }
+    }
+
+    localStorage.setItem('flowxiq_offline_queue', JSON.stringify(remaining));
+    setOfflineQueue(remaining);
+
+    if (remaining.length === 0) {
+      showToast("✓ All offline work synced successfully!");
+      if (worker) loadOrders(worker.id);
+    } else {
+      showToast(`⚠️ Sync failed for ${remaining.length} items. Retrying later.`);
+    }
+  }, [worker]);
   const [confirmBox, setConfirmBox] = useState<{title:string;message:string;onConfirm:()=>void}|null>(null);
 
   const [voiceListening, setVoiceListening] = useState(false);
@@ -722,22 +787,40 @@ function FieldFastInner() {
     if(dark==='true'){ setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
 
     // 2. Fetch session data (company info, vendors, etc.)
-    fetch('/api/session').then(r=>r.json()).then(d=>{
-      if(d.registry) setVendors(Object.keys(d.registry));
-      if(d.company && d.company.name !== 'System Administration') {
-        setCompanyName(d.company.name);
-        setLogoUrl(d.company.logo_url || d.company.logoUrl || null);
-      }
-      // 3. Auto-auth: if already signed in as worker via /app email login, skip the PIN screen
-      if(!savedWorker && d.user && d.user.role === 'worker') {
-        const autoWorker: Worker = { id: d.user.id, name: d.user.name, pin: '' };
-        setWorker(autoWorker);
-        sessionStorage.setItem('ff_worker', JSON.stringify(autoWorker));
-        sessionStorage.setItem('ff_screen', 'orders');
-        loadOrders(autoWorker.id);
-        setScreen('orders');
-      }
-    });
+    const storedCompanyId = localStorage.getItem('flowxiq_selected_company_id') || '';
+    fetch(`/api/session${storedCompanyId ? '?companyId=' + storedCompanyId : ''}`)
+      .then(r=>r.json())
+      .then(d=>{
+        localStorage.setItem('flowxiq_cached_session', JSON.stringify(d));
+        if(d.registry) setVendors(Object.keys(d.registry));
+        if(d.company && d.company.name !== 'System Administration') {
+          setCompanyName(d.company.name);
+          setLogoUrl(d.company.logo_url || d.company.logoUrl || null);
+        }
+        if(d.subscriptionActive === false) {
+          setSubscriptionActive(false);
+        }
+        // 3. Auto-auth: if already signed in as worker via /app email login, skip the PIN screen
+        if(!savedWorker && d.user && d.user.role === 'worker') {
+          const autoWorker: Worker = { id: d.user.id, name: d.user.name, pin: '' };
+          setWorker(autoWorker);
+          sessionStorage.setItem('ff_worker', JSON.stringify(autoWorker));
+          sessionStorage.setItem('ff_screen', 'orders');
+          loadOrders(autoWorker.id);
+          setScreen('orders');
+        }
+      })
+      .catch(() => {
+        const cached = localStorage.getItem('flowxiq_cached_session');
+        if (cached) {
+          const d = JSON.parse(cached);
+          if(d.registry) setVendors(Object.keys(d.registry));
+          if(d.company) {
+            setCompanyName(d.company.name);
+            setLogoUrl(d.company.logo_url || d.company.logoUrl || null);
+          }
+        }
+      });
 
     fetch('/api/usage').then(r=>r.json()).then(d=>{
       if(d.vendors){
@@ -755,18 +838,32 @@ function FieldFastInner() {
           return merged.filter((co, i) => merged.indexOf(co) === i);
         });
       }
-    });
-  },[]);
+    }).catch(() => {});
 
-  const loadOrders = useCallback(async(workerId:string)=>{
-    const res = await fetch(`/api/orders?workerId=${workerId}`);
-    const d = await res.json();
-    if(d.orders){
-      const sorted = [...d.orders].sort((a:Order,b:Order)=>{
-        const da=a.createdAt||a.startDate||''; const db=b.createdAt||b.startDate||'';
-        return new Date(db).getTime()-new Date(da).getTime();
-      });
-      setOrders(sorted);
+    // Bind offline listener and queue checker
+    const queue = JSON.parse(localStorage.getItem('flowxiq_offline_queue') || '[]');
+    setOfflineQueue(queue);
+    window.addEventListener('online', runOfflineSync);
+    if (navigator.onLine && queue.length > 0) {
+      runOfflineSync();
+    }
+
+    return () => {
+      window.removeEventListener('online', runOfflineSync);
+    };
+  }, [runOfflineSync]);
+
+  const loadOrders = useCallback(async (workerId: string) => {
+    try {
+      const res = await fetch(`/api/orders?workerId=${workerId}`);
+      const d = await res.json();
+      if(d.orders){
+        const sorted = [...d.orders].sort((a:Order,b:Order)=>{
+          const da=a.createdAt||a.startDate||''; const db=b.createdAt||b.startDate||'';
+          return new Date(db).getTime()-new Date(da).getTime();
+        });
+        localStorage.setItem(`flowxiq_cached_orders_${workerId}`, JSON.stringify(sorted));
+        setOrders(sorted);
       // Pre-fetch ALL summaries in background so slide-down is instant
       sorted.forEach(async(order:Order)=>{
         try {
@@ -786,16 +883,26 @@ function FieldFastInner() {
           }));
         } catch {}
       });
+      }
+    } catch {
+      const cached = localStorage.getItem(`flowxiq_cached_orders_${workerId}`);
+      if (cached) {
+        setOrders(JSON.parse(cached));
+      }
     }
-  },[]);
+  }, []);
 
   async function verifyPin(){
     setPinLoading(true); setPinError(false);
+    const storedCompanyId = localStorage.getItem('flowxiq_selected_company_id') || '';
     const res = await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'verify-worker',pin})});
+      body:JSON.stringify({action:'verify-worker',pin,companyId:storedCompanyId})});
     const d = await res.json();
     setPinLoading(false);
     if(d.ok && d.worker){
+      if(d.worker.companyId) {
+        localStorage.setItem('flowxiq_selected_company_id', d.worker.companyId);
+      }
       setWorker(d.worker);
       if(d.worker.companyName) setCompanyName(d.worker.companyName);
       if(d.worker.logoUrl) setLogoUrl(d.worker.logoUrl);
@@ -840,6 +947,97 @@ function FieldFastInner() {
     const vendorForItem = currentVendor || (editingTempId ? cart.find(i=>i.tempId===editingTempId)?.vendor||'' : '');
     if(!vendorForItem){ setErrorBox({title:'No vendor selected',items:['Please select a vendor first']}); setSavingItem(false); return; }
     try {
+      const isOffline = !navigator.onLine || activeOrder.id.startsWith('offline-');
+      if (isOffline) {
+        if (editingTempId) {
+          const existing = cart.find(i=>i.tempId===editingTempId);
+          const updated = {
+            ...existing,
+            vendor: vendorForItem,
+            code: code.trim(),
+            category,
+            colors: flat(colors),
+            sizes: flat(sizes),
+            price: Number(price),
+            qty: autoQty || 1,
+            notes,
+            photo
+          };
+          addOfflineQueue('item', {
+            action: 'update',
+            item: {
+              id: existing?.serverId || '',
+              tempId: editingTempId,
+              orderId: activeOrder.id,
+              workerId: worker!.id,
+              vendor: updated.vendor,
+              code: updated.code,
+              category,
+              colors: updated.colors,
+              sizes: updated.sizes,
+              price: updated.price,
+              qty: updated.qty,
+              notes: updated.notes,
+              photo: updated.photo
+            }
+          });
+          setCart(prev => prev.map(i => i.tempId === editingTempId ? { ...i, ...updated } : i));
+          showToast('Item updated locally');
+        } else {
+          const localTempId = 't_' + Date.now() + Math.random();
+          const newItem: CartItem = {
+            tempId: localTempId,
+            vendor: vendorForItem,
+            code: code.trim(),
+            category,
+            colors: flat(colors),
+            sizes: flat(sizes),
+            price: Number(price),
+            qty: autoQty || 1,
+            notes,
+            photo
+          };
+          addOfflineQueue('item', {
+            action: 'create',
+            orderId: activeOrder.id,
+            workerId: worker!.id,
+            vendor: vendorForItem,
+            code: code.trim(),
+            category,
+            colors: flat(colors),
+            sizes: flat(sizes),
+            price: Number(price),
+            qty: autoQty || 1,
+            notes,
+            photo
+          });
+          setCart(prev => [newItem, ...prev]);
+          showToast('Item saved locally');
+        }
+
+        const newLen = editingTempId ? cart.length : cart.length + 1;
+        const newTotal = cart.reduce((s,i)=>{
+          if(editingTempId && i.tempId === editingTempId) return s + Number(price)*(autoQty||1);
+          return s + i.price * i.qty;
+        }, 0) + (editingTempId ? 0 : Number(price) * (autoQty || 1));
+        const commission = parseFloat((newTotal * 0.03).toFixed(2));
+
+        if (liveOrder) {
+          setLiveOrder({
+            ...liveOrder,
+            itemCount: newLen,
+            totalValue: newTotal,
+            workerCommission: commission,
+            totalOrderCost: parseFloat((newTotal + commission).toFixed(2))
+          });
+        }
+
+        resetItemForm();
+        setFormOpen(false);
+        setSavingItem(false);
+        return;
+      }
+
       if(editingTempId){
         const existing=cart.find(i=>i.tempId===editingTempId);
         const updated={...existing,code:code.trim(),category,colors:flat(colors),sizes:flat(sizes),
@@ -1067,6 +1265,43 @@ function FieldFastInner() {
       const shipping=Number(shippingCost)||0;
       const commission=parseFloat((totalValue*0.03).toFixed(2));
       const totalOrderCost=parseFloat((totalValue+shipping+commission).toFixed(2));
+
+      const isOffline = !navigator.onLine || activeOrder.id.startsWith('offline-');
+      if (isOffline) {
+        // Queue deletions
+        for(const sid of deletedServerIds){
+          if (sid && !sid.startsWith('offline-')) {
+            addOfflineQueue('item', { action: 'delete', id: sid });
+          }
+        }
+
+        const updated = {
+          ...activeOrder,
+          name: orderName.trim(),
+          startDate: orderDate,
+          orderType,
+          shippingCost: shipping,
+          workerCommission: commission,
+          totalOrderCost,
+          itemCount: cart.length,
+          totalValue,
+          status: (keepOpen ? 'open' : 'submitted') as Order['status']
+        };
+
+        // Queue final update
+        addOfflineQueue('order', { action: 'update', order: updated });
+
+        setDeletedServerIds([]); setLiveOrder(null);
+        if (keepOpen) {
+          showToast('Saved locally — order kept open');
+          goTo('orders');
+        } else {
+          goTo('success');
+        }
+        setSubmitting(false);
+        return;
+      }
+
       for(const sid of deletedServerIds){
         await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({id:sid})}).catch(()=>{});
@@ -1261,6 +1496,44 @@ function FieldFastInner() {
     </>
   );
 
+  if (!subscriptionActive) {
+    return (
+      <main className="login-page" style={{ zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
+        <div className="login-card" style={{ textAlign: 'center', maxWidth: 440, padding: 40, background: 'var(--surface)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 54, marginBottom: 20 }}>⛔</div>
+          <h2 style={{ color: '#fff', fontSize: 20, marginBottom: 12 }}>
+            Workspace Suspended
+          </h2>
+          <p style={{ color: 'var(--text-3)', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            Your Flowxiq workspace has been suspended or its free trial has expired. Sourcing features are currently locked. Please contact your manager or business owner to upgrade the subscription plan.
+          </p>
+          <button onClick={async () => {
+            const res = await fetch('/api/session', { method: 'DELETE' });
+            if (res.ok) {
+              sessionStorage.clear();
+              window.location.href = '/app';
+            }
+          }} className="btn btn-outline" style={{ width: '100%', height: 42, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', borderRadius: 'var(--r)', fontWeight: 600, cursor: 'pointer' }}>
+            Log Out
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const offlineBar = (!navigator.onLine || offlineQueue.length > 0) ? (
+    <div style={{ background: 'var(--amber)', color: '#000', padding: '8px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, zIndex: 1000, position: 'relative', width: '100%' }}>
+      <span>⚠️ {!navigator.onLine ? 'Offline Mode (Local Storage)' : 'Connected'}</span>
+      <span>&middot;</span>
+      <span>{offlineQueue.length} pending updates in local queue</span>
+      {navigator.onLine && (
+        <button onClick={runOfflineSync} className="btn" style={{ padding: '2px 8px', fontSize: 11, background: '#000', color: '#fff', border: 'none', marginLeft: 10, cursor: 'pointer', borderRadius: 4 }}>
+          Sync Now
+        </button>
+      )}
+    </div>
+  ) : null;
+
   // ── LOGIN ──
   if(screen==='login') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
@@ -1298,6 +1571,7 @@ function FieldFastInner() {
   // ── ORDERS LIST ──
   if(screen==='orders') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
+      {offlineBar}
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <a href="/app">
@@ -1425,6 +1699,7 @@ function FieldFastInner() {
     cart.forEach(i=>{ if(!detailByVendor[i.vendor]) detailByVendor[i.vendor]=[]; detailByVendor[i.vendor].push(i); });
     return (
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
+        {offlineBar}
         <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <a href="/">
@@ -1513,6 +1788,7 @@ function FieldFastInner() {
     const totalUnpaid=myOrders.filter(o=>!o.commissionPaid).reduce((s,o)=>s+o.workerCommission,0);
     return (
       <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
+        {offlineBar}
         <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             {logoUrl ? (
@@ -1614,6 +1890,46 @@ function FieldFastInner() {
           onClick={async()=>{
             if(!orderName.trim()){ setErrorBox({title:t('cannotContinue'),items:[t('orderNameRequired')]}); return; }
             try {
+              const isOffline = !navigator.onLine;
+              if (isOffline) {
+                const offlineId = `offline-${crypto.randomUUID()}`;
+                const offlineOrder = {
+                  id: offlineId,
+                  company_id: '',
+                  name: orderName.trim(),
+                  startDate: orderDate,
+                  workerId: worker!.id,
+                  workerName: worker!.name,
+                  status: 'open',
+                  shippingCost: 0,
+                  workerCommission: 0,
+                  totalOrderCost: 0,
+                  commissionPaid: false,
+                  orderType: orderType,
+                  createdAt: new Date().toISOString(),
+                  closedAt: '',
+                  itemCount: 0,
+                  totalValue: 0,
+                  isOffline: true
+                };
+
+                addOfflineQueue('order', {
+                  action: 'create',
+                  name: orderName.trim(),
+                  startDate: orderDate,
+                  workerId: worker!.id,
+                  workerName: worker!.name,
+                  orderType
+                });
+
+                setLiveOrder(offlineOrder as any);
+                setEditingExisting(offlineOrder as any);
+                setCurrentVendor('');
+                setFormOpen(false);
+                goTo('entry');
+                return;
+              }
+
               const res=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({action:'create',name:orderName.trim(),startDate:orderDate,
                   workerId:worker!.id,workerName:worker!.name,orderType})});
@@ -1647,6 +1963,7 @@ function FieldFastInner() {
   // ── CART / REVIEW ──
   if(screen==='cart') return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
+      {offlineBar}
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           {logoUrl ? (
@@ -1782,6 +2099,7 @@ function FieldFastInner() {
 
   return (
     <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
+      {offlineBar}
       <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           {logoUrl ? (

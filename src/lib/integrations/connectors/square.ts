@@ -127,16 +127,80 @@ export const squareConnector: IntegrationConnector = {
     const sq = asSquare(config);
     logger.info('Square pushProducts', { count: products.length, locationId: sq.locationId });
 
-    // TODO: Implement Square Catalog API batch upsert in V2
-    // For now, return a "not yet implemented" result pointing to CSV export
-    return {
-      provider:  'square',
-      pushed:    0,
-      failed:    0,
-      skipped:   products.length,
-      errors:    ['Live catalog push coming in V2. Use CSV export in the meantime.'],
-      syncedAt:  new Date().toISOString(),
-    };
+    try {
+      const objects = products.map((product, pIdx) => {
+        return {
+          type: 'ITEM',
+          id: `#item-${pIdx}`,
+          present_at_all_locations: !sq.locationId,
+          present_at_location_ids: sq.locationId ? [sq.locationId] : undefined,
+          item_data: {
+            name: product.name,
+            description: '',
+            category_id: undefined,
+            variations: product.variants.map((v, vIdx) => ({
+              type: 'ITEM_VARIATION',
+              id: `#var-${pIdx}-${vIdx}`,
+              present_at_all_locations: !sq.locationId,
+              present_at_location_ids: sq.locationId ? [sq.locationId] : undefined,
+              item_variation_data: {
+                name: [v.color, v.size].filter(Boolean).join(' / ') || 'Regular',
+                pricing_type: 'FIXED_PRICING',
+                sku: v.sku || product.sku || '',
+                price_money: {
+                  amount: Math.round(v.price * 100), // cents
+                  currency: 'USD',
+                }
+              }
+            }))
+          }
+        };
+      });
+
+      const res = await fetch(`${squareApiBase(sq.environment)}/v2/catalog/batch-upsert`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sq.accessToken}`,
+          'Square-Version': '2024-01-17',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idempotency_key: crypto.randomUUID(),
+          batches: [{ objects }]
+        })
+      });
+
+      if (res.ok) {
+        return {
+          provider:  'square',
+          pushed:    products.length,
+          failed:    0,
+          skipped:   0,
+          errors:    [],
+          syncedAt:  new Date().toISOString(),
+        };
+      }
+
+      const err = await res.json().catch(() => ({}));
+      const errors = err.errors?.map((e: any) => e.detail).filter(Boolean) || [`Square API returned status ${res.status}`];
+      return {
+        provider:  'square',
+        pushed:    0,
+        failed:    products.length,
+        skipped:   0,
+        errors,
+        syncedAt:  new Date().toISOString(),
+      };
+    } catch (err) {
+      return {
+        provider:  'square',
+        pushed:    0,
+        failed:    products.length,
+        skipped:   0,
+        errors:    [`Connection failed: ${String(err)}`],
+        syncedAt:  new Date().toISOString(),
+      };
+    }
   },
 
   async generateExport(products: CanonicalProduct[]): Promise<{ content: string; filename: string; mimeType: string }> {

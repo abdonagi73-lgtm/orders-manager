@@ -16,7 +16,7 @@ async function buildSessionResponse(user: typeof users.$inferSelect, company: ty
     currency: company.currency,
     commissionRate: company.commission_rate,
   });
-  const response = NextResponse.json({ success: true, role: user.role });
+  const response = NextResponse.json({ success: true, role: user.role, companyId: company.id });
   response.cookies.set('session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       return buildSessionResponse(user, company);
     }
 
-    // ── Path B: Look up by email, user ID, or name ──
+    // ── Path B: Look up by email or user ID ──
     const results = await db
       .select({ user: users, company: companies })
       .from(users)
@@ -82,8 +82,7 @@ export async function POST(request: Request) {
       .where(
         or(
           eq(users.email, loginInput.trim().toLowerCase()),
-          eq(users.id, loginInput.trim()),
-          eq(users.name, loginInput.trim())
+          eq(users.id, loginInput.trim())
         )
       );
 

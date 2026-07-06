@@ -523,16 +523,20 @@ function OwnerPageInner() {
 
   async function verifyPin() {
     setPinLoading(true); setPinError(false);
+    const storedCompanyId = localStorage.getItem('flowxiq_selected_company_id') || '';
     const [verifyRes, sessionRes] = await Promise.all([
       fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'verify-owner',pin})}).then(r=>r.json()),
-      fetch('/api/session').then(r=>r.json()),
+        body:JSON.stringify({action:'verify-owner',pin,companyId:storedCompanyId})}).then(r=>r.json()),
+      fetch(`/api/session${storedCompanyId ? '?companyId=' + storedCompanyId : ''}`).then(r=>r.json()),
     ]);
     setPinLoading(false);
     if(verifyRes.ok){
+      if(verifyRes.companyId) {
+        localStorage.setItem('flowxiq_selected_company_id', verifyRes.companyId);
+        setCurrentCompanyId(verifyRes.companyId);
+      }
       // Load dark mode pref — keyed by company so it persists across sessions
       const themeKey = `darkMode_${verifyRes.companyId || 'owner'}`;
-      if (verifyRes.companyId) setCurrentCompanyId(verifyRes.companyId);
       const dm = localStorage.getItem(themeKey);
       if(dm==='true') { setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
       // Load usage
@@ -797,6 +801,7 @@ function OwnerPageInner() {
   // On mount: check if user already has a valid cookie session (from /app login)
   // If so, skip the PIN screen entirely
   useEffect(() => {
+    const storedCompanyId = localStorage.getItem('flowxiq_selected_company_id') || '';
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -808,14 +813,16 @@ function OwnerPageInner() {
           loadNotifs();
           fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
         } else {
-          fetch('/api/session').then(r=>r.json()).then(d=>{
-            if(d.company && d.company.name !== 'System Administration') {
-              setCompany({
-                name: d.company.name,
-                logoUrl: d.company.logo_url || d.company.logoUrl || null
-              });
-            }
-          });
+          fetch(`/api/session${storedCompanyId ? '?companyId=' + storedCompanyId : ''}`)
+            .then(r=>r.json())
+            .then(d=>{
+              if(d.company && d.company.name !== 'System Administration') {
+                setCompany({
+                  name: d.company.name,
+                  logoUrl: d.company.logo_url || d.company.logoUrl || null
+                });
+              }
+            });
         }
         setAuthChecking(false);
       })
@@ -1070,6 +1077,49 @@ function OwnerPageInner() {
       </div>
     </main>
   );
+
+  const isSuspended = subInfo && (subInfo.status === 'suspended' || subInfo.status === 'cancelled');
+  const isExpired = subInfo && (subInfo.plan === 'trial' && subInfo.trialEndsAt && new Date(subInfo.trialEndsAt) < new Date());
+  const showBlocker = (isSuspended || isExpired) && !(tab === 'settings' && settingsSection === 'subscription');
+
+  if (showBlocker) {
+    return (
+      <main className="login-page" style={{ zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="login-card" style={{ textAlign: 'center', maxWidth: 440, padding: 40 }}>
+          <div style={{ fontSize: 54, marginBottom: 20 }}>{isSuspended ? '⛔' : '🔴'}</div>
+          <h2 style={{ color: '#fff', fontSize: 20, marginBottom: 12 }}>
+            {isSuspended ? 'Account Suspended' : 'Trial Expired'}
+          </h2>
+          <p style={{ color: 'var(--text-3)', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            {isSuspended 
+              ? 'Your Flowxiq workspace has been suspended due to billing issues or admin request. Please contact support to restore access.'
+              : 'Your free trial has expired. Upgrade your workspace plan to keep full access to orders, items, and team features.'}
+          </p>
+          {!isSuspended ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button onClick={() => { setTab('settings'); setSettingsSection('subscription'); }}
+                className="btn btn-primary" style={{ width: '100%' }}>
+                Upgrade Workspace Plan
+              </button>
+              <button onClick={async () => {
+                const res = await fetch('/api/session', { method: 'DELETE' });
+                if (res.ok) window.location.href = '/app';
+              }} className="btn btn-outline" style={{ width: '100%' }}>
+                Log Out
+              </button>
+            </div>
+          ) : (
+            <button onClick={async () => {
+              const res = await fetch('/api/session', { method: 'DELETE' });
+              if (res.ok) window.location.href = '/app';
+            }} className="btn btn-outline" style={{ width: '100%' }}>
+              Log Out
+            </button>
+          )}
+        </div>
+      </main>
+    );
+  }
 
   const visibleNotifs = notifList.filter((n: any) => !n.read).slice(0, 20);
 

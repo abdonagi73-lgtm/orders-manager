@@ -198,3 +198,12 @@ export async function getSubscriptionInfo(db: Db, companyId: string): Promise<Su
     },
   };
 }
+
+/**
+ * Checks if the company has a valid active subscription.
+ * Blocks operations if suspended or if the free trial has expired.
+ */
+export async function isSubscriptionActive(db: Db, companyId: string): Promise<boolean> {
+  const config = await getPlanConfig(db, companyId);
+  return config !== null;
+}

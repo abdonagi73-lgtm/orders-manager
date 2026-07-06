@@ -1,24 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, companies, vendors } from '@/db/schema';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { encryptSession, decryptSession } from '@/lib/auth';
 import { rateLimit, getClientIp } from '@/lib/api/rateLimit';
+import { isSubscriptionActive } from '@/lib/subscription/gate';
 
-async function findUserByPin(pin: string, companyId?: string) {
-  // Scope to a specific company when possible — avoids scanning the entire users table
-  const conditions = companyId
-    ? and(eq(users.company_id, companyId), isNull(users.deleted_at))
-    : isNull(users.deleted_at);
+/**
+ * Find a user by password hash within an optional company/role scope.
+ * roleFilter narrows the candidate set so we only bcrypt-check relevant users.
+ */
+async function findUserByPin(
+  pin: string,
+  companyId?: string,
+  roleFilter?: string[]
+) {
+  const conditions: ReturnType<typeof eq>[] = [isNull(users.deleted_at) as any];
+  if (companyId) conditions.push(eq(users.company_id, companyId) as any);
+  if (roleFilter?.length) conditions.push(inArray(users.role, roleFilter) as any);
 
   const candidates = await db
     .select({ user: users, company: companies })
     .from(users)
     .innerJoin(companies, eq(users.company_id, companies.id))
-    .where(conditions);
+    .where(and(...conditions));
 
   for (const row of candidates) {
+    if (!row.user.pin_hash) continue;
     const match = await bcrypt.compare(pin, row.user.pin_hash);
     if (match) return row;
   }
@@ -28,7 +37,8 @@ async function findUserByPin(pin: string, companyId?: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    let companyId = req.headers.get('x-company-id');
+    const urlCompanyId = req.nextUrl.searchParams.get('companyId');
+    let companyId = urlCompanyId || req.headers.get('x-company-id');
     if (!companyId) {
       const token = req.cookies.get('session')?.value;
       if (token) {
@@ -53,10 +63,11 @@ export async function GET(req: NextRequest) {
         };
       }
     } else {
-      // Pre-login fallback: get the first active registered tenant in the system (excluding admin tenant)
+      // Pre-login fallback: only query the DB if there is exactly one active client company
       const companyList = await db.select().from(companies).where(eq(companies.status, 'active')).orderBy(desc(companies.id));
-      const activeClient = companyList.find(c => c.id !== 'system-admin-tenant');
-      if (activeClient) {
+      const activeClients = companyList.filter(c => c.id !== 'system-admin-tenant');
+      if (activeClients.length === 1) {
+        const activeClient = activeClients[0];
         company = {
           id: activeClient.id,
           name: activeClient.name,
@@ -91,13 +102,6 @@ export async function GET(req: NextRequest) {
       }, {} as Record<string, number>);
     }
 
-    // Settings config — these are defaults; per-company overrides come from the settings table
-    const settings = {
-      tax: 6,
-      markup: 3.5,
-      shipping: 6.10,
-    };
-
     // 4. Build user context from session cookie
     let userContext: { id: string; name: string; role: string } | null = null;
     const sessionToken = req.cookies.get('session')?.value;
@@ -108,7 +112,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ settings, registry, workers, managers, company: { name: company.name, logoUrl: company.logo_url }, user: userContext });
+    const active = companyId ? await isSubscriptionActive(db, companyId) : true;
+
+    return NextResponse.json({
+      registry,
+      workers,
+      managers,
+      company: { name: company.name, logoUrl: company.logo_url },
+      user: userContext,
+      subscriptionActive: active
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -126,8 +139,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
       }
 
+      if (!body.companyId) {
+        return NextResponse.json({ ok: false, error: 'Company identifier required.' }, { status: 400 });
+      }
+
       const password = body.password ?? body.pin; // backwards-compatible
-      const result = await findUserByPin(password, body.companyId);
+      const result = await findUserByPin(password, body.companyId, ['worker', 'admin', 'manager']);
       if (result && (result.user.role === 'worker' || result.user.role === 'admin' || result.user.role === 'manager')) {
         const { user, company } = result;
         const token = await encryptSession({
@@ -147,6 +164,7 @@ export async function POST(req: NextRequest) {
             name: user.name,
             companyName: company.name,
             logoUrl: company.logo_url,
+            companyId: company.id,
           },
         });
 
@@ -171,8 +189,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
       }
 
+      if (!body.companyId) {
+        return NextResponse.json({ ok: false, error: 'Company identifier required.' }, { status: 400 });
+      }
+
       const password = body.password ?? body.pin; // backwards-compatible
-      const result = await findUserByPin(password, body.companyId);
+      const result = await findUserByPin(password, body.companyId, ['admin', 'manager', 'owner', 'super_admin']);
       if (result && (result.user.role === 'admin' || result.user.role === 'owner' || result.user.role === 'manager' || result.user.role === 'super_admin')) {
         const { user, company } = result;
         const token = await encryptSession({
@@ -236,3 +258,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }
+

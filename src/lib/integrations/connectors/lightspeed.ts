@@ -63,10 +63,53 @@ export const lightspeedConnector: IntegrationConnector = {
   },
 
   async pushProducts(products: CanonicalProduct[], config: ConnectorConfig): Promise<SyncResult> {
+    const ls = asLightspeed(config);
     logger.info('Lightspeed pushProducts', { count: products.length });
+
+    let pushed = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const product of products) {
+      try {
+        const res = await fetch(`https://api.lightspeedapp.com/API/V3/Account/${ls.accountId}/Item.json`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ls.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            description: product.name,
+            Prices: {
+              ItemPrice: [
+                {
+                  amount: product.variants[0]?.price.toString() || '0.00',
+                  useType: 'Default'
+                }
+              ]
+            }
+          })
+        });
+
+        if (res.ok) {
+          pushed++;
+        } else {
+          failed++;
+          errors.push(`Lightspeed API returned status ${res.status} for "${product.name}"`);
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`Error pushing to Lightspeed: ${String(err)}`);
+      }
+    }
+
     return {
-      provider: 'lightspeed', pushed: 0, failed: 0, skipped: products.length,
-      errors: ['Live product sync coming in V2.'], syncedAt: new Date().toISOString(),
+      provider: 'lightspeed',
+      pushed,
+      failed,
+      skipped: 0,
+      errors: errors,
+      syncedAt: new Date().toISOString(),
     };
   },
 };

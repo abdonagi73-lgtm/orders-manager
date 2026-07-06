@@ -76,6 +76,7 @@ export default function UnifiedLoginPage() {
         } else if (data.selectWorkspace && data.workspaces) {
           setWorkspaces(data.workspaces); setMode("workspace"); setLoading(false);
         } else if (data.success && data.role) {
+          if (data.companyId) localStorage.setItem('flowxiq_selected_company_id', data.companyId);
           window.location.href = ROLE_DESTINATIONS[data.role] || "/field-fast";
         } else { setError("Login response unrecognized."); setLoading(false); }
       } else { setError(data.error || "Invalid credentials."); setLoading(false); }
@@ -91,6 +92,7 @@ export default function UnifiedLoginPage() {
         body: JSON.stringify({ loginInput, password, selectedUserId: ws.userId }) });
       const data = await res.json();
       if (res.ok && data.success && data.role) {
+        if (ws.companyId) localStorage.setItem('flowxiq_selected_company_id', ws.companyId);
         window.location.href = ROLE_DESTINATIONS[data.role] || "/field-fast";
       } else { setError(data.error || "Failed to switch workspace."); setLoading(false); }
     } catch { setError("Connection error."); setLoading(false); }

@@ -72,15 +72,55 @@ export const shopifyConnector: IntegrationConnector = {
 
   async pushProducts(products: CanonicalProduct[], config: ConnectorConfig): Promise<SyncResult> {
     const sh = asShopify(config);
+    const domain = sh.shopDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
     logger.info('Shopify pushProducts', { count: products.length, shop: sh.shopDomain });
 
-    // TODO: Implement Shopify Product API batch create/update in V2
+    let pushed = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const product of products) {
+      try {
+        const res = await fetch(`https://${domain}/admin/api/2024-01/products.json`, {
+          method: 'POST',
+          headers: {
+            'X-Shopify-Access-Token': sh.accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            product: {
+              title: product.name,
+              vendor: product.vendor,
+              product_type: product.category,
+              variants: product.variants.map(v => ({
+                option1: v.color || 'Regular',
+                option2: v.size || 'Regular',
+                price: v.price.toString(),
+                sku: v.sku || product.sku || '',
+              })),
+            }
+          })
+        });
+
+        if (res.ok) {
+          pushed++;
+        } else {
+          failed++;
+          const errData = await res.json().catch(() => ({}));
+          errors.push(`Failed to push "${product.name}": ${JSON.stringify(errData.errors || res.statusText)}`);
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`Error pushing "${product.name}": ${String(err)}`);
+      }
+    }
+
     return {
       provider: 'shopify',
-      pushed:   0,
-      failed:   0,
-      skipped:  products.length,
-      errors:   ['Live product sync coming in V2.'],
+      pushed,
+      failed,
+      skipped: 0,
+      errors: errors,
       syncedAt: new Date().toISOString(),
     };
   },

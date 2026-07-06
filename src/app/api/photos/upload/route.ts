@@ -9,6 +9,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { getSession } from '@/lib/serverAuth';
+import { db } from '@/db/db';
+import { companies, orderItems, orders } from '@/db/schema';
+import { eq, and, isNotNull } from 'drizzle-orm';
 
 // Max accepted base64 size (~800KB raw = ~600KB file)
 const MAX_B64_BYTES = 800 * 1024;
@@ -32,11 +35,35 @@ export async function POST(req: NextRequest) {
 
     // Strip the data URL prefix → get raw base64
     const base64 = photo.includes(',') ? photo.split(',')[1] : photo;
+    const buffer = Buffer.from(base64, 'base64');
+
+    // ── Enforce Storage Cap ──
+    const [companyInfo] = await db
+      .select({ maxStorageGb: companies.storage_limit_gb })
+      .from(companies)
+      .where(eq(companies.id, session.companyId))
+      .limit(1);
+
+    const itemsWithPhotos = await db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .innerJoin(orders, eq(orderItems.order_id, orders.id))
+      .where(and(
+        eq(orders.company_id, session.companyId),
+        isNotNull(orderItems.photo)
+      ));
+
+    const limitGb = companyInfo?.maxStorageGb ?? 5; // Default to 5GB
+    const limitBytes = limitGb * 1024 * 1024 * 1024;
+    const currentBytes = itemsWithPhotos.length * 500 * 1024; // Estimate 500KB per photo
+
+    if (currentBytes + buffer.length > limitBytes) {
+      return NextResponse.json({ error: 'Storage cap exceeded. Please upgrade your subscription plan.' }, { status: 413 });
+    }
     const mimeMatch = photo.match(/^data:([^;]+);/);
     const mime = mimeMatch?.[1] ?? 'image/jpeg';
 
     // Convert base64 → Buffer → Blob
-    const buffer = Buffer.from(base64, 'base64');
     const blob   = new Blob([buffer], { type: mime });
 
     // Filename: companyId/timestamp.jpg (namespaced per tenant)

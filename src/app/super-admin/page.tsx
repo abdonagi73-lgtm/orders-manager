@@ -73,8 +73,12 @@ interface AccessRequest {
 }
 
 type Tab =
-  | "dashboard"
+  | "priorities"
+  | "revenue"
   | "customers"
+  | "operations"
+  | "health"
+  | "dashboard"
   | "onboarding"
   | "requests"
   | "billing"
@@ -116,7 +120,7 @@ export default function HQPlatformOperations() {
   const router = useRouter();
 
   // Active Navigation Tab
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>("priorities");
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -146,6 +150,27 @@ export default function HQPlatformOperations() {
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [newPasscode, setNewPasscode] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
+
+  // --- HQ Operations States ---
+  const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
+  const [locationName, setLocationName] = useState("");
+  const [workerName, setWorkerName] = useState("");
+  const [workerPin, setWorkerPin] = useState("");
+  const [posType, setPosType] = useState("square");
+  const [upgradeRequests, setUpgradeRequests] = useState([
+    { companyId: "moda-group", companyName: "Moda Group Qatar", currentPlan: "starter", requestedPlan: "growth", requestedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
+    { companyId: "choices-for-you", companyName: "Choices For You", currentPlan: "growth", requestedPlan: "enterprise", requestedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() }
+  ]);
+  const handleProcessUpgrade = (companyId: string, action: "approve" | "reject") => {
+    setUpgradeRequests(prev => prev.filter(r => r.companyId !== companyId));
+    if (action === "approve") {
+      const req = upgradeRequests.find(r => r.companyId === companyId);
+      if (req) {
+        setCompanies(prev => prev.map(c => c.id === companyId ? { ...c, plan: req.requestedPlan } : c));
+        alert(`Successfully upgraded workspace ${companyId} to ${req.requestedPlan.toUpperCase()}`);
+      }
+    }
+  };
 
   // --- Onboarding Wizard States ---
   const [wizardStep, setWizardStep] = useState(1);
@@ -699,17 +724,11 @@ export default function HQPlatformOperations() {
 
   // Active navigation items for internal operations team
   const menuItems = [
-    { id: "dashboard", label: "Executive Dashboard", icon: BarChart3 },
-    { id: "customers", label: "Customer CRM", icon: Building },
-    { id: "onboarding", label: "Create Customer", icon: Plus },
-    { id: "requests", label: "Access Requests", icon: Inbox, badge: pendingRequestsCount },
-    { id: "billing", label: "Billing & Plans", icon: CreditCard },
-    { id: "support", label: "Support Tickets", icon: HelpCircle },
-    { id: "monitoring", label: "Live Monitoring", icon: Activity },
-    { id: "security", label: "Security Console", icon: Shield },
-    { id: "analytics", label: "Analytics Suite", icon: Layers },
-    { id: "storage", label: "Files & Storage", icon: HardDrive },
-    { id: "settings", label: "Platform Settings", icon: Settings },
+    { id: "priorities", label: "Priorities Queue", icon: AlertTriangle, badge: requests.filter(r => r.status === "pending").length + upgradeRequests.length },
+    { id: "revenue", label: "Revenue & Plans", icon: CreditCard },
+    { id: "customers", label: "CRM Registry", icon: Building },
+    { id: "operations", label: "Operations Timeline", icon: Activity },
+    { id: "health", label: "Telemetry & Health", icon: Shield },
   ];
 
   return (
@@ -778,1537 +797,279 @@ export default function HQPlatformOperations() {
         <main className="hq-main-content">
 
           {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: EXECUTIVE DASHBOARD */}
           {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "dashboard" && (
+          {/* TAB: PRIORITIES & DECISION QUEUE */}
+          {/* ──────────────────────────────────────────────────────── */}
+          {activeTab === "priorities" && (
             <div className="hq-flex-col" style={{ gap: "24px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
-                  <h2 className="text-xl font-bold text-white tracking-tight">Executive Dashboard</h2>
-                  <p className="text-xs text-[#8A9CB6]">Real-time operational summary across all SaaS systems.</p>
+                  <h2 className="text-xl font-bold text-white tracking-tight">Priorities & Decision Queue</h2>
+                  <p className="text-xs text-[#8A9CB6]">Actionable administrative controls and system interventions.</p>
                 </div>
                 <div className="bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-mono text-[10px] px-3 py-1 rounded-full uppercase tracking-wider font-bold">
                   🟢 SYSTEM ONLINE · UPTIME Stable
                 </div>
               </div>
 
-              {/* Advanced KPI Grid */}
-              <div className="hq-kpi-grid">
-                <div className="hq-card">
-                  <div className="kpi-label">TOTAL CUSTOMERS</div>
-                  <div className="kpi-val">{totalCustomersCount}</div>
-                  <div className="kpi-trend mt-1">▲ +8% vs prev</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">ACTIVE CLIENTS</div>
-                  <div className="kpi-val text-[#10B981]">{activeCustomersCount}</div>
-                  <div className="kpi-trend mt-1">100% active</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">TRIAL WORKSPACES</div>
-                  <div className="kpi-val text-[#F59E0B]">{trialCustomersCount}</div>
-                  <div className="kpi-trend mt-1">Active Trials</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">MONTHLY RECURRING REVENUE (MRR)</div>
-                  <div className="kpi-val">${totalEstimatedMRR.toLocaleString()}</div>
-                  <div className="kpi-trend mt-1">▲ +12.4% MoM</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">ANNUAL RECURRING REVENUE (ARR)</div>
-                  <div className="kpi-val">${(totalEstimatedMRR * 12).toLocaleString()}</div>
-                  <div className="kpi-trend mt-1">Estimated Annual</div>
-                </div>
-              </div>
-
-              <div className="hq-kpi-grid">
-                <div className="hq-card">
-                  <div className="kpi-label">PENDING ACCESS REQUESTS</div>
-                  <div className="kpi-val text-[#F59E0B]">{pendingRequestsCount}</div>
-                  <div className="kpi-trend mt-1 text-[#F59E0B]">{requests.length} total requests</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">CONVERSION RATE</div>
-                  <div className="kpi-val">84.2%</div>
-                  <div className="kpi-trend mt-1">High conversion</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">CHURN RATE</div>
-                  <div className="kpi-val text-[#EF4444]">0.0%</div>
-                  <div className="kpi-trend mt-1">Stable base</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">STORAGE CONSUMPTION</div>
-                  <div className="kpi-val text-[#3B82F6]">4.25 GB</div>
-                  <div className="kpi-trend mt-1">Quota limit: 500GB</div>
-                </div>
-                <div className="hq-card">
-                  <div className="kpi-label">PLATFORM HEALTH STATUS</div>
-                  <div className="kpi-val text-[#10B981]">99.98%</div>
-                  <div className="kpi-trend mt-1">Avg 124ms latency</div>
-                </div>
-              </div>
-
-              {/* Dashboard Layout Grid */}
-              <div className="hq-dashboard-grid">
-                {/* Operations Actions Panel */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Operations Quick Actions</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    <button onClick={() => setActiveTab("onboarding")} className="hq-action-btn">
-                      <span>Create New Customer Profile</span>
-                      <span style={{ color: "#3B82F6", fontWeight: "bold" }}>+</span>
-                    </button>
-                    <button onClick={() => setActiveTab("requests")} className="hq-action-btn">
-                      <span>Review Pending Access Requests</span>
-                      <span style={{ color: "#3B82F6", fontWeight: "bold" }}>&rarr;</span>
-                    </button>
-                    <button onClick={() => setActiveTab("support")} className="hq-action-btn">
-                      <span>Open Customer Support Center</span>
-                      <span style={{ color: "#3B82F6", fontWeight: "bold" }}>&rarr;</span>
-                    </button>
-                    <button onClick={() => setActiveTab("monitoring")} className="hq-action-btn">
-                      <span>Analyze Live System Status</span>
-                      <span style={{ color: "#3B82F6", fontWeight: "bold" }}>&rarr;</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Audit and Logs Feed */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Platform Audit Log</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    {auditLogs.map((log) => (
-                      <div key={log.id} className="hq-feed-item">
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span className="hq-feed-dot" style={{ background: log.status === "success" ? "#10B981" : "#EF4444" }} />
-                          <span className="font-bold text-white">{log.action}</span>
-                          <span className="text-[#8A9CB6]">by {log.user}</span>
-                        </div>
-                        <span className="text-[#4E6785]">{log.time}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── PLATFORM STATS SECTION ── */}
-              <div style={{ borderTop: "1px solid #16223F", paddingTop: "24px" }}>
-                {/* Section Header */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              {/* Maintenance mode alert */}
+              {maintenanceMode && (
+                <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <AlertTriangle className="w-5 h-5 text-[#EF4444] flex-shrink-0" />
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight" style={{ margin: 0 }}>
-                      📡 Live Platform Stats
-                    </h3>
-                    <p className="text-xs text-[#8A9CB6]" style={{ marginTop: 4 }}>
-                      Real-time cross-tenant metrics pulled directly from the database.
-                    </p>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    {platformStats?.generatedAt && (
-                      <span className="font-mono text-[10px] text-[#4E6785]" style={{ whiteSpace: "nowrap" }}>
-                        Generated at:{" "}
-                        {new Date(platformStats.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                      </span>
-                    )}
-                    <button
-                      onClick={loadPlatformStats}
-                      disabled={statsLoading}
-                      className="hq-refresh-btn font-mono"
-                      style={{ padding: "6px 14px", fontSize: 11 }}
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${statsLoading ? "animate-spin text-[#3B82F6]" : ""}`} />
-                      {statsLoading ? "LOADING…" : "REFRESH STATS"}
-                    </button>
+                    <div className="text-xs font-bold text-white">MAINTENANCE MODE IS ACTIVE</div>
+                    <div className="text-[10px] text-[#FCA5A5] mt-0.5">SaaS user portals are locked down. Customer writes are restricted.</div>
                   </div>
                 </div>
+              )}
 
-                {/* Error State */}
-                {statsError && (
-                  <div style={{
-                    background: "rgba(239,68,68,0.08)",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    marginBottom: 16,
-                    color: "#FCA5A5",
-                    fontFamily: "monospace",
-                    fontSize: 12
-                  }}>
-                    ⚠️ {statsError}
-                  </div>
-                )}
-
-                {/* Loading Skeleton */}
-                {statsLoading && !platformStats && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 16 }}>
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="hq-card" style={{ minHeight: 96, opacity: 0.4, animation: "pulse 1.5s ease-in-out infinite" }} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Stats Cards Grid */}
-                {platformStats && (
-                  <>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
-
-                      {/* Total Tenants — blue */}
-                      <div className="hq-card" style={{
-                        borderLeft: "3px solid #3B82F6",
-                        background: "linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(10,17,32,1) 100%)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div className="kpi-label" style={{ color: "#6FA3EF" }}>TOTAL TENANTS</div>
-                          <Building className="w-4 h-4" style={{ color: "#3B82F6", opacity: 0.7 }} />
-                        </div>
-                        <div className="kpi-val" style={{ color: "#3B82F6" }}>{platformStats.companies.total}</div>
-                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>All registered workspaces</div>
-                      </div>
-
-                      {/* Active Tenants — green */}
-                      <div className="hq-card" style={{
-                        borderLeft: "3px solid #10B981",
-                        background: "linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(10,17,32,1) 100%)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div className="kpi-label" style={{ color: "#5DDFB8" }}>ACTIVE TENANTS</div>
-                          <CheckCircle2 className="w-4 h-4" style={{ color: "#10B981", opacity: 0.7 }} />
-                        </div>
-                        <div className="kpi-val" style={{ color: "#10B981" }}>{platformStats.companies.active}</div>
-                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Currently live workspaces</div>
-                      </div>
-
-                      {/* Trial vs Paid Split — amber */}
-                      <div className="hq-card" style={{
-                        borderLeft: "3px solid #F59E0B",
-                        background: "linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(10,17,32,1) 100%)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div className="kpi-label" style={{ color: "#FBD38D" }}>TRIAL vs PAID</div>
-                          <AlertCircle className="w-4 h-4" style={{ color: "#F59E0B", opacity: 0.7 }} />
-                        </div>
-                        <div style={{ display: "flex", gap: 12, alignItems: "baseline", marginTop: 8 }}>
-                          <div>
-                            <span style={{ fontSize: 22, fontWeight: 800, color: "#F59E0B", fontFamily: "monospace" }}>
-                              {platformStats.companies.trial}
-                            </span>
-                            <span className="text-[#8A9CB6] text-[10px] font-mono ml-1">TRIAL</span>
-                          </div>
-                          <span style={{ color: "#4E6785", fontSize: 14 }}>/</span>
-                          <div>
-                            <span style={{ fontSize: 22, fontWeight: 800, color: "#10B981", fontFamily: "monospace" }}>
-                              {platformStats.companies.paid}
-                            </span>
-                            <span className="text-[#8A9CB6] text-[10px] font-mono ml-1">PAID</span>
-                          </div>
-                        </div>
-                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Subscription breakdown</div>
-                      </div>
-
-                      {/* Total Users — blue */}
-                      <div className="hq-card" style={{
-                        borderLeft: "3px solid #3B82F6",
-                        background: "linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(10,17,32,1) 100%)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div className="kpi-label" style={{ color: "#6FA3EF" }}>TOTAL USERS</div>
-                          <Users className="w-4 h-4" style={{ color: "#3B82F6", opacity: 0.7 }} />
-                        </div>
-                        <div className="kpi-val" style={{ color: "#3B82F6" }}>{platformStats.users.total}</div>
-                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Across all tenant accounts</div>
-                      </div>
-
-                      {/* Total Orders 30d — green */}
-                      <div className="hq-card" style={{
-                        borderLeft: "3px solid #10B981",
-                        background: "linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(10,17,32,1) 100%)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div className="kpi-label" style={{ color: "#5DDFB8" }}>ORDERS (LAST 30D)</div>
-                          <FileText className="w-4 h-4" style={{ color: "#10B981", opacity: 0.7 }} />
-                        </div>
-                        <div className="kpi-val" style={{ color: "#10B981" }}>{platformStats.orders.last30Days.toLocaleString()}</div>
-                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>
-                          {platformStats.orders.total.toLocaleString()} total all-time
-                        </div>
-                      </div>
-
-                      {/* Connected Integrations — green */}
-                      <div className="hq-card" style={{
-                        borderLeft: "3px solid #10B981",
-                        background: "linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(10,17,32,1) 100%)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div className="kpi-label" style={{ color: "#5DDFB8" }}>CONNECTED INTEGRATIONS</div>
-                          <Cpu className="w-4 h-4" style={{ color: "#10B981", opacity: 0.7 }} />
-                        </div>
-                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginTop: 8 }}>
-                          <span style={{ fontSize: 28, fontWeight: 800, color: "#10B981", fontFamily: "monospace" }}>
-                            {platformStats.integrations.connected}
-                          </span>
-                          <span style={{ color: "#4E6785", fontSize: 13, fontFamily: "monospace" }}>
-                            / {platformStats.integrations.total}
-                          </span>
-                        </div>
-                        <div className="kpi-trend" style={{ marginTop: 4, color: "#4E6785" }}>Active / total configured</div>
-                      </div>
-
+              {/* Two Column Layout */}
+              <div className="hq-dashboard-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "24px" }}>
+                
+                {/* Left: Decisions Queue */}
+                <div className="hq-flex-col" style={{ gap: "20px" }}>
+                  
+                  {/* Onboarding access request approvals */}
+                  <div className="hq-card hq-flex-col" style={{ gap: "16px", padding: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1E2E4F", paddingBottom: "10px" }}>
+                      <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Access Request Queue ({requests.filter(r => r.status === "pending").length})</h3>
+                      <button onClick={() => setActiveTab("customers")} className="text-[10px] font-mono text-[#64748B] hover:text-white uppercase bg-transparent border-none cursor-pointer">CRM Registry →</button>
                     </div>
 
-                    {/* Recent Activity Feed */}
-                    <div className="hq-card hq-flex-col" style={{ gap: 14 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <h4 className="text-xs font-bold uppercase tracking-wider font-mono" style={{ color: "#3B82F6", margin: 0 }}>
-                          Recent Cross-Tenant Activity
-                        </h4>
-                        <span className="font-mono text-[10px] text-[#4E6785]">
-                          Last 7 days · up to 20 events
-                        </span>
-                      </div>
-
-                      {platformStats.recentActivity.length === 0 ? (
-                        <div className="text-xs text-[#4E6785] font-mono text-center py-6">
-                          No audit events in the last 7 days.
-                        </div>
-                      ) : (
-                        <div className="hq-flex-col" style={{ gap: 8 }}>
-                          {platformStats.recentActivity.map((evt) => (
-                            <div key={evt.id} className="hq-feed-item">
-                              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                                <span className="hq-feed-dot" style={{ background: "#3B82F6", flexShrink: 0 }} />
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                    <span className="font-bold text-white text-xs" style={{ textTransform: "capitalize" }}>
-                                      {evt.action.replace(/_/g, " ")}
-                                    </span>
-                                    {evt.entity_type && (
-                                      <span style={{
-                                        background: "rgba(59,130,246,0.12)",
-                                        border: "1px solid rgba(59,130,246,0.25)",
-                                        color: "#93C5FD",
-                                        fontSize: 9,
-                                        fontFamily: "monospace",
-                                        padding: "1px 6px",
-                                        borderRadius: 4,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.05em"
-                                      }}>
-                                        {evt.entity_type}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-[#8A9CB6] font-mono" style={{ marginTop: 2 }}>
-                                    {evt.actor_name ?? "System"}
-                                    {evt.actor_role && <span className="text-[#4E6785]"> · {evt.actor_role}</span>}
-                                    {evt.company_id && <span className="text-[#4E6785]"> · {evt.company_id}</span>}
-                                  </div>
-                                </div>
-                              </div>
-                              <span className="text-[#4E6785] font-mono text-[10px]" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
-                                {new Date(evt.created_at).toLocaleString([], {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                })}
-                              </span>
+                    {requests.filter(r => r.status === "pending").length === 0 ? (
+                      <div className="text-center py-6 text-xs text-[#4E6785] font-mono">NO PENDING ACCESS REQUESTS</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {requests.filter(r => r.status === "pending").map((req) => (
+                          <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: "8px", padding: "12px 16px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <span className="text-xs font-bold text-white">{req.business_name}</span>
+                              <span className="text-[10px] text-[#8A9CB6] font-mono">{req.email} · {req.industry || "General"}</span>
+                              {req.notes && <span className="text-[10px] text-[#4E6785] italic font-mono mt-1">&quot;{req.notes}&quot;</span>}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* Empty state when not yet loaded and no error */}
-                {!platformStats && !statsLoading && !statsError && (
-                  <div style={{
-                    textAlign: "center",
-                    padding: "32px 16px",
-                    color: "#4E6785",
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    border: "1px dashed #16223F",
-                    borderRadius: 10
-                  }}>
-                    Click &quot;REFRESH STATS&quot; to load live platform metrics.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: CUSTOMERS CRM */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "customers" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <h2 className="text-xl font-bold text-white tracking-tight">Customer CRM Dashboard</h2>
-                  <p className="text-xs text-[#8A9CB6]">Directory of registered customer workspaces, subscriptions, and profile logs.</p>
-                </div>
-                <button onClick={() => setActiveTab("onboarding")} className="hq-refresh-btn font-mono" style={{ background: "#3B82F6", color: "#FFF", borderColor: "#3B82F6" }}>
-                  <Plus className="w-3.5 h-3.5" />
-                  CREATE CUSTOMER
-                </button>
-              </div>
-
-              {/* Filtering */}
-              <div className="flex gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#4E6785]" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by customer name, workspace URL, ID..."
-                    className="w-full bg-[#0E1A30] border border-[#1E2E4F] text-white rounded-lg py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-[#3B82F6]"
-                  />
-                </div>
-              </div>
-
-              {/* Workspace Catalog table */}
-              <div className="hq-card p-0 overflow-hidden">
-                <table className="hq-table">
-                  <thead>
-                    <tr>
-                      <th>Customer Workspace</th>
-                      <th>Workspace URL</th>
-                      <th>Industry</th>
-                      <th>Plan Type</th>
-                      <th>Status</th>
-                      <th>Renewal Date</th>
-                      <th>Action Control</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {companies
-                      .filter(c => c.id !== "system-admin-tenant")
-                      .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((c) => (
-                        <tr key={c.id} className="hover:bg-[#11213D] transition-all">
-                          <td>
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              <div style={{ width: 28, height: 28, background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={c.logo_url || "/logo-flowriq.png"} alt="" style={{ maxWidth: 20, maxHeight: 20, objectFit: "contain" }} />
-                              </div>
-                              <div>
-                                <div className="font-bold text-white">{c.name}</div>
-                                <div className="text-[10px] text-[#4E6785] font-mono">{c.id}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="font-mono text-xs text-[#3B82F6]">
-                            <a href="/app" target="_blank" rel="noopener noreferrer" className="hover:underline">
-                              {c.id}.flowxiq.com
-                            </a>
-                          </td>
-                          <td>{c.industry || "Retail"}</td>
-                          <td>
-                            <span className="text-[#3B82F6] font-bold text-xs uppercase font-mono">
-                              {c.plan || "growth"}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`hq-badge badge-${c.status}`}>
-                              {c.status}
-                            </span>
-                          </td>
-                          <td className="font-mono text-xs text-[#8A9CB6]">
-                            {c.trial_expiration ? c.trial_expiration : "July 28, 2026"}
-                          </td>
-                          <td>
                             <div style={{ display: "flex", gap: "8px" }}>
                               <button
-                                onClick={() => setSelectedCustomer(c)}
-                                className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-[#FFFFFF] py-1 px-2.5 rounded text-[10px] font-mono transition-all"
+                                onClick={() => handleRequestAction(req.id, "approved")}
+                                disabled={actionLoading === req.id + "approved"}
+                                className="bg-[#10B981]/15 text-[#10B981] hover:bg-[#10B981]/30 border border-[#10B981]/30 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer"
                               >
-                                View Workspace
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Customer Profile detail modal */}
-              {selectedCustomer && (
-                <div className="hq-card flex flex-col gap-6 border-t-4 border-[#3B82F6] relative">
-                  <button
-                    onClick={() => setSelectedCustomer(null)}
-                    className="absolute right-4 top-4 text-[#4E6785] hover:text-white text-lg"
-                  >
-                    &times;
-                  </button>
-
-                  <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                    <div style={{ width: 44, height: 44, background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={selectedCustomer.logo_url || "/logo-flowriq.png"} alt="" style={{ maxWidth: 32, maxHeight: 32, objectFit: "contain" }} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-white text-lg leading-none">{selectedCustomer.name} Workspace Profile</h3>
-                      <p className="text-xs text-[#8A9CB6] mt-1 font-mono">{selectedCustomer.id} · Created June 15, 2026</p>
-                    </div>
-                  </div>
-
-                  {/* Customer Lifecycle Visualization */}
-                  <div className="hq-flex-col" style={{ gap: "12px" }}>
-                    <span className="text-[10px] font-bold font-mono tracking-widest text-[#4E6785] uppercase">Customer Lifecycle Path</span>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0B1426", padding: "16px 20px", borderRadius: 12, border: "1px solid #1E2E4F", overflowX: "auto", gap: "12px" }}>
-                      {LIFECYCLE_STAGES.map((s, idx) => {
-                        // Determine status logic mapping
-                        let active = false;
-                        if (selectedCustomer.status === "suspended" && s.stage === "suspended") active = true;
-                        else if (selectedCustomer.status === "active" && selectedCustomer.plan === "trial" && s.stage === "trial") active = true;
-                        else if (selectedCustomer.status === "active" && selectedCustomer.plan !== "trial" && s.stage === "paying") active = true;
-                        else if (idx < 7) active = true; // Simulating lead, request, demo, approved, created, invited, activated completed for active customers
-
-                        return (
-                          <div key={idx} style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                              <div style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: "50%",
-                                background: active ? "#3B82F6" : "#080C14",
-                                border: `2px solid ${active ? "#3B82F6" : "#1E2E4F"}`,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 9,
-                                fontWeight: "bold",
-                                color: active ? "#FFF" : "#4E6785"
-                              }}>
-                                {active ? "✓" : idx + 1}
-                              </div>
-                              <span style={{ fontSize: 9, fontFamily: "monospace", color: active ? "#FFF" : "#4E6785", textTransform: "uppercase" }}>
-                                {s.label}
-                              </span>
-                            </div>
-                            {idx < LIFECYCLE_STAGES.length - 1 && (
-                              <ChevronRight className="w-4 h-4" style={{ color: active ? "#3B82F6" : "#16223F" }} />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Operational Settings details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="p-4 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[10px] font-mono text-[#4E6785]">SUBSCRIPTION CONFIG</span>
-                      <div className="text-white font-bold mt-1 text-sm uppercase">{selectedCustomer.plan || "growth"} PLAN</div>
-                      <div className="text-[#3B82F6] font-mono text-[10px] mt-1">{selectedCustomer.billing_cycle || "monthly"} cycle</div>
-                    </div>
-                    <div className="p-4 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[10px] font-mono text-[#4E6785]">PLATFORM ALLOCATION</span>
-                      <div className="text-white font-bold mt-1 text-sm">{selectedCustomer.max_users || 10} Users Max</div>
-                      <div className="text-[#8A9CB6] font-mono text-[10px] mt-1">{selectedCustomer.max_workers || 50} Workers quota</div>
-                    </div>
-                    <div className="p-4 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[10px] font-mono text-[#4E6785]">STORAGE CONSUMPTION</span>
-                      <div className="text-white font-bold mt-1 text-sm">1.42 GB / {selectedCustomer.storage_limit_gb || 10} GB</div>
-                      <div className="text-[#10B981] font-mono text-[10px] mt-1">Cleanup status stable</div>
-                    </div>
-                    <div className="p-4 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[10px] font-mono text-[#4E6785]">PRIMARY OWNER</span>
-                      <div className="text-white font-bold mt-1 text-sm">{selectedCustomer.owner_name || "John Doe"}</div>
-                      <div className="text-[#8A9CB6] font-mono text-[10px] mt-1">{selectedCustomer.email || "owner@company.com"}</div>
-                    </div>
-                  </div>
-
-                  {/* ── Credentials Manager ── */}
-                  <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' }}>
-                    {/* Header row */}
-                    <div
-                      onClick={() => {
-                        const next = !showCredentials;
-                        setShowCredentials(next);
-                        if (next && !ownerCredentials) fetchOwnerCredentials(selectedCustomer.id);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', userSelect: 'none' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <KeyRound className="w-4 h-4" style={{ color: '#F59E0B' }} />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0', letterSpacing: '.04em' }}>LOGIN CREDENTIALS</span>
-                        <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.12)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 8px', fontWeight: 600 }}>OWNER ACCESS</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4" style={{ color: '#475569', transform: showCredentials ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }} />
-                    </div>
-
-                    {/* Expanded content */}
-                    {showCredentials && (
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-                        {credentialsLoading && (
-                          <div style={{ textAlign: 'center', color: '#475569', fontSize: 13 }}>Loading credentials...</div>
-                        )}
-
-                        {!credentialsLoading && ownerCredentials && (
-                          <>
-                            {/* Login fields display */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Login URL</div>
-                                <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#3B82F6' }}>flowriq.vercel.app/app</div>
-                              </div>
-                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Owner Name</div>
-                                <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#E2E8F0' }}>{ownerCredentials.name}</div>
-                              </div>
-                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Email (Username)</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#E2E8F0' }}>{ownerCredentials.email}</span>
-                                  <button onClick={() => navigator.clipboard.writeText(ownerCredentials.email)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 10 }} title="Copy">⧉</button>
-                                </div>
-                              </div>
-                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Password</div>
-                                <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#64748B', fontStyle: 'italic' }}>•••••••• (hashed — cannot read)</div>
-                              </div>
-                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>Account Status</div>
-                                <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: ownerCredentials.is_activated ? '#34D399' : '#F59E0B', background: ownerCredentials.is_activated ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${ownerCredentials.is_activated ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius: 5, padding: '3px 9px' }}>
-                                  {ownerCredentials.is_activated ? '✓ ACTIVATED — Has set password' : '⏳ PENDING — Must activate with code'}
-                                </span>
-                              </div>
-                              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 6 }}>User ID</div>
-                                <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B' }}>{ownerCredentials.userId}</div>
-                              </div>
-                            </div>
-
-                            {/* New passcode display (after reset) */}
-                            {newPasscode && (
-                              <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '.08em' }}>🔐 New Access Code — Share this with the owner:</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 800, letterSpacing: '.25em', color: '#34D399', background: 'rgba(16,185,129,0.1)', border: '1px dashed rgba(16,185,129,0.3)', borderRadius: 8, padding: '10px 20px' }}>{newPasscode}</span>
-                                  <button onClick={() => navigator.clipboard.writeText(newPasscode)} style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#34D399', borderRadius: 7, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
-                                </div>
-                                <div style={{ fontSize: 11, color: '#64748B' }}>They go to <strong style={{ color: '#94A3B8' }}>flowriq.vercel.app/app</strong> → enter their email + this code → set a new password.</div>
-                              </div>
-                            )}
-
-                            {/* Actions */}
-                            <div style={{ display: 'flex', gap: 10 }}>
-                              <button
-                                onClick={() => resetOwnerPasscode(ownerCredentials.userId)}
-                                disabled={resetLoading}
-                                style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#FCD34D', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: resetLoading ? 'not-allowed' : 'pointer', opacity: resetLoading ? 0.6 : 1 }}
-                              >
-                                <KeyRound className="w-3 h-3" />
-                                {resetLoading ? 'Generating...' : 'Generate New Access Code'}
+                                Approve
                               </button>
                               <button
-                                onClick={() => navigator.clipboard.writeText(`Login URL: flowriq.vercel.app/app\nEmail: ${ownerCredentials.email}${newPasscode ? `\nAccess Code: ${newPasscode}` : ''}`)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748B', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                onClick={() => handleRequestAction(req.id, "rejected")}
+                                disabled={actionLoading === req.id + "rejected"}
+                                className="bg-[#EF4444]/15 text-[#EF4444] hover:bg-[#EF4444]/30 border border-[#EF4444]/30 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer"
                               >
-                                Copy Login Info
+                                Decline
                               </button>
                             </div>
-                          </>
-                        )}
-
-                        {!credentialsLoading && !ownerCredentials && (
-                          <div style={{ textAlign: 'center', color: '#475569', fontSize: 13 }}>No owner account found for this workspace.</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Customer Management Actions */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10 }}>
-
-                    {/* Edit Button */}
-                    <button
-                      onClick={() => {
-                        setEditingCustomer(!editingCustomer);
-                        setEditFields({
-                          name: selectedCustomer.name,
-                          status: selectedCustomer.status,
-                          plan: selectedCustomer.plan || 'growth',
-                          billing_cycle: selectedCustomer.billing_cycle || 'monthly',
-                          industry: selectedCustomer.industry || '',
-                          business_type: selectedCustomer.business_type || '',
-                          country: selectedCustomer.country || '',
-                          state_province: selectedCustomer.state_province || '',
-                          city: selectedCustomer.city || '',
-                          timezone: selectedCustomer.timezone || '',
-                          currency: selectedCustomer.currency || 'USD',
-                          language: selectedCustomer.language || '',
-                          website: selectedCustomer.website || '',
-                          phone: selectedCustomer.phone || '',
-                          email: selectedCustomer.email || '',
-                          tax_id: selectedCustomer.tax_id || '',
-                          owner_name: selectedCustomer.owner_name || '',
-                          owner_phone: selectedCustomer.owner_phone || '',
-                          max_users: selectedCustomer.max_users ?? 10,
-                          max_workers: selectedCustomer.max_workers ?? 50,
-                          storage_limit_gb: selectedCustomer.storage_limit_gb ?? 10,
-                          trial_expiration: selectedCustomer.trial_expiration || '',
-                        });
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)', background: editingCustomer ? 'rgba(59,130,246,0.16)' : 'rgba(59,130,246,0.08)', color: '#60A5FA', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
-                    >
-                      <Edit2 className="w-3 h-3" /> {editingCustomer ? 'CLOSE EDITOR' : 'EDIT WORKSPACE'}
-                    </button>
-
-                    {/* Suspend / Activate */}
-                    <button
-                      onClick={() => handleToggleCustomerStatus(selectedCustomer.id, selectedCustomer.status)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: selectedCustomer.status === 'active' ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(16,185,129,0.25)', background: selectedCustomer.status === 'active' ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)', color: selectedCustomer.status === 'active' ? '#F87171' : '#34D399', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
-                    >
-                      {selectedCustomer.status === 'active' ? <Ban className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                      {selectedCustomer.status === 'active' ? 'SUSPEND' : 'REACTIVATE'}
-                    </button>
-
-                    {/* Delete — destructive, far right */}
-                    <button
-                      onClick={() => handleDeleteCustomer(selectedCustomer.id)}
-                      disabled={deletingCustomer}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#F87171', fontSize: 12, fontWeight: 600, cursor: deletingCustomer ? 'not-allowed' : 'pointer', transition: 'all .15s', marginLeft: 'auto', opacity: deletingCustomer ? 0.5 : 1 }}
-                    >
-                      <Trash2 className="w-3 h-3" /> {deletingCustomer ? 'DELETING...' : 'DELETE WORKSPACE'}
-                    </button>
-                  </div>
-
-                  {/* Full Edit Form */}
-                  {editingCustomer && (
-                    <div style={{ background: 'rgba(59,130,246,0.03)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 14, padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                      {/* Section: Identity */}
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#3B82F6', marginBottom: 14 }}>Company Identity</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                          {[['Company Name', 'name', 'text'], ['Industry', 'industry', 'text'], ['Business Type', 'business_type', 'text']].map(([label, key, type]) => (
-                            <div key={key}>
-                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
-                              <input type={type} value={(editFields as any)[key] || ''} onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Section: Subscription */}
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8B5CF6', marginBottom: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>Subscription</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Plan</label>
-                            <select value={editFields.plan || 'growth'} onChange={e => setEditFields(f => ({ ...f, plan: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-                              <option value="starter">Starter — $99/mo</option>
-                              <option value="growth">Growth — $249/mo</option>
-                              <option value="enterprise">Enterprise — $599/mo</option>
-                            </select>
                           </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Billing Cycle</label>
-                            <select value={(editFields as any).billing_cycle || 'monthly'} onChange={e => setEditFields(f => ({ ...f, billing_cycle: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-                              <option value="monthly">Monthly</option>
-                              <option value="annual">Annual</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Status</label>
-                            <select value={editFields.status || 'active'} onChange={e => setEditFields(f => ({ ...f, status: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-                              <option value="active">Active</option>
-                              <option value="suspended">Suspended</option>
-                              <option value="pending">Pending</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Trial Expiry</label>
-                            <input type="text" placeholder="e.g. July 28, 2026" value={(editFields as any).trial_expiration || ''} onChange={e => setEditFields(f => ({ ...f, trial_expiration: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                          </div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
-                          {[['Max Users', 'max_users', 'number'], ['Max Workers', 'max_workers', 'number'], ['Storage (GB)', 'storage_limit_gb', 'number']].map(([label, key, type]) => (
-                            <div key={key}>
-                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
-                              <input type={type} value={(editFields as any)[key] ?? ''} onChange={e => setEditFields(f => ({ ...f, [key]: Number(e.target.value) }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Section: Location */}
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#10B981', marginBottom: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>Location &amp; Localization</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                          {[['Country', 'country', 'text'], ['State / Province', 'state_province', 'text'], ['City', 'city', 'text']].map(([label, key, type]) => (
-                            <div key={key}>
-                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
-                              <input type={type} value={(editFields as any)[key] || ''} onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Currency</label>
-                            <select value={(editFields as any).currency || 'USD'} onChange={e => setEditFields(f => ({ ...f, currency: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-                              <option value="USD">USD ($)</option><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option>
-                              <option value="CAD">CAD ($)</option><option value="AED">AED (د.إ)</option><option value="QAR">QAR (﷼)</option>
-                              <option value="SAR">SAR (﷼)</option><option value="TRY">TRY (₺)</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Language</label>
-                            <select value={(editFields as any).language || 'English'} onChange={e => setEditFields(f => ({ ...f, language: e.target.value }))} style={{ width: '100%', background: '#0D1626', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-                              <option>English</option><option>Arabic</option><option>French</option><option>Spanish</option><option>Turkish</option><option>German</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Timezone</label>
-                            <input type="text" value={(editFields as any).timezone || ''} onChange={e => setEditFields(f => ({ ...f, timezone: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Section: Contact & Owner */}
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F59E0B', marginBottom: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>Contact &amp; Owner Details</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                          {[['Business Website', 'website', 'text'], ['Business Phone', 'phone', 'text'], ['Business Email', 'email', 'email'], ['Tax ID / Registration', 'tax_id', 'text'], ['Owner Name', 'owner_name', 'text'], ['Owner Phone', 'owner_phone', 'text']].map(([label, key, type]) => (
-                            <div key={key}>
-                              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#475569', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
-                              <input type={type} value={(editFields as any)[key] || ''} onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Save / Cancel */}
-                      <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-                        <button onClick={handleSaveEdit} disabled={actionLoading === 'edit'} style={{ flex: 1, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', color: '#fff', border: 'none', borderRadius: 9, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(59,130,246,0.3)' }}>
-                          {actionLoading === 'edit' ? 'Saving...' : '✓ Save All Changes'}
-                        </button>
-                        <button onClick={() => { setEditingCustomer(false); setEditFields({}); }} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.04)', color: '#64748B', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: ONBOARDING WIZARD */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "onboarding" && (
-            <div className="hq-flex-col" style={{ gap: "24px", maxWidth: 880 }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Create New Customer Profile</h2>
-                <p className="text-xs text-[#8A9CB6]">Multi-step onboarding wizard to register customer workspaces and administrators.</p>
-              </div>
-
-              {/* Wizard Steps indicator */}
-              <div style={{ display: "flex", gap: "6px", width: "100%" }}>
-                {[
-                  { step: 1, label: "Company Info" },
-                  { step: 2, label: "Subscription" },
-                  { step: 3, label: "Owner Profile" },
-                  { step: 4, label: "Confirmation" }
-                ].map((s) => (
-                  <div key={s.step} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "7px" }}>
-                    <div style={{
-                      height: 3,
-                      background: wizardStep > s.step ? "#10B981" : wizardStep === s.step ? "#3B82F6" : "rgba(255,255,255,0.07)",
-                      borderRadius: 2,
-                      boxShadow: wizardStep === s.step ? "0 0 8px rgba(59,130,246,0.5)" : "none",
-                    }} />
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: wizardStep === s.step ? 700 : 500,
-                      color: wizardStep > s.step ? "#34D399" : wizardStep === s.step ? "#E2E8F0" : "#475569",
-                      letterSpacing: ".01em",
-                    }}>
-                      {wizardStep > s.step ? "✓ " : ""}{s.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="hq-card">
-                {/* STEP 1: Company details — 2-column premium layout */}
-                {wizardStep === 1 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    {/* 2-col grid: left = identity, right = location */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
-
-                      {/* LEFT: Company Identity */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#334155", paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                          Company Identity
-                        </div>
-
-                        <div className="sa-form-group">
-                          <label className="sa-label">Company / Brand Name *</label>
-                          <input
-                            type="text"
-                            required
-                            value={bizName}
-                            onChange={(e) => setBizName(e.target.value)}
-                            placeholder="e.g. Vogue Apparel Direct"
-                            className="sa-input"
-                          />
-                        </div>
-
-                        {/* Drag-and-drop logo upload */}
-                        <div className="sa-form-group">
-                          <label className="sa-label">Company Logo</label>
-                          <div
-                            onClick={() => document.getElementById('logo-upload-input')?.click()}
-                            onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor = '#3B82F6'; }}
-                            onDragLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
-                              const file = e.dataTransfer.files[0];
-                              if (file && file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => setBizLogo(ev.target?.result as string);
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            style={{
-                              border: "2px dashed rgba(255,255,255,0.08)",
-                              borderRadius: 10,
-                              padding: "20px 16px",
-                              textAlign: "center",
-                              cursor: "pointer",
-                              transition: "border-color .2s",
-                              background: "rgba(255,255,255,0.02)",
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            {bizLogo ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img src={bizLogo} alt="logo preview" style={{ maxHeight: 48, maxWidth: 120, objectFit: "contain", borderRadius: 6 }} />
-                            ) : (
-                              <>
-                                <div style={{ fontSize: 22 }}>🏷️</div>
-                                <div style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>Drop logo here or click to upload</div>
-                                <div style={{ fontSize: 11, color: "#334155" }}>PNG, JPG, SVG · Max 2MB</div>
-                              </>
-                            )}
-                            <input
-                              id="logo-upload-input"
-                              type="file"
-                              accept="image/*"
-                              style={{ display: "none" }}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (ev) => setBizLogo(ev.target?.result as string);
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                            />
-                          </div>
-                          {bizLogo && (
-                            <button type="button" onClick={() => setBizLogo('')} style={{ fontSize: 11, color: "#475569", background: "none", border: "none", cursor: "pointer", marginTop: 4 }}>✕ Remove logo</button>
-                          )}
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                          <div className="sa-form-group">
-                            <label className="sa-label">Industry</label>
-                            <select value={bizIndustry} onChange={(e) => setBizIndustry(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
-                              <option value="Retail">Retail</option>
-                              <option value="Wholesale">Wholesale</option>
-                              <option value="Logistics">Logistics</option>
-                              <option value="Manufacturing">Manufacturing</option>
-                              <option value="E-commerce">E-commerce</option>
-                              <option value="Food & Beverage">Food &amp; Beverage</option>
-                              <option value="Healthcare">Healthcare</option>
-                              <option value="Technology">Technology</option>
-                            </select>
-                          </div>
-                          <div className="sa-form-group">
-                            <label className="sa-label">Business Type</label>
-                            <input type="text" value={bizType} onChange={(e) => setBizType(e.target.value)} placeholder="e.g. Clothing &amp; Shoes" className="sa-input" />
-                          </div>
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                          <div className="sa-form-group">
-                            <label className="sa-label">Business Phone</label>
-                            <input type="text" value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="sa-input" />
-                          </div>
-                          <div className="sa-form-group">
-                            <label className="sa-label">Business Email</label>
-                            <input type="email" value={bizEmail} onChange={(e) => setBizEmail(e.target.value)} placeholder="hello@company.com" className="sa-input" />
-                          </div>
-                        </div>
-
-                        <div className="sa-form-group">
-                          <label className="sa-label">Website</label>
-                          <input type="text" value={bizWebsite} onChange={(e) => setBizWebsite(e.target.value)} placeholder="https://company.com" className="sa-input" />
-                        </div>
-
-                        <div className="sa-form-group">
-                          <label className="sa-label">Tax ID / Registration (optional)</label>
-                          <input type="text" value={bizTaxId} onChange={(e) => setBizTaxId(e.target.value)} placeholder="e.g. EIN 12-3456789" className="sa-input" />
-                        </div>
-                      </div>
-
-                      {/* RIGHT: Location & Localization */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#334155", paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                          Location &amp; Localization
-                        </div>
-
-                        <div className="sa-form-group">
-                          <label className="sa-label">Country</label>
-                          <input type="text" value={bizCountry} onChange={(e) => setBizCountry(e.target.value)} placeholder="United States" className="sa-input" />
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                          <div className="sa-form-group">
-                            <label className="sa-label">State / Province</label>
-                            <input type="text" value={bizState} onChange={(e) => setBizState(e.target.value)} placeholder="e.g. New York" className="sa-input" />
-                          </div>
-                          <div className="sa-form-group">
-                            <label className="sa-label">City</label>
-                            <input type="text" value={bizCity} onChange={(e) => setBizCity(e.target.value)} placeholder="e.g. New York City" className="sa-input" />
-                          </div>
-                        </div>
-
-                        <div className="sa-form-group">
-                          <label className="sa-label">Time Zone</label>
-                          <select value={bizTimezone} onChange={(e) => setBizTimezone(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
-                            <option value="America/New_York">America/New_York (ET)</option>
-                            <option value="America/Chicago">America/Chicago (CT)</option>
-                            <option value="America/Denver">America/Denver (MT)</option>
-                            <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
-                            <option value="America/Anchorage">America/Anchorage (AK)</option>
-                            <option value="Pacific/Honolulu">Pacific/Honolulu (HI)</option>
-                            <option value="Europe/London">Europe/London (GMT)</option>
-                            <option value="Europe/Paris">Europe/Paris (CET)</option>
-                            <option value="Europe/Istanbul">Europe/Istanbul (TRT)</option>
-                            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
-                            <option value="Asia/Riyadh">Asia/Riyadh (AST)</option>
-                            <option value="Asia/Qatar">Asia/Qatar (AST)</option>
-                            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-                            <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
-                          </select>
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                          <div className="sa-form-group">
-                            <label className="sa-label">Currency</label>
-                            <select value={bizCurrency} onChange={(e) => setBizCurrency(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
-                              <option value="USD">USD ($)</option>
-                              <option value="EUR">EUR (€)</option>
-                              <option value="GBP">GBP (£)</option>
-                              <option value="CAD">CAD ($)</option>
-                              <option value="AUD">AUD ($)</option>
-                              <option value="AED">AED (د.إ)</option>
-                              <option value="QAR">QAR (﷼)</option>
-                              <option value="SAR">SAR (﷼)</option>
-                              <option value="TRY">TRY (₺)</option>
-                            </select>
-                          </div>
-                          <div className="sa-form-group">
-                            <label className="sa-label">Language</label>
-                            <select value={bizLanguage} onChange={(e) => setBizLanguage(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none" style={{ width: "100%" }}>
-                              <option value="English">English</option>
-                              <option value="Arabic">Arabic</option>
-                              <option value="French">French</option>
-                              <option value="Spanish">Spanish</option>
-                              <option value="Turkish">Turkish</option>
-                              <option value="German">German</option>
-                              <option value="Portuguese">Portuguese</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Live Preview Card */}
-                        <div style={{
-                          marginTop: 8,
-                          background: "rgba(59,130,246,0.06)",
-                          border: "1px solid rgba(59,130,246,0.15)",
-                          borderRadius: 10,
-                          padding: "14px 16px",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 6,
-                        }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: "#3B82F6", letterSpacing: ".08em", textTransform: "uppercase" }}>Workspace Preview</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>{bizName || "Company Name"}</div>
-                          <div style={{ fontSize: 11, color: "#64748B" }}>
-                            {bizCountry || "United States"} · {bizCurrency} · {bizLanguage}
-                          </div>
-                          <div style={{ fontSize: 11, color: "#475569", fontFamily: "monospace" }}>
-                            ID: {(bizName || "company").toLowerCase().replace(/[^a-z0-9]+/g, "-")}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={!bizName}
-                      onClick={() => setWizardStep(2)}
-                      style={{
-                        width: "100%",
-                        background: bizName ? "linear-gradient(135deg, #1D4ED8, #3B82F6)" : "rgba(59,130,246,0.2)",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 10,
-                        padding: "13px",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        cursor: bizName ? "pointer" : "not-allowed",
-                        transition: "all .2s",
-                        marginTop: 8,
-                        boxShadow: bizName ? "0 4px 16px rgba(59,130,246,0.3)" : "none",
-                        letterSpacing: ".02em",
-                      }}
-                    >
-                      Next: Configure Subscription →
-                    </button>
-                  </div>
-                )}
-
-                {/* STEP 2: Subscription configuration */}
-                {wizardStep === 2 && (
-                  <div className="hq-flex-col" style={{ gap: "16px" }}>
-                    <div className="grid grid-cols-3 gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setSubPlan("starter")}
-                        className={`p-4 border rounded-lg text-center transition-all ${
-                          subPlan === "starter"
-                            ? "bg-blue-950/20 border-[#3B82F6] text-white"
-                            : "bg-[#080C14] border-[#1E2E4F] text-[#4E6785]"
-                        }`}
-                      >
-                        <div className="font-bold text-sm">Starter</div>
-                        <div className="font-mono text-xs mt-1">$99 / mo</div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setSubPlan("growth")}
-                        className={`p-4 border rounded-lg text-center transition-all ${
-                          subPlan === "growth"
-                            ? "bg-blue-950/20 border-[#3B82F6] text-white"
-                            : "bg-[#080C14] border-[#1E2E4F] text-[#4E6785]"
-                        }`}
-                      >
-                        <div className="font-bold text-sm">Growth</div>
-                        <div className="font-mono text-xs mt-1">$249 / mo</div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setSubPlan("enterprise")}
-                        className={`p-4 border rounded-lg text-center transition-all ${
-                          subPlan === "enterprise"
-                            ? "bg-blue-950/20 border-[#3B82F6] text-white"
-                            : "bg-[#080C14] border-[#1E2E4F] text-[#4E6785]"
-                        }`}
-                      >
-                        <div className="font-bold text-sm">Enterprise</div>
-                        <div className="font-mono text-xs mt-1">$599 / mo</div>
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="sa-form-group">
-                        <label className="sa-label">Pricing Type</label>
-                        <select value={subType} onChange={(e) => setSubType(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none">
-                          <option value="trial">Trial Period</option>
-                          <option value="paid">Immediate Paid Tier</option>
-                        </select>
-                      </div>
-
-                      <div className="sa-form-group">
-                        <label className="sa-label">Billing Cycle</label>
-                        <select value={subCycle} onChange={(e) => setSubCycle(e.target.value)} className="sa-select bg-[#080C14] border border-[#1A2F50] text-[#F0F4FF] rounded-lg p-2.5 text-xs outline-none">
-                          <option value="monthly">Monthly billing</option>
-                          <option value="annual">Annual billing</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {subType === "trial" && (
-                      <div className="sa-form-group">
-                        <label className="sa-label">Trial Expiration Date *</label>
-                        <input
-                          type="date"
-                          value={subTrialExpiration}
-                          onChange={(e) => setSubTrialExpiration(e.target.value)}
-                          className="sa-input text-center font-mono"
-                        />
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="sa-form-group">
-                        <label className="sa-label">Max Active Users</label>
-                        <input type="number" value={subMaxUsers} onChange={(e) => setSubMaxUsers(e.target.value)} className="sa-input text-center" />
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">Max Workers</label>
-                        <input type="number" value={subMaxWorkers} onChange={(e) => setSubMaxWorkers(e.target.value)} className="sa-input text-center" />
-                      </div>
-                      <div className="sa-form-group">
-                        <label className="sa-label">Storage Limit (GB)</label>
-                        <input type="number" value={subStorageLimit} onChange={(e) => setSubStorageLimit(e.target.value)} className="sa-input text-center" />
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "20px", alignItems: "center", padding: "10px 0" }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: 11, fontFamily: "monospace", color: "#8A9CB6" }}>
-                        <input
-                          type="checkbox"
-                          checked={subAiFeatures}
-                          onChange={(e) => setSubAiFeatures(e.target.checked)}
-                          style={{ accentColor: "#3B82F6" }}
-                        />
-                        ENABLE AI FLUX ENGINE FEATURES
-                      </label>
-                    </div>
-
-                    <div className="sa-form-group">
-                      <label className="sa-label">Active Integrations Checkboxes</label>
-                      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginTop: 6 }}>
-                        {["Square", "Shopify", "QuickBooks Online", "Stripe Billing"].map((i) => (
-                          <label key={i} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: 10, fontFamily: "monospace", color: "#E0E6ED" }}>
-                            <input
-                              type="checkbox"
-                              checked={subIntegrations.includes(i)}
-                              onChange={(e) => {
-                                if (e.target.checked) setSubIntegrations([...subIntegrations, i]);
-                                else setSubIntegrations(subIntegrations.filter(x => x !== i));
-                              }}
-                              style={{ accentColor: "#3B82F6" }}
-                            />
-                            {i}
-                          </label>
                         ))}
                       </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-                      <button
-                        type="button"
-                        onClick={() => setWizardStep(1)}
-                        className="flex-1 border border-[#1E2E4F] hover:border-white text-white py-3 rounded-lg text-xs font-bold uppercase transition-all"
-                      >
-                        Back
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setWizardStep(3)}
-                        className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white py-3 rounded-lg text-xs font-bold uppercase transition-all"
-                      >
-                        Next: Owner Profile &rarr;
-                      </button>
-                    </div>
+                    )}
                   </div>
-                )}
 
-                {/* STEP 3: Owner Account */}
-                {wizardStep === 3 && (
-                  <div className="hq-flex-col" style={{ gap: "16px" }}>
-                    <div className="sa-form-group">
-                      <label className="sa-label">Administrator Owner Name *</label>
-                      <input
-                        type="text"
-                        value={ownerName}
-                        onChange={(e) => setOwnerName(e.target.value)}
-                        placeholder="e.g. John Doe"
-                        className="sa-input"
-                      />
+                  {/* Manual Billing Upgrade Request Approvals */}
+                  <div className="hq-card hq-flex-col" style={{ gap: "16px", padding: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1E2E4F", paddingBottom: "10px" }}>
+                      <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Subscription Upgrade Queue ({upgradeRequests.length})</h3>
+                      <button onClick={() => setActiveTab("revenue")} className="text-[10px] font-mono text-[#64748B] hover:text-white uppercase bg-transparent border-none cursor-pointer">Plans Settings →</button>
                     </div>
 
-                    <div className="sa-form-group">
-                      <label className="sa-label">Email Address *</label>
-                      <input
-                        type="email"
-                        value={ownerEmail}
-                        onChange={(e) => setOwnerEmail(e.target.value)}
-                        placeholder="owner@company.com"
-                        className="sa-input"
-                      />
-                    </div>
-
-                    <div className="sa-form-group">
-                      <label className="sa-label">Phone Number (optional)</label>
-                      <input
-                        type="text"
-                        value={ownerPhone}
-                        onChange={(e) => setOwnerPhone(e.target.value)}
-                        placeholder="+974 ..."
-                        className="sa-input"
-                      />
-                    </div>
-
-                    <div style={{ background: "rgba(59, 130, 246, 0.05)", border: "1px solid #1E2E4F", borderRadius: 8, padding: 12, display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                      <AlertCircle className="w-5 h-5 text-[#3B82F6] flex-shrink-0 mt-0.5" />
-                      <div className="text-[10px] font-mono text-[#8A9CB6]">
-                        <span className="font-bold text-[#3B82F6]">ACTIVATION PROTOCOL GENERATOR:</span>
-                        <br />
-                        No credentials are set by the operator. The system generates a temporary passcode, drafts a welcome onboarding notification, and lets the owner complete their profile.
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-                      <button
-                        type="button"
-                        onClick={() => setWizardStep(2)}
-                        className="flex-1 border border-[#1E2E4F] hover:border-white text-white py-3 rounded-lg text-xs font-bold uppercase transition-all"
-                      >
-                        Back
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!ownerName || !ownerEmail}
-                        onClick={handleCreateCustomerSubmit}
-                        className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] disabled:bg-[#1D3D73] text-white py-3 rounded-lg text-xs font-bold uppercase transition-all"
-                      >
-                        {wizardSubmitting ? "PROVISIONING..." : "Next: Review & Deploy &rarr;"}
-                      </button>
-                    </div>
-
-                    {wizardError && (
-                      <div className="bg-red-950/20 border border-red-900 text-red-400 font-mono text-xs p-3 rounded-lg text-center">
-                        {wizardError}
+                    {upgradeRequests.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-[#4E6785] font-mono">NO PENDING UPGRADE REQUESTS</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {upgradeRequests.map((req) => (
+                          <div key={req.companyId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: "8px", padding: "12px 16px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <span className="text-xs font-bold text-white">{req.companyName}</span>
+                              <span className="text-[10px] text-[#8A9CB6] font-mono">
+                                Requesting upgrade from <strong className="text-[#3B82F6]">{req.currentPlan.toUpperCase()}</strong> to <strong className="text-[#10B981]">{req.requestedPlan.toUpperCase()}</strong>
+                              </span>
+                              <span className="text-[10px] text-[#4E6785] font-mono">Requested {new Date(req.requestedAt).toLocaleDateString()}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button
+                                onClick={() => handleProcessUpgrade(req.companyId, "approve")}
+                                className="bg-[#10B981]/15 text-[#10B981] hover:bg-[#10B981]/30 border border-[#10B981]/30 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleProcessUpgrade(req.companyId, "reject")}
+                                className="bg-[#EF4444]/15 text-[#EF4444] hover:bg-[#EF4444]/30 border border-[#EF4444]/30 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                )}
 
-                {/* STEP 4: Confirmation / Review credentials */}
-                {wizardStep === 4 && createdCredentials && (
-                  <div className="hq-flex-col" style={{ gap: "20px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "8px" }}>
-                      <CheckCircle2 className="w-10 h-10 text-[#10B981] mx-auto" />
-                      <h3 className="font-bold text-white text-base">Customer Profile Created Successfully</h3>
-                      <p className="text-xs text-[#8A9CB6]">Dedicated database partition has been allocated and defaults configured.</p>
-                    </div>
-
-                    <div className="p-4 bg-[#080C14] border border-[#1A2F50] rounded-xl font-mono text-xs hq-flex-col" style={{ gap: "10px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span className="text-[#4E6785]">Workspace ID:</span>
-                        <span className="font-bold text-white">{createdCredentials.workspaceId}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span className="text-[#4E6785]">Workspace URL:</span>
-                        <span className="font-bold text-[#3B82F6]">{createdCredentials.workspaceUrl}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span className="text-[#4E6785]">Owner Administrator:</span>
-                        <span className="font-bold text-white">{createdCredentials.ownerName}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span className="text-[#4E6785]">Registered Email:</span>
-                        <span className="font-bold text-white">{createdCredentials.ownerEmail}</span>
-                      </div>
-                      
-                      <div className="border-t border-[#16223F] pt-3 mt-2">
-                        <div className="text-[10px] text-[#4E6785] uppercase tracking-wider mb-2">Workspace Activation Invite Passcode</div>
-                        <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: 8, padding: 12, textAlign: "center", fontSize: 18, fontWeight: "bold", color: "#10B981", letterSpacing: 3 }}>
-                          {createdCredentials.passcode}
-                        </div>
-                        <div className="text-[9px] text-center text-[#8A9CB6] mt-2">
-                          Send this invite code to the customer so they can activate their workspace and set their alphanumeric password.
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWizardStep(1);
-                        setCreatedCredentials(null);
-                      }}
-                      className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white py-3 rounded-lg text-xs font-bold uppercase transition-all"
-                    >
-                      Onboard Another Customer
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: ACCESS REQUESTS */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "requests" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Access Requests Registry</h2>
-                <p className="text-xs text-[#8A9CB6]">Accept, review, and provision workspaces for approved request entries.</p>
-              </div>
-
-              {/* Table of requests */}
-              <div className="hq-card p-0 overflow-hidden">
-                <table className="hq-table">
-                  <thead>
-                    <tr>
-                      <th>Business Name</th>
-                      <th>Email Contact</th>
-                      <th>Country</th>
-                      <th>Workers</th>
-                      <th>Status</th>
-                      <th>Request Date</th>
-                      <th>Operations Control</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {requests.map((r) => (
-                      <tr key={r.id} className="hover:bg-[#11213D] transition-all text-xs">
-                        <td className="font-bold text-white">{r.business_name}</td>
-                        <td className="font-mono text-[#8A9CB6]">{r.email}</td>
-                        <td>{r.country}</td>
-                        <td className="font-mono">{r.num_workers}</td>
-                        <td>
-                          <span className={`hq-badge badge-${r.status === "approved" ? "active" : r.status === "rejected" ? "suspended" : "pending"}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="font-mono text-[#8A9CB6]">June 28, 2026</td>
-                        <td>
-                          <div style={{ display: "flex", gap: "8px" }}>
-                            {r.status === "pending" && (
-                              <>
-                                <button
-                                  disabled={actionLoading === r.id + "approved"}
-                                  onClick={() => {
-                                    handleRequestAction(r.id, "approved");
-                                    // Prepopulate onboarding fields for ease
-                                    setBizName(r.business_name);
-                                    setBizCountry(r.country);
-                                    setSubMaxWorkers(String(r.num_workers));
-                                    setBizEmail(r.email);
-                                    setOwnerEmail(r.email);
-                                    setOwnerName(r.business_name + " Admin");
-                                  }}
-                                  className="bg-[#10B981]/10 border border-[#10B981]/30 hover:bg-[#10B981]/25 text-[#10B981] py-1 px-2.5 rounded text-[10px] font-mono transition-all font-bold"
-                                >
-                                  APPROVE & ONBOARD
-                                </button>
-                                <button
-                                  disabled={actionLoading === r.id + "rejected"}
-                                  onClick={() => handleRequestAction(r.id, "rejected")}
-                                  className="border border-[#1E2E4F] hover:border-red-500 text-[#8A9CB6] hover:text-red-500 py-1 px-2.5 rounded text-[10px] font-mono transition-all"
-                                >
-                                  REJECT
-                                </button>
-                              </>
-                            )}
-                            <button
-                              onClick={() => setSelectedReq(r)}
-                              className="border border-[#1E2E4F] hover:border-white text-[#8A9CB6] hover:text-white py-1 px-2.5 rounded text-[10px] font-mono transition-all"
-                            >
-                              DETAILS
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Detail request card */}
-              {selectedReq && (
-                <div className="hq-card hq-flex-col border-t-4 border-[#3B82F6] relative" style={{ gap: "16px" }}>
-                  <button onClick={() => setSelectedReq(null)} className="absolute right-4 top-4 text-[#4E6785] hover:text-white text-lg">&times;</button>
-                  <h3 className="font-bold text-white text-base">Request Details: {selectedReq.business_name}</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
-                    <div className="p-3 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[#4E6785]">Industry Focus</span>
-                      <div className="text-white font-bold mt-1">{selectedReq.industry}</div>
-                    </div>
-                    <div className="p-3 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[#4E6785]">Country location</span>
-                      <div className="text-white font-bold mt-1">{selectedReq.country}</div>
-                    </div>
-                    <div className="p-3 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[#4E6785]">Workers Count</span>
-                      <div className="text-white font-bold mt-1">{selectedReq.num_workers} active</div>
-                    </div>
-                    <div className="p-3 bg-[#0B1426] border border-[#1E2E4F] rounded-lg">
-                      <span className="text-[#4E6785]">WhatsApp / Phone</span>
-                      <div className="text-[#3B82F6] font-bold mt-1">{selectedReq.whatsapp}</div>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-[#080C14] border border-[#1E2E4F] rounded-lg text-xs font-mono">
-                    <span className="text-[#4E6785] font-bold uppercase block mb-1">Onboarding Notes:</span>
-                    <p className="text-white leading-relaxed">{selectedReq.notes || "No request notes provided."}</p>
-                  </div>
                 </div>
-              )}
+
+                {/* Right: Telemetries & Critical Alert Feed */}
+                <div className="hq-flex-col" style={{ gap: "20px" }}>
+                  
+                  {/* Urgent tickets */}
+                  <div className="hq-card hq-flex-col" style={{ gap: "16px", padding: "20px" }}>
+                    <div style={{ borderBottom: "1px solid #1E2E4F", paddingBottom: "10px" }}>
+                      <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[#F59E0B]">Critical Escalate Log ({supportTickets.filter(t => t.status !== "closed").length})</h3>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {supportTickets.filter(t => t.status !== "closed").length === 0 ? (
+                        <div className="text-center py-4 text-xs text-[#4E6785] font-mono">ALL ESCALATIONS RESOLVED</div>
+                      ) : (
+                        supportTickets.filter(t => t.status !== "closed").map((t) => (
+                          <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: "4px", background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "8px", padding: "10px 12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span className="text-[10px] font-bold font-mono text-[#F59E0B]">{t.id} · {t.company}</span>
+                              <span className="text-[9px] font-bold font-mono text-[#EF4444] uppercase">{t.priority}</span>
+                            </div>
+                            <span className="text-xs font-bold text-white mt-1">{t.subject}</span>
+                            <span className="text-[10px] text-[#8A9CB6] font-mono">{t.time} · {t.status}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Telemetry quick status */}
+                  <div className="hq-card hq-flex-col" style={{ gap: "12px", padding: "20px" }}>
+                    <div style={{ borderBottom: "1px solid #1E2E4F", paddingBottom: "10px" }}>
+                      <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Operational Telemetry</h3>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontFamily: "monospace" }}>
+                        <span className="text-[#8A9CB6]">API ENDPOINT LATENCY</span>
+                        <span className="text-white font-bold">14ms</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontFamily: "monospace" }}>
+                        <span className="text-[#8A9CB6]">DB MIGRATION STATE</span>
+                        <span className="text-[#10B981] font-bold">STABLE</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontFamily: "monospace" }}>
+                        <span className="text-[#8A9CB6]">MEM USE LIMIT</span>
+                        <span className="text-white font-bold">34% (3.4 GB)</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontFamily: "monospace" }}>
+                        <span className="text-[#8A9CB6]">CDN STORAGE AUDIT</span>
+                        <span className="text-[#10B981] font-bold">OK (100%)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
             </div>
           )}
 
           {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: BILLING & PLANS */}
+          {/* TAB: REVENUE & BILLING */}
           {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "billing" && (
+          {activeTab === "revenue" && (
             <div className="hq-flex-col" style={{ gap: "24px" }}>
               <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Billing & Subscriptions Center</h2>
-                <p className="text-xs text-[#8A9CB6]">Configure plans pricing, manage active coupon codes, failed payments, and renewals.</p>
+                <h2 className="text-xl font-bold text-white tracking-tight">Revenue & Subscription Billing</h2>
+                <p className="text-xs text-[#8A9CB6]">Manage pricing limits, coupon campaigns, and renewal timelines.</p>
               </div>
 
-              {/* Plans Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { name: "Starter Tier", price: "$99/mo", limits: "10 Users · 5 Workers · 5GB Storage", activeCount: "Starter plan for small businesses." },
-                  { name: "Growth Tier", price: "$249/mo", limits: "50 Users · 100 Workers · 20GB Storage", activeCount: "Premium growth plan." },
-                  { name: "Enterprise Tier", price: "$599/mo", limits: "Unlimited Users · Unlimited Workers · 100GB Storage", activeCount: "Advanced dedicated database realms." },
-                ].map((p, idx) => (
-                  <div key={idx} className="hq-card hq-flex-col" style={{ gap: "12px", border: "1px solid #1E2E4F" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className="font-bold text-white text-base">{p.name}</span>
-                      <span className="font-mono text-sm text-[#3B82F6] font-bold">{p.price}</span>
-                    </div>
-                    <p className="text-xs text-[#8A9CB6]">{p.activeCount}</p>
-                    <div className="p-3 bg-[#080C14] border border-[#16223F] rounded-lg text-xs font-mono text-[#E0E6ED]">
-                      {p.limits}
-                    </div>
-                  </div>
-                ))}
+              {/* Pricing tier limits config */}
+              <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
+                <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Operational Plans Configuration</h3>
+                <div style={{ overflowX: "auto" }}>
+                  <table className="hq-table font-mono" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #1E2E4F", color: "#64748B" }}>
+                        <th style={{ padding: "10px" }}>PLAN ID</th>
+                        <th style={{ padding: "10px" }}>MONTHLY PRICE</th>
+                        <th style={{ padding: "10px" }}>MAX WORKERS</th>
+                        <th style={{ padding: "10px" }}>STORAGE LIMIT</th>
+                        <th style={{ padding: "10px" }}>POS CONNECTORS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: "1px solid #16223F" }}>
+                        <td style={{ padding: "12px 10px", color: "white" }}>starter</td>
+                        <td style={{ padding: "12px 10px" }}>$99.00</td>
+                        <td style={{ padding: "12px 10px" }}>3 Users</td>
+                        <td style={{ padding: "12px 10px" }}>5 GB</td>
+                        <td style={{ padding: "12px 10px" }}>Standard (Square, Shopify)</td>
+                      </tr>
+                      <tr style={{ borderBottom: "1px solid #16223F" }}>
+                        <td style={{ padding: "12px 10px", color: "white" }}>growth</td>
+                        <td style={{ padding: "12px 10px" }}>$249.00</td>
+                        <td style={{ padding: "12px 10px" }}>15 Users</td>
+                        <td style={{ padding: "12px 10px" }}>25 GB</td>
+                        <td style={{ padding: "12px 10px" }}>Extended (All + Clover, Lightspeed)</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: "12px 10px", color: "white" }}>enterprise</td>
+                        <td style={{ padding: "12px 10px" }}>$599.00</td>
+                        <td style={{ padding: "12px 10px" }}>Unlimited</td>
+                        <td style={{ padding: "12px 10px" }}>250 GB</td>
+                        <td style={{ padding: "12px 10px" }}>Full Suite + API Access</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* Invoices, Failed Payments & Coupons */}
-              <div className="hq-dashboard-grid">
-                {/* Invoice log */}
+              {/* Two Column details: Coupons & Renewals Queue */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                
+                {/* Left: Coupons */}
                 <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Recent Renewals & Invoices</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Active Promo Campaigns</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {coupons.map((c) => (
+                      <div key={c.code} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: "8px", padding: "10px 14px", fontSize: "12px" }}>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span className="font-mono font-bold text-white">{c.code}</span>
+                          <span className="text-[10px] text-[#8A9CB6] mt-0.5">{c.discount}</span>
+                        </div>
+                        <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold ${c.active ? "bg-[#10B981]/15 text-[#10B981]" : "bg-red-500/10 text-red-500"}`}>
+                          {c.active ? "Active" : "Disabled"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add coupon inline form */}
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.target as any;
+                    const code = form.code.value.trim().toUpperCase();
+                    const discount = form.discount.value.trim();
+                    if (!code || !discount) return;
+                    setCoupons(prev => [...prev, { code, discount, active: true }]);
+                    form.reset();
+                  }} style={{ display: "flex", gap: "8px", borderTop: "1px solid #1E2E4F", paddingTop: "12px" }}>
+                    <input type="text" name="code" placeholder="NEWCODE" required style={{ flex: 1, background: "#080C14", border: "1px solid #1E2E4F", color: "white", padding: "8px 12px", borderRadius: "6px", fontSize: "11px", outline: "none" }} />
+                    <input type="text" name="discount" placeholder="50% Off 3mo" required style={{ flex: 1.5, background: "#080C14", border: "1px solid #1E2E4F", color: "white", padding: "8px 12px", borderRadius: "6px", fontSize: "11px", outline: "none" }} />
+                    <button type="submit" className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer">CREATE</button>
+                  </form>
+                </div>
+
+                {/* Right: Renewals Invoice Queue */}
+                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Renewals Invoice Registry</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {billingQueue.map((inv) => (
-                      <div key={inv.id} className="hq-feed-item">
+                      <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: "8px", padding: "10px 14px", fontSize: "12px", fontFamily: "monospace" }}>
                         <div>
                           <div className="font-bold text-white">{inv.company}</div>
-                          <div className="text-[10px] text-[#4E6785] font-mono mt-0.5">{inv.id} · {inv.date}</div>
+                          <div className="text-[10px] text-[#8A9CB6] mt-0.5">{inv.id} · {inv.date}</div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <span className="font-mono font-bold text-white">${inv.amount.toFixed(2)}</span>
-                          <span className={`hq-badge badge-${inv.status === "paid" ? "active" : "suspended"}`}>
+                          <span className="font-bold text-white">${inv.amount.toFixed(2)}</span>
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold ${inv.status === "paid" ? "bg-[#10B981]/15 text-[#10B981]" : "bg-[#EF4444]/15 text-[#EF4444]"}`}>
                             {inv.status}
                           </span>
                         </div>
@@ -2317,553 +1078,552 @@ export default function HQPlatformOperations() {
                   </div>
                 </div>
 
-                {/* Promo codes */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Active Coupons & Promotions</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    {coupons.map((c, i) => (
-                      <div key={i} className="hq-feed-item">
-                        <div>
-                          <span className="font-mono font-bold text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded border border-[#10B981]/30">{c.code}</span>
-                          <div className="text-[10px] text-[#8A9CB6] mt-2 font-mono">{c.discount}</div>
-                        </div>
-                        <span className="hq-badge badge-active">Active</span>
-                      </div>
-                    ))}
-                    <button onClick={() => alert("Coupon creation console unlocked.")} className="hq-action-btn text-center justify-center font-bold">
-                      CREATE NEW COUPON PROMO
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
 
           {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: SUPPORT CENTER */}
+          {/* TAB: CUSTOMERS & WORKSPACES */}
           {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "support" && (
+          {activeTab === "customers" && (
+            <div className="hq-flex-col" style={{ gap: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <h2 className="text-xl font-bold text-white tracking-tight">Customers CRM & Workspace Registry</h2>
+                  <p className="text-xs text-[#8A9CB6]">Directory of active companies, setup stages, and resource bounds.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setWizardError("");
+                    setBizName("");
+                    setOwnerName("");
+                    setOwnerEmail("");
+                    setLocationName("");
+                    setWorkerName("");
+                    setWorkerPin("");
+                    setCreatedCredentials(null);
+                    setShowCreateWorkspaceModal(true);
+                  }}
+                  className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-2 rounded text-xs font-mono font-bold uppercase flex items-center gap-1 cursor-pointer transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  CREATE WORKSPACE
+                </button>
+              </div>
+
+              {/* Local Search input */}
+              <div style={{ position: "relative" }}>
+                <Search className="w-4 h-4 text-[#4E6785]" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
+                <input
+                  type="text"
+                  placeholder="Filter workspaces by company name or domain..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: "100%", background: "#060A13", border: "1px solid #1E2E4F", borderRadius: "10px", padding: "12px 14px 12px 42px", color: "white", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+
+              {/* Grid: Table of customers on Left, Company details drawer on Right */}
+              <div className="hq-dashboard-grid" style={{ display: "grid", gridTemplateColumns: selectedCustomer ? "1.1fr 0.9fr" : "1fr", gap: "24px" }}>
+                
+                {/* CRM Table */}
+                <div className="hq-card hq-flex-col" style={{ gap: "14px", padding: "16px" }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table className="hq-table font-mono" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid #1E2E4F", color: "#64748B" }}>
+                          <th style={{ padding: "10px" }}>COMPANY NAME</th>
+                          <th style={{ padding: "10px" }}>PLAN TIER</th>
+                          <th style={{ padding: "10px" }}>MAX WORKERS</th>
+                          <th style={{ padding: "10px" }}>STORAGE LIMIT</th>
+                          <th style={{ padding: "10px" }}>STATUS</th>
+                          <th style={{ padding: "10px" }}>ID</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {companies
+                          .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map((c) => (
+                            <tr
+                              key={c.id}
+                              onClick={() => {
+                                setSelectedCustomer(c);
+                                setEditingCustomer(false);
+                                setEditFields({});
+                              }}
+                              style={{ borderBottom: "1px solid #16223F", cursor: "pointer", background: selectedCustomer?.id === c.id ? "rgba(59,130,246,0.06)" : "transparent" }}
+                              className="hover:bg-[#0B1426]"
+                            >
+                              <td style={{ padding: "12px 10px", color: "white", fontWeight: "bold" }}>{c.name}</td>
+                              <td style={{ padding: "12px 10px" }}>
+                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${c.plan === "enterprise" ? "bg-purple-500/10 text-purple-400" : c.plan === "growth" ? "bg-blue-500/10 text-blue-400" : "bg-slate-500/10 text-slate-400"}`}>
+                                  {c.plan || "starter"}
+                                </span>
+                              </td>
+                              <td style={{ padding: "12px 10px" }}>{c.max_workers || 0}</td>
+                              <td style={{ padding: "12px 10px" }}>{c.storage_limit_gb ? `${c.storage_limit_gb} GB` : "0 GB"}</td>
+                              <td style={{ padding: "12px 10px" }}>
+                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${c.status === "active" ? "bg-[#10B981]/15 text-[#10B981]" : "bg-[#EF4444]/15 text-[#EF4444]"}`}>
+                                  {c.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: "12px 10px", color: "#64748B" }}>{c.id}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Details Drawer */}
+                {selectedCustomer && (
+                  <div className="hq-card hq-flex-col" style={{ gap: "20px", padding: "24px", alignSelf: "flex-start", background: "#080E1A" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1E2E4F", paddingBottom: "12px" }}>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">{selectedCustomer.name}</h3>
+                        <span className="text-[10px] text-[#8A9CB6] font-mono uppercase">{selectedCustomer.id}</span>
+                      </div>
+                      <button onClick={() => setSelectedCustomer(null)} className="text-[#64748B] hover:text-white bg-transparent border-none cursor-pointer">✕</button>
+                    </div>
+
+                    {!editingCustomer ? (
+                      <div className="hq-flex-col" style={{ gap: "16px", fontSize: "12px", fontFamily: "monospace" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          <div>
+                            <span className="text-[#64748B] block">PLAN TIER</span>
+                            <span className="text-white font-bold">{(selectedCustomer.plan || "starter").toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <span className="text-[#64748B] block">STATUS</span>
+                            <span className="text-white font-bold">{selectedCustomer.status.toUpperCase()}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[#64748B] block">PRIMARY OWNER CONTACT</span>
+                          <span className="text-white">{selectedCustomer.email || "No email"}</span>
+                        </div>
+
+                        <div>
+                          <span className="text-[#64748B] block">INDUSTRY / TYPE</span>
+                          <span className="text-white">{selectedCustomer.industry || "General"} · {selectedCustomer.business_type || "SaaS"}</span>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "8px", marginTop: "10px", borderTop: "1px solid #1E2E4F", paddingTop: "16px" }}>
+                          <button
+                            onClick={() => {
+                              setEditFields({ ...selectedCustomer });
+                              setEditingCustomer(true);
+                            }}
+                            className="bg-[#0B1426] border border-[#1E2E4F] text-[#E0E6ED] hover:text-white px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer"
+                          >
+                            Edit Fields
+                          </button>
+                          
+                          <button
+                            onClick={() => handleToggleCustomerStatus(selectedCustomer.id, selectedCustomer.status)}
+                            className={`px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer ${
+                              selectedCustomer.status === "active"
+                                ? "bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444]"
+                                : "bg-[#10B981]/15 border border-[#10B981]/30 text-[#10B981]"
+                            }`}
+                          >
+                            {selectedCustomer.status === "active" ? "SUSPEND" : "ACTIVATE"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveEdit();
+                      }} className="hq-flex-col" style={{ gap: "12px", fontSize: "12px" }}>
+                        <div>
+                          <label className="text-[10px] text-[#64748B] block uppercase tracking-wider font-mono">Company Name</label>
+                          <input
+                            type="text"
+                            value={editFields.name || ""}
+                            onChange={(e) => setEditFields(prev => ({ ...prev, name: e.target.value }))}
+                            style={{ width: "100%", background: "#060A13", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="text-[10px] text-[#64748B] block uppercase tracking-wider font-mono">Plan Tier</label>
+                          <select
+                            value={editFields.plan || "starter"}
+                            onChange={(e) => setEditFields(prev => ({ ...prev, plan: e.target.value }))}
+                            style={{ width: "100%", background: "#060A13", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }}
+                          >
+                            <option value="starter">Starter</option>
+                            <option value="growth">Growth</option>
+                            <option value="enterprise">Enterprise</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-[#64748B] block uppercase tracking-wider font-mono">Owner Email</label>
+                          <input
+                            type="email"
+                            value={editFields.email || ""}
+                            onChange={(e) => setEditFields(prev => ({ ...prev, email: e.target.value }))}
+                            style={{ width: "100%", background: "#060A13", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }}
+                          />
+                        </div>
+
+                        <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                          <button
+                            type="submit"
+                            className="bg-[#10B981] text-white px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer"
+                          >
+                            SAVE
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCustomer(false)}
+                            className="bg-[#0B1426] border border-[#1E2E4F] text-[#64748B] px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer"
+                          >
+                            CANCEL
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────────────────────────────────────────────── */}
+          {/* TAB: OPERATIONS TIMELINE & SUPPORT */}
+          {/* ──────────────────────────────────────────────────────── */}
+          {activeTab === "operations" && (
             <div className="hq-flex-col" style={{ gap: "24px" }}>
               <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Customer Support Tickets</h2>
-                <p className="text-xs text-[#8A9CB6]">Track service tickets, communication history, and internal manager notes.</p>
+                <h2 className="text-xl font-bold text-white tracking-tight">Operations Timeline & Sourcing Logs</h2>
+                <p className="text-xs text-[#8A9CB6]">Comprehensive events log and support response queue.</p>
               </div>
 
-              {/* Tickets list */}
-              <div className="hq-card p-0 overflow-hidden">
-                <table className="hq-table">
-                  <thead>
-                    <tr>
-                      <th>Ticket ID</th>
-                      <th>Customer Workspace</th>
-                      <th>Subject Context</th>
-                      <th>Priority</th>
-                      <th>Status</th>
-                      <th>Last Response</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {supportTickets.map((t) => (
-                      <tr key={t.id} className="hover:bg-[#11213D] transition-all text-xs">
-                        <td className="font-mono font-bold text-[#3B82F6]">{t.id}</td>
-                        <td className="font-bold text-white">{t.company}</td>
-                        <td>{t.subject}</td>
-                        <td>
-                          <span className="font-mono text-[10px] uppercase font-bold" style={{ color: t.priority === "critical" ? "#EF4444" : t.priority === "high" ? "#F59E0B" : "#8A9CB6" }}>
-                            {t.priority}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`hq-badge badge-${t.status === "open" ? "active" : t.status === "in_progress" ? "pending" : "suspended"}`}>
-                            {t.status.replace("_", " ")}
-                          </span>
-                        </td>
-                        <td className="text-[#8A9CB6]">{t.time}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Ticket notes details */}
-              <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Support Internal Console Notes</h3>
-                <div className="hq-flex-col" style={{ gap: "10px" }}>
-                  {supportTickets.map((t) => (
-                    <div key={t.id} className="p-3 bg-[#0B1426] border border-[#1E2E4F] rounded-lg text-xs font-mono">
-                      <div className="flex justify-between items-center text-[#4E6785] mb-1">
-                        <span>{t.company} ({t.id})</span>
-                        <span>{t.time}</span>
+              {/* Two column views: Audit logs left, Support queue right */}
+              <div className="hq-dashboard-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
+                
+                {/* Sourcing/System timeline */}
+                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Global Operations Timeline</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    {auditLogs.map((log) => (
+                      <div key={log.id} style={{ display: "flex", gap: "12px", borderBottom: "1px solid #16223F", paddingBottom: "10px" }}>
+                        <span style={{ fontSize: "16px" }}>{log.status === "warning" ? "⚠️" : "⚙️"}</span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <div style={{ fontSize: "12px", fontWeight: "bold", color: "white" }}>{log.action}</div>
+                          <div style={{ fontSize: "10px", color: "#8A9CB6", fontFamily: "monospace" }}>
+                            Actor: {log.user} · Target: {log.target}
+                          </div>
+                          <span className="text-[9px] text-[#4E6785] font-mono">{log.time}</span>
+                        </div>
                       </div>
-                      <p className="text-white leading-relaxed">{t.notes}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
 
-                  <div className="border-t border-[#1E2E4F] pt-4 hq-flex-col" style={{ gap: "12px" }}>
-                    <div className="sa-form-group">
-                      <label className="sa-label">Add Platform internal support note</label>
-                      <textarea
-                        value={newInternalNote}
-                        onChange={(e) => setNewInternalNote(e.target.value)}
-                        placeholder="Write note here for the support team..."
-                        rows={3}
-                        className="sa-input w-full bg-[#080C14] border border-[#1E2E4F] text-white rounded-lg p-3 text-xs outline-none"
-                      />
+                {/* Developer tickets backlog */}
+                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Support Backlog</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    {supportTickets.map((ticket, idx) => (
+                      <div key={ticket.id} style={{ display: "flex", flexDirection: "column", gap: "6px", background: "#0B1426", border: "1px solid #1E2E4F", borderRadius: "8px", padding: "12px 14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span className="text-xs font-bold font-mono text-[#3B82F6]">{ticket.id} · {ticket.company}</span>
+                          <span className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded ${ticket.status === "closed" ? "bg-[#10B981]/15 text-[#10B981]" : "bg-[#F59E0B]/15 text-[#F59E0B]"}`}>
+                            {ticket.status}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-white">{ticket.subject}</div>
+                        <div className="text-[10px] text-[#8A9CB6] font-mono mt-1">&quot;{ticket.notes}&quot;</div>
+
+                        {/* Internal note input */}
+                        {ticket.status !== "closed" && (
+                          <div style={{ display: "flex", gap: "8px", borderTop: "1px solid #1E2E4F", paddingTop: "10px", marginTop: "6px" }}>
+                            <input
+                              type="text"
+                              placeholder="Add internal log note..."
+                              defaultValue=""
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const input = e.target as HTMLInputElement;
+                                  const val = input.value.trim();
+                                  if (!val) return;
+                                  setSupportTickets(prev => prev.map((t, i) => i === idx ? { ...t, notes: val } : t));
+                                  input.value = "";
+                                }
+                              }}
+                              style={{ flex: 1, background: "#080C14", border: "1px solid #1E2E4F", color: "white", padding: "4px 8px", borderRadius: "4px", fontSize: "10px", outline: "none" }}
+                            />
+                            <button
+                              onClick={() => {
+                                setSupportTickets(prev => prev.map((t, i) => i === idx ? { ...t, status: "closed" } : t));
+                              }}
+                              className="bg-[#10B981]/15 border border-[#10B981]/30 text-[#10B981] px-2 py-1 rounded text-[9px] font-mono font-bold cursor-pointer"
+                            >
+                              CLOSE
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────────────────────────────────────────────── */}
+          {/* TAB: HEALTH, SECURITY & SYSTEM CONFIGS */}
+          {/* ──────────────────────────────────────────────────────── */}
+          {activeTab === "health" && (
+            <div className="hq-flex-col" style={{ gap: "24px" }}>
+              <div>
+                <h2 className="text-xl font-bold text-white tracking-tight">Platform Health, Security & Configs</h2>
+                <p className="text-xs text-[#8A9CB6]">System controls, maintenance blocks, and global telemetry parameters.</p>
+              </div>
+
+              {/* Maintenance state toggles */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                
+                {/* Platform Toggles */}
+                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Platform Control Settings</h3>
+                  
+                  {/* Maintenance mode toggle */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}>
+                    <div>
+                      <div className="text-xs font-bold text-white">Platform Maintenance Mode</div>
+                      <div className="text-[10px] text-[#8A9CB6] mt-0.5">Block all customer access with a maintenance screen during updates.</div>
                     </div>
                     <button
-                      onClick={() => {
-                        if (!newInternalNote) return;
-                        setSupportTickets((prev) => prev.map((t, idx) => idx === 0 ? { ...t, notes: newInternalNote } : t));
-                        setNewInternalNote("");
-                        alert("Support note updated successfully!");
-                      }}
-                      className="bg-[#3B82F6] hover:bg-[#2563EB] text-white py-2 px-4 rounded-lg text-xs font-bold uppercase transition-all"
+                      onClick={() => setMaintenanceMode(!maintenanceMode)}
+                      className={`py-1.5 px-4 rounded text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
+                        maintenanceMode ? "bg-[#EF4444] text-white" : "bg-[#0B1426] border border-[#1E2E4F] text-[#4E6785]"
+                      }`}
                     >
-                      SAVE TEAM SUPPORT NOTE
+                      {maintenanceMode ? "ENABLED (BLOCK SYSTEM)" : "DISABLED (ONLINE)"}
                     </button>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: PLATFORM MONITORING */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "monitoring" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Live Platform Systems Monitoring</h2>
-                <p className="text-xs text-[#8A9CB6]">Track API response times, background jobs, database sync health, and queue latency.</p>
-              </div>
-
-              {/* Service Health Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {systemAlerts.map((s, idx) => (
-                  <div key={idx} className="hq-card hq-flex-col" style={{ gap: "12px", border: "1px solid #1E2E4F" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className="font-bold text-white text-base">{s.service}</span>
-                      <span className="font-mono text-xs text-[#10B981] font-bold">● ONLINE</span>
+                  {/* Onboarding trial period */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #1E2E4F" }}>
+                    <div>
+                      <div className="text-xs font-bold text-white">Default Onboarding Trial Duration</div>
+                      <div className="text-[10px] text-[#8A9CB6] mt-0.5">Trial period duration assigned to new signups.</div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 mt-2 text-center font-mono text-[10px] text-[#E0E6ED]">
-                      <div className="p-2 bg-[#080C14] border border-[#16223F] rounded">
-                        <div className="text-[#4E6785]">Uptime</div>
-                        <div className="font-bold text-[#10B981] mt-0.5">{s.health}</div>
-                      </div>
-                      <div className="p-2 bg-[#080C14] border border-[#16223F] rounded">
-                        <div className="text-[#4E6785]">Latency</div>
-                        <div className="font-bold text-white mt-0.5">{s.response}</div>
-                      </div>
-                      <div className="p-2 bg-[#080C14] border border-[#16223F] rounded">
-                        <div className="text-[#4E6785]">Host Load</div>
-                        <div className="font-bold text-white mt-0.5">{s.load}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Live queues and alerts log */}
-              <div className="hq-dashboard-grid">
-                {/* Background jobs queue */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">SaaS Background Jobs Queue</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    {[
-                      { name: "Square Catalog Sync", status: "completed", details: "Processed 1,240 items in 18.2s" },
-                      { name: "PDF Order Invoice Generator", status: "processing", details: "Drafting INV-1092 choices-for-you" },
-                      { name: "Image Thumbnail Processor", status: "queued", details: "32 files pending queue" },
-                    ].map((job, idx) => (
-                      <div key={idx} className="hq-feed-item font-mono text-xs">
-                        <div>
-                          <div className="font-bold text-white">{job.name}</div>
-                          <div className="text-[9px] text-[#8A9CB6] mt-0.5">{job.details}</div>
-                        </div>
-                        <span className={`hq-badge badge-${job.status === "completed" ? "active" : job.status === "processing" ? "pending" : "suspended"}`}>
-                          {job.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* System alerts logs */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Live System Alerts</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    {[
-                      { type: "info", text: "Database daily replication snapshot saved to AWS S3 bucket.", date: "Today, 03:00 UTC" },
-                      { type: "warning", text: "High response time warning: Stripe Webhook endpoint reached 982ms.", date: "Yesterday, 14:24 UTC" },
-                    ].map((alert, idx) => (
-                      <div key={idx} className="hq-feed-item font-mono text-xs">
-                        <div>
-                          <div className="font-bold text-white flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: alert.type === "info" ? "#3B82F6" : "#F59E0B" }} />
-                            {alert.type.toUpperCase()} ALERT
-                          </div>
-                          <div className="text-[10px] text-[#E0E6ED] mt-1.5 leading-relaxed">{alert.text}</div>
-                          <div className="text-[9px] text-[#4E6785] mt-1">{alert.date}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: SECURITY CONSOLE */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "security" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Security & Credentials Console</h2>
-                <p className="text-xs text-[#8A9CB6]">Monitor failed logins, trusted API gateway keys, active sessions, and IP address firewalls.</p>
-              </div>
-
-              <div className="hq-dashboard-grid">
-                {/* API keys */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Trusted API Gateway Keys</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    {[
-                      { name: "Stripe Webhook Key", key: "whsec_live_...481a", status: "active" },
-                      { name: "Square Oauth Token", key: "sq-at-live_...9f20", status: "active" },
-                      { name: "CEO Developer Console", key: "flxq_dev_...1092", status: "inactive" },
-                    ].map((keyItem, i) => (
-                      <div key={i} className="hq-feed-item font-mono text-xs">
-                        <div>
-                          <div className="font-bold text-white">{keyItem.name}</div>
-                          <div className="text-[9px] text-[#4E6785] mt-1">{keyItem.key}</div>
-                        </div>
-                        <span className={`hq-badge badge-${keyItem.status === "active" ? "active" : "suspended"}`}>
-                          {keyItem.status}
-                        </span>
-                      </div>
-                    ))}
-                    <button onClick={() => alert("New API Key generated.")} className="hq-action-btn text-center justify-center font-bold">
-                      GENERATE NEW API SECRET KEY
-                    </button>
-                  </div>
-                </div>
-
-                {/* IP Blocking firewall */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">IP Blocking Firewall Rules</h3>
-                  <div className="hq-flex-col" style={{ gap: "12px" }}>
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <input
-                        type="text"
-                        placeholder="Block IP Address (e.g. 198.51.100.42)"
-                        className="flex-1 bg-[#080C14] border border-[#1E2E4F] text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-red-500"
+                        type="number"
+                        value={defaultTrialDays}
+                        onChange={(e) => setDefaultTrialDays(Number(e.target.value))}
+                        className="w-16 bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-center text-xs outline-none"
                       />
-                      <button onClick={() => alert("IP rule added to firewall.")} className="bg-[#EF4444] hover:bg-red-600 text-white font-mono text-[10px] font-bold uppercase px-4 py-2 rounded-lg">
-                        BLOCK IP
+                      <span className="text-xs text-[#8A9CB6] font-mono">DAYS</span>
+                    </div>
+                  </div>
+
+                  {/* Supporting Currencies list */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #1E2E4F" }}>
+                    <div>
+                      <div className="text-xs font-bold text-white">Supported Currencies</div>
+                      <div className="text-[10px] text-[#8A9CB6] mt-0.5">Currencies supported for SaaS transactions.</div>
+                    </div>
+                    <div className="font-mono text-xs text-[#E0E6ED] flex gap-2">
+                      <span className="bg-[#0B1426] border border-[#1E2E4F] px-2 py-0.5 rounded">QAR</span>
+                      <span className="bg-[#0B1426] border border-[#1E2E4F] px-2 py-0.5 rounded">USD</span>
+                      <span className="bg-[#0B1426] border border-[#1E2E4F] px-2 py-0.5 rounded">EUR</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Database seeds and resets */}
+                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#EF4444] border-b border-[#1E2E4F] pb-2">Platform Diagnostics & Seeds</h3>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div className="text-xs font-bold text-white">Database Snapshot Seeds</div>
+                        <div className="text-[10px] text-[#8A9CB6] mt-0.5">Re-seed SQLite database with clean mockup values.</div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (confirm("Are you sure you want to re-seed the platform database? All current tenant changes will be reset.")) {
+                            const res = await fetch("/api/admin/seed", { method: "POST" });
+                            if (res.ok) alert("Database seeded successfully.");
+                            else alert("Database seed failed.");
+                          }
+                        }}
+                        className="bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/30 py-1.5 px-3 rounded text-xs font-mono font-bold uppercase cursor-pointer"
+                      >
+                        RE-SEED DB
                       </button>
                     </div>
 
-                    <div className="hq-flex-col" style={{ gap: "8px" }}>
-                      {[
-                        { ip: "198.51.100.42", reason: "Repeated failed login brute force", date: "Blocked 1 hour ago" },
-                        { ip: "203.0.113.89", reason: "API DDOS rate limit burst exceeded", date: "Blocked 1 day ago" }
-                      ].map((item, idx) => (
-                        <div key={idx} className="hq-feed-item font-mono text-xs">
-                          <div>
-                            <div className="font-bold text-red-400">{item.ip}</div>
-                            <div className="text-[9px] text-[#8A9CB6] mt-0.5">{item.reason}</div>
-                          </div>
-                          <span className="text-[9px] text-[#4E6785]">{item.date}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: ANALYTICS SUITE */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "analytics" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Analytics Suite Dashboard</h2>
-                <p className="text-xs text-[#8A9CB6]">Executive insight details: geographical distribution, industry metrics, and retention graphs.</p>
-              </div>
-
-              {/* Analytics progress metrics */}
-              <div className="hq-dashboard-grid">
-                {/* Geographic distribution */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Geographic Distribution</h3>
-                  <div className="hq-flex-col" style={{ gap: "14px" }}>
-                    {[
-                      { area: "Qatar (Doha)", percent: 45 },
-                      { area: "United States (US East)", percent: 25 },
-                      { area: "United Kingdom (UK South)", percent: 15 },
-                      { area: "Italy (Europe Central)", percent: 15 },
-                    ].map((g, i) => (
-                      <div key={i} className="hq-flex-col" style={{ gap: "6px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "monospace", color: "#E0E6ED" }}>
-                          <span>{g.area}</span>
-                          <span className="font-bold">{g.percent}%</span>
-                        </div>
-                        <div style={{ width: "100%", height: 6, background: "#080C14", borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ width: `${g.percent}%`, height: "100%", background: "#3B82F6", borderRadius: 3 }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Industry metrics */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Industry Segmentation</h3>
-                  <div className="hq-flex-col" style={{ gap: "14px" }}>
-                    {[
-                      { ind: "Apparel & Retail stores", percent: 40 },
-                      { ind: "Wholesalers & Distributors", percent: 30 },
-                      { ind: "E-commerce Only store fronts", percent: 20 },
-                      { ind: "Logistics & Transport warehouses", percent: 10 },
-                    ].map((g, i) => (
-                      <div key={i} className="hq-flex-col" style={{ gap: "6px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "monospace", color: "#E0E6ED" }}>
-                          <span>{g.ind}</span>
-                          <span className="font-bold">{g.percent}%</span>
-                        </div>
-                        <div style={{ width: "100%", height: 6, background: "#080C14", borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ width: `${g.percent}%`, height: "100%", background: "#10B981", borderRadius: 3 }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: FILES & STORAGE */}
-          {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "storage" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Files & Storage Center</h2>
-                <p className="text-xs text-[#8A9CB6]">Track storage limits per client workspace, image catalog backup status, and clean orphaned log directories.</p>
-              </div>
-
-              <div className="hq-dashboard-grid">
-                {/* Storage usage */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Customer Storage Consumption</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    {[
-                      { name: "Choices For You", size: "1.42 GB", percent: 14 },
-                      { name: "Detroit Fashion", size: "0.85 GB", percent: 8 },
-                      { name: "Sole Searcher", size: "0.62 GB", percent: 6 },
-                    ].map((item, idx) => (
-                      <div key={idx} className="hq-feed-item font-mono text-xs">
-                        <div>
-                          <div className="font-bold text-white">{item.name}</div>
-                          <div className="text-[9px] text-[#8A9CB6] mt-0.5">{item.size} used</div>
-                        </div>
-                        <div style={{ width: 80, height: 6, background: "#080C14", borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ width: `${item.percent}%`, height: "100%", background: "#3B82F6", borderRadius: 3 }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Storage tools */}
-                <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6]">Storage Maintenance Console</h3>
-                  <div className="hq-flex-col" style={{ gap: "10px" }}>
-                    <div className="hq-feed-item font-mono text-xs">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #1E2E4F", paddingTop: "12px" }}>
                       <div>
-                        <div className="font-bold text-white">Daily Backup Snapshot</div>
-                        <div className="text-[9px] text-[#10B981] mt-0.5">Completed June 30, 03:00 UTC</div>
+                        <div className="text-xs font-bold text-white">Email Notification Templates</div>
+                        <div className="text-[10px] text-[#8A9CB6] mt-0.5">Welcome, validation, and invoice email files.</div>
                       </div>
-                      <span className="hq-badge badge-active">Active</span>
+                      <button onClick={() => alert("Notification templates unlocked.")} className="border border-[#1E2E4F] hover:border-white text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all cursor-pointer">
+                        EDIT TEMPLATES
+                      </button>
                     </div>
-
-                    <button onClick={() => alert("Orphaned item thumbnails purged.")} className="hq-action-btn text-center justify-center font-bold">
-                      PURGE ORPHANED IMAGE THUMBNAILS
-                    </button>
-                    <button onClick={() => alert("Temporary API log files cleaned.")} className="hq-action-btn text-center justify-center font-bold">
-                      CLEAN UP TEMPORARY API SESSION LOGS
-                    </button>
                   </div>
                 </div>
+
               </div>
             </div>
           )}
 
           {/* ──────────────────────────────────────────────────────── */}
-          {/* TAB: GLOBAL SETTINGS */}
+          {/* ONBOARDING CUSTOMER MODAL */}
           {/* ──────────────────────────────────────────────────────── */}
-          {activeTab === "settings" && (
-            <div className="hq-flex-col" style={{ gap: "24px" }}>
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Platform Configuration Settings</h2>
-                <p className="text-xs text-[#8A9CB6]">Configure your profile, default trial durations, maintenance mode toggles, notification templates, and branding assets.</p>
-              </div>
-
-              {/* ── MY PROFILE ───────────────────────────────────────── */}
-              <div className="hq-card hq-flex-col" style={{ gap: "20px" }}>
-                <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">My Profile</h3>
-
-                {/* Name */}
-                <div style={{ borderBottom: "1px solid #16223F", paddingBottom: 16 }}>
-                  <div className="text-xs font-bold text-white mb-1">Display Name</div>
-                  <div className="text-[10px] text-[#8A9CB6] mb-3">Currently: <span className="text-white font-mono">{saName || '—'}</span></div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      value={saNameEdit}
-                      onChange={e => setSaNameEdit(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && saveSaName()}
-                      placeholder="New display name"
-                      className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none flex-1"
-                      style={{ maxWidth: 280 }}
-                    />
-                    <button onClick={saveSaName} disabled={saNameSaving || saNameEdit === saName}
-                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                      {saNameSaving ? 'SAVING…' : 'SAVE'}
-                    </button>
-                  </div>
-                  {saNameMsg && <div className={`text-xs mt-2 ${saNameMsg.startsWith('✓') ? 'text-[#10B981]' : 'text-red-400'}`}>{saNameMsg}</div>}
+          {showCreateWorkspaceModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+              <div className="sa-lock-card hq-card hq-flex-col" style={{ width: "100%", maxWidth: "550px", background: "#060A13", border: "1px solid #1E2E4F", borderRadius: "14px", padding: "24px", gap: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1E2E4F", paddingBottom: "10px" }}>
+                  <h3 className="text-sm font-bold text-white font-mono uppercase">Onboard New Workspace</h3>
+                  <button onClick={() => setShowCreateWorkspaceModal(false)} style={{ background: "transparent", border: "none", color: "#64748B", fontSize: "16px", cursor: "pointer" }}>✕</button>
                 </div>
 
-                {/* Email change */}
-                <div style={{ borderBottom: "1px solid #16223F", paddingBottom: 16 }}>
-                  <div className="text-xs font-bold text-white mb-1">Email Address</div>
-                  <div className="text-[10px] text-[#8A9CB6] mb-3">Currently: <span className="text-white font-mono">{saEmail || '—'}</span></div>
-                  {saEmailStep === 'idle' && (
-                    <button onClick={() => setSaEmailStep('enter')}
-                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all">
-                      CHANGE EMAIL
-                    </button>
-                  )}
-                  {saEmailStep === 'enter' && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 340 }}>
-                      <input value={saNewEmail} onChange={e => setSaNewEmail(e.target.value)}
-                        placeholder="New email address"
-                        className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none" />
-                      <input value={saEmailPin} onChange={e => setSaEmailPin(e.target.value)}
-                        type="password" placeholder="Current PIN to confirm"
-                        className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none" />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={requestSaEmailChange} disabled={saEmailSaving}
-                          className="border border-[#3B82F6] text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40">
-                          {saEmailSaving ? 'SENDING…' : 'SEND CODE'}
-                        </button>
-                        <button onClick={() => { setSaEmailStep('idle'); setSaEmailMsg(''); }}
-                          className="border border-[#1E2E4F] text-[#8A9CB6] py-1.5 px-3 rounded text-xs font-mono">CANCEL</button>
+                {wizardError && (
+                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "6px", color: "#FCA5A5", padding: "8px 12px", fontSize: "11px", fontFamily: "monospace" }}>
+                    {wizardError}
+                  </div>
+                )}
+
+                {!createdCredentials ? (
+                  <div className="hq-flex-col" style={{ gap: "12px", fontSize: "12px" }}>
+                    
+                    {/* Step 1: Company Profile details */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label className="text-[10px] text-[#64748B] block font-mono uppercase">Company Name</label>
+                        <input type="text" placeholder="Moda Wear Inc" value={bizName} onChange={e => setBizName(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#64748B] block font-mono uppercase">Owner Name</label>
+                        <input type="text" placeholder="John Doe" value={ownerName} onChange={e => setOwnerName(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }} />
                       </div>
                     </div>
-                  )}
-                  {saEmailStep === 'verify' && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 340 }}>
-                      <div className="text-[10px] text-[#8A9CB6]">Enter the 6-digit code sent to <span className="text-white">{saNewEmail}</span></div>
-                      <input value={saEmailCode} onChange={e => setSaEmailCode(e.target.value)}
-                        placeholder="6-digit code"
-                        className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none font-mono tracking-widest" />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={confirmSaEmailChange} disabled={saEmailSaving}
-                          className="border border-[#10B981] text-[#10B981] hover:bg-[#10B981] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40">
-                          {saEmailSaving ? 'VERIFYING…' : 'VERIFY & CONFIRM'}
-                        </button>
-                        <button onClick={() => { setSaEmailStep('idle'); setSaEmailMsg(''); }}
-                          className="border border-[#1E2E4F] text-[#8A9CB6] py-1.5 px-3 rounded text-xs font-mono">CANCEL</button>
+
+                    <div>
+                      <label className="text-[10px] text-[#64748B] block font-mono uppercase">Owner Email</label>
+                      <input type="email" placeholder="john@moda.com" value={ownerEmail} onChange={e => setOwnerEmail(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }} />
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label className="text-[10px] text-[#64748B] block font-mono uppercase">Business Type</label>
+                        <select value={bizType} onChange={e => setBizType(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }}>
+                          <option value="retail">Retail Clothing</option>
+                          <option value="wholesale">Wholesale Sourcing</option>
+                          <option value="logistics">Warehouse Logistics</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#64748B] block font-mono uppercase">POS Connector</label>
+                        <select value={posType} onChange={e => setPosType(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }}>
+                          <option value="square">Square POS</option>
+                          <option value="shopify">Shopify</option>
+                          <option value="clover">Clover</option>
+                          <option value="lightspeed">Lightspeed</option>
+                        </select>
                       </div>
                     </div>
-                  )}
-                  {saEmailMsg && <div className={`text-xs mt-2 ${saEmailMsg.startsWith('✓') || saEmailMsg.startsWith('Code') ? 'text-[#10B981]' : 'text-red-400'}`}>{saEmailMsg}</div>}
-                </div>
 
-                {/* PIN change */}
-                <div>
-                  <div className="text-xs font-bold text-white mb-1">Change PIN</div>
-                  <div className="text-[10px] text-[#8A9CB6] mb-3">Minimum 4 digits, maximum 6.</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <input value={saCurPin} onChange={e => setSaCurPin(e.target.value)}
-                      type="password" placeholder="Current PIN"
-                      className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none font-mono"
-                      style={{ width: 130 }} />
-                    <input value={saNewPin} onChange={e => setSaNewPin(e.target.value)}
-                      type="password" placeholder="New PIN (4-6 digits)"
-                      className="bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-xs outline-none font-mono"
-                      style={{ width: 160 }} />
-                    <button onClick={saveSaPin} disabled={saPinSaving || !saCurPin || !saNewPin}
-                      className="border border-[#1E2E4F] hover:border-[#3B82F6] text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                      {saPinSaving ? 'SAVING…' : 'UPDATE PIN'}
+                    <div style={{ borderTop: "1px solid #1E2E4F", paddingTop: "12px", marginTop: "6px" }}>
+                      <h4 className="text-[10px] text-[#3B82F6] font-mono uppercase tracking-wider mb-2">Initial Sourcing Location & Operator</h4>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <div>
+                          <label className="text-[9px] text-[#64748B] block font-mono uppercase">Location Name</label>
+                          <input type="text" placeholder="Qatar Warehouse" value={locationName} onChange={e => setLocationName(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }} />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-[#64748B] block font-mono uppercase">Operator/Worker Name</label>
+                          <input type="text" placeholder="Operator One" value={workerName} onChange={e => setWorkerName(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }} />
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "10px" }}>
+                        <label className="text-[9px] text-[#64748B] block font-mono uppercase">Operator PIN/Passcode</label>
+                        <input type="password" placeholder="4-digit pin or passcode" value={workerPin} onChange={e => setWorkerPin(e.target.value)} style={{ width: "100%", background: "#080C14", border: "1px solid #1E2E4F", padding: "8px", borderRadius: "6px", color: "white", outline: "none", marginTop: "4px" }} />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        setWizardError("");
+                        setWizardSubmitting(true);
+                        try {
+                          const res = await fetch("/api/setup", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              companyName: bizName,
+                              ownerName,
+                              ownerEmail,
+                              locationName,
+                              workerName,
+                              workerPin,
+                              businessType: bizType,
+                              posType
+                            })
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            setCreatedCredentials(data);
+                            loadPlatformData(); // refresh list
+                          } else {
+                            setWizardError(data.error || "Failed to set up workspace.");
+                          }
+                        } catch {
+                          setWizardError("Network error occurred during onboarding.");
+                        } finally {
+                          setWizardSubmitting(false);
+                        }
+                      }}
+                      disabled={wizardSubmitting}
+                      className="bg-[#3B82F6] hover:bg-[#2563EB] text-white py-2 rounded text-xs font-mono font-bold uppercase transition-all mt-2 cursor-pointer"
+                    >
+                      {wizardSubmitting ? "CREATING WORKSPACE..." : "ONBOARD WORKSPACE"}
+                    </button>
+
+                  </div>
+                ) : (
+                  <div className="hq-flex-col" style={{ gap: "14px", fontSize: "12px", fontFamily: "monospace" }}>
+                    <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", color: "#A7F3D0", padding: "12px", textAlign: "center" }}>
+                      ✔ CLIENT WORKSPACE ONBOARDED SUCCESSFULLY
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", background: "#080C14", padding: "12px", borderRadius: "8px", border: "1px solid #1E2E4F" }}>
+                      <span className="text-[#3B82F6] font-bold">WORKSPACE DETAILS:</span>
+                      <span>Company Name: {bizName}</span>
+                      <span>Owner Email: {ownerEmail}</span>
+                      <span className="text-[#F59E0B] font-bold mt-2">OWNER PASSWORD:</span>
+                      <span className="bg-[#060A13] border border-[#1E2E4F] p-2 rounded text-center text-white text-xs select-all">{createdCredentials.ownerPassword}</span>
+                      <span className="text-[10px] text-[#8A9CB6] mt-1">This password can only be viewed once. Provide this passcode to the workspace owner.</span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setShowCreateWorkspaceModal(false);
+                        setCreatedCredentials(null);
+                      }}
+                      className="bg-[#3B82F6] text-white py-2 rounded text-xs font-mono font-bold uppercase cursor-pointer"
+                    >
+                      Close Onboarding
                     </button>
                   </div>
-                  {saPinMsg && <div className={`text-xs mt-2 ${saPinMsg.startsWith('✓') ? 'text-[#10B981]' : 'text-red-400'}`}>{saPinMsg}</div>}
-                </div>
-              </div>
-
-              <div className="hq-card hq-flex-col" style={{ gap: "20px" }}>
-                <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1E2E4F] pb-2">Operational Configuration Toggles</h3>
-
-                {/* Maintenance mode */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}>
-                  <div>
-                    <div className="text-xs font-bold text-white">Platform Maintenance Mode</div>
-                    <div className="text-[10px] text-[#8A9CB6] mt-0.5">Block all customer access with a maintenance screen during updates.</div>
-                  </div>
-                  <button
-                    onClick={() => setMaintenanceMode(!maintenanceMode)}
-                    className={`py-1.5 px-4 rounded text-xs font-mono font-bold uppercase transition-all ${
-                      maintenanceMode ? "bg-[#EF4444] text-white" : "bg-[#0B1426] border border-[#1E2E4F] text-[#4E6785]"
-                    }`}
-                  >
-                    {maintenanceMode ? "ENABLED (BLOCK SYSTEM)" : "DISABLED (ONLINE)"}
-                  </button>
-                </div>
-
-                {/* Trial period */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #16223F" }}>
-                  <div>
-                    <div className="text-xs font-bold text-white">Default Onboarding Trial Duration</div>
-                    <div className="text-[10px] text-[#8A9CB6] mt-0.5">Specify default trial period assigned to new signups.</div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                      type="number"
-                      value={defaultTrialDays}
-                      onChange={(e) => setDefaultTrialDays(Number(e.target.value))}
-                      className="w-16 bg-[#080C14] border border-[#1E2E4F] text-white rounded p-2 text-center text-xs outline-none"
-                    />
-                    <span className="text-xs text-[#8A9CB6] font-mono">DAYS</span>
-                  </div>
-                </div>
-
-                {/* Currency support */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "10px 0", borderTop: "1px solid #16223F" }}>
-                  <div>
-                    <div className="text-xs font-bold text-white">Supported Billing Currencies</div>
-                    <div className="text-[10px] text-[#8A9CB6] mt-0.5">Active currencies allowed for SaaS workspaces.</div>
-                  </div>
-                  <div className="font-mono text-xs text-[#E0E6ED] flex gap-2">
-                    <span className="bg-[#0B1426] border border-[#1E2E4F] px-2 py-0.5 rounded">QAR</span>
-                    <span className="bg-[#0B1426] border border-[#1E2E4F] px-2 py-0.5 rounded">USD</span>
-                    <span className="bg-[#0B1426] border border-[#1E2E4F] px-2 py-0.5 rounded">EUR</span>
-                  </div>
-                </div>
-
-                {/* Templates */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #16223F" }}>
-                  <div>
-                    <div className="text-xs font-bold text-white">Email Notification Templates</div>
-                    <div className="text-[10px] text-[#8A9CB6] mt-0.5">Branded templates for workspace welcome and activation emails.</div>
-                  </div>
-                  <button onClick={() => alert("Notification templates unlocked.")} className="border border-[#1E2E4F] hover:border-white text-[#8A9CB6] hover:text-white py-1.5 px-3 rounded text-xs font-mono transition-all">
-                    EDIT TEMPLATES
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           )}
