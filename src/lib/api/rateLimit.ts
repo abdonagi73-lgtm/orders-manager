@@ -88,9 +88,9 @@ function memRateLimit(key: string, maxReqs: number, windowMs: number): RateLimit
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [k, e] of memStore.entries()) {
+    Array.from(memStore.entries()).forEach(([k, e]) => {
       if (now > e.resetAt) memStore.delete(k);
-    }
+    });
   }, 5 * 60 * 1000);
 }
 
