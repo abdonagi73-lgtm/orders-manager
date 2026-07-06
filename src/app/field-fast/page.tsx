@@ -807,7 +807,7 @@ function FieldFastInner() {
       loadOrders(d.worker.id);
       goTo('orders');
     }
-    else setPinError(true);
+    else { setPin(''); setPinError(true); } // clear input so worker can retype
   }
 
   function resetItemForm(){
@@ -1717,6 +1717,19 @@ function FieldFastInner() {
           </div>
         </div>
 
+        {/* FLAGGED ITEMS BANNER */}
+        {cart.some(i=>(i as any).status==='flagged') && (
+          <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.35)',borderRadius:10,
+            padding:'10px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:10,fontSize:13}}>
+            <span style={{fontSize:18}}>⚠️</span>
+            <span style={{color:'var(--red)',fontWeight:600}}>
+              {cart.filter(i=>(i as any).status==='flagged').length} flagged item(s) need review
+            </span>
+            <span style={{color:'var(--text-3)',fontSize:12,marginLeft:'auto'}}>
+              Contact your manager
+            </span>
+          </div>
+        )}
         {/* ITEMS BY VENDOR */}
         {Object.entries(cartByVendor).map(([vendor,items])=>(
           <div key={vendor} className="card" style={{marginBottom:12}}>

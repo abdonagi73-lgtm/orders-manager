@@ -426,6 +426,7 @@ function OwnerPageInner() {
   const [toast, setToast] = useState('');
   const [exporting, setExporting] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [resetWorkerPass, setResetWorkerPass] = useState<{id:string;val:string}|null>(null);
   const [flagModal, setFlagModal] = useState<{item:OrderItem}|null>(null);
   const [flagNote, setFlagNote] = useState('');
   const [editModal, setEditModal] = useState<{item:OrderItem}|null>(null);
@@ -536,14 +537,13 @@ function OwnerPageInner() {
       if(dm==='true') { setDarkMode(true); document.documentElement.setAttribute('data-theme','dark'); }
       // Load usage
       fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
-      // Find who logged in
-      const settings = sessionRes.settings;
-      const managers = sessionRes.managers || [];
-      if(pin === settings?.ownerPin) setLoggedInName('Owner');
-      else {
-        const mgr = managers.find((m:any)=>m.pin===pin);
-        setLoggedInName(mgr?.name || 'Manager');
-      }
+      // Load settings from DB
+      fetch('/api/settings').then(r=>r.json()).then(d=>{
+        if(d.settings) setSettings((prev:any)=>({...prev,...d.settings}));
+      });
+      // Identify who logged in from session role
+      const role = verifyRes.role || sessionRes.user?.role || '';
+      setLoggedInName(role === 'admin' || role === 'owner' ? 'Owner' : 'Manager');
       if(sessionRes.company) {
         setCompany({
           name: sessionRes.company.name,
@@ -971,9 +971,11 @@ function OwnerPageInner() {
 
   async function saveSettings() {
     setSavingSettings(true);
-    await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'save-settings',settings})});
-    setSavingSettings(false); showToast('Settings saved');
+    const res = await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({settings:{tax:settings.tax,markup:settings.markup,shipping:settings.shipping}})});
+    setSavingSettings(false);
+    if(res.ok) showToast('Settings saved');
+    else { const d=await res.json(); showToast('Error: '+(d.error||'Failed to save')); }
   }
 
   async function addWorker() {
@@ -1973,13 +1975,43 @@ function OwnerPageInner() {
                 <div className="empty"><div className="empty-text">No workers yet</div></div>
               ):(
                 workers.map(w=>(
-                  <div key={w.id} className="vendor-row">
-                    <div>
-                      <strong>{w.name}</strong>
-                      <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-2)'}}>••••••</span>
+                  <div key={w.id} className="vendor-row" style={{flexDirection:'column',alignItems:'stretch',gap:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div>
+                        <strong>{w.name}</strong>
+                        <span style={{marginLeft:10,fontFamily:'monospace',fontSize:12,color:'var(--text-2)'}}>••••••</span>
+                      </div>
+                      <div style={{display:'flex',gap:6}}>
+                        <button className="btn btn-sm" style={{color:'var(--blue)',borderColor:'var(--blue-border)'}}
+                          onClick={()=>setResetWorkerPass(resetWorkerPass?.id===w.id?null:{id:w.id,val:''})}>
+                          {resetWorkerPass?.id===w.id?'Cancel':'Reset password'}
+                        </button>
+                        <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
+                          onClick={()=>removeWorker(w.id)}>Remove</button>
+                      </div>
                     </div>
-                    <button className="btn btn-sm" style={{color:'var(--red)',borderColor:'var(--red-border)'}}
-                      onClick={()=>removeWorker(w.id)}>Remove</button>
+                    {resetWorkerPass?.id===w.id&&(
+                      <div style={{display:'flex',gap:8,alignItems:'center',paddingTop:4}}>
+                        <input type="password" placeholder="New password (min 8 chars)" style={{flex:1,fontSize:13}}
+                          value={resetWorkerPass.val}
+                          onChange={e=>setResetWorkerPass({id:w.id,val:e.target.value})}
+                          onKeyDown={async e=>{
+                            if(e.key!=='Enter') return;
+                            if(resetWorkerPass.val.length<8){showToast('Password must be at least 8 characters');return;}
+                            const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                              body:JSON.stringify({action:'change-worker-password',workerId:w.id,newPassword:resetWorkerPass.val})});
+                            if(res.ok){showToast(`✅ Password updated for ${w.name}`);setResetWorkerPass(null);}
+                            else{const d=await res.json();showToast('❌ '+(d.error||'Failed'));}
+                          }}/>
+                        <button className="btn btn-sm btn-primary" onClick={async()=>{
+                          if(resetWorkerPass.val.length<8){showToast('Password must be at least 8 characters');return;}
+                          const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({action:'change-worker-password',workerId:w.id,newPassword:resetWorkerPass.val})});
+                          if(res.ok){showToast(`✅ Password updated for ${w.name}`);setResetWorkerPass(null);}
+                          else{const d=await res.json();showToast('❌ '+(d.error||'Failed'));}
+                        }}>Save</button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}

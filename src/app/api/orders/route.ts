@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         company_id: companyId,
         name: body.name.trim(),
         startDate: body.startDate,
-        workerId:   body.workerId   ?? '',
+        workerId:   body.workerId   || null,
         workerName: body.workerName ?? '',
         status: 'open' as const,
         shippingCost: 0,
@@ -106,8 +106,8 @@ export async function POST(req: NextRequest) {
           closedAt: order.closedAt || '',
           itemCount: Number(order.itemCount) || 0,
           totalValue: Number(order.totalValue) || 0,
-          // Worker reassignment by manager — default to empty string if clearing
-          workerId:   order.workerId   ?? '',
+          // Worker reassignment by manager — null means unassigned
+          workerId:   order.workerId   || null,
           workerName: order.workerName ?? '',
         })
         .where(and(eq(orders.id, order.id), eq(orders.company_id, companyId)));

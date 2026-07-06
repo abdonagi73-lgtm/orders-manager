@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { orders, orderItems, notifications, companies } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import type { OrderItem } from '@/lib/types';
 
 async function refreshOrderStats(orderId: string, companyId: string) {
@@ -14,6 +14,7 @@ async function refreshOrderStats(orderId: string, companyId: string) {
       .where(and(
         eq(orders.id, orderId),
         eq(orders.company_id, companyId),
+        isNull(orderItems.deleted_at),   // exclude soft-deleted items
       )),
     db
       .select({ commission_rate: companies.commission_rate, shippingCost: orders.shippingCost })
