@@ -1,496 +1,1524 @@
-import Link from 'next/link';
-import type { Metadata } from 'next';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'FlowXIQ — One-Click POS Integration for Retail Purchasing',
-  description: 'FlowXIQ connects your purchasing workflow directly to any POS system. Capture orders from the vendor floor and push to Square, Shopify, Clover, Lightspeed, or your own API — with a single click.',
-};
+import { useState } from 'react';
+import Link from 'next/link';
+import { 
+  Building, CreditCard, Inbox, Activity, Shield, Plus, Search, 
+  AlertTriangle, Play, CheckCircle2, ChevronDown, Smartphone, 
+  Check, Lock, RefreshCw, BarChart4, ArrowRight, Server, CloudLightning
+} from 'lucide-react';
 
 export default function HomePage() {
+  // Visual Story active tab
+  const [activeStory, setActiveStory] = useState<'worker' | 'manager' | 'executive' | 'hq'>('worker');
+
+  // FAQ accordion open index
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+  // Video tour modal visibility
+  const [showTourModal, setShowTourModal] = useState(false);
+
+  const toggleFaq = (index: number) => {
+    setExpandedFaq(prev => prev === index ? null : index);
+  };
+
   return (
     <>
       <style>{`
+        /* ── GLOBAL ENTERPRISE OVERLAYS ── */
+        .glow-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          background: 
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59,130,246,0.14) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 40% at 80% 80%, rgba(16,185,129,0.06) 0%, transparent 50%);
+        }
+        .grid-grid {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-image: 
+            linear-gradient(rgba(30,47,80,0.18) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30,47,80,0.18) 1px, transparent 1px);
+          background-size: 80px 80px;
+          mask-image: radial-gradient(ellipse 60% 60% at 50% 30%, black 20%, transparent 100%);
+          pointer-events: none;
+        }
+
         /* ── HERO ── */
         .hero {
-          position: relative; overflow: hidden;
-          min-height: 92vh;
-          display: flex; align-items: center; justify-content: center;
-          text-align: center; padding: 100px 24px 80px;
+          position: relative;
+          overflow: hidden;
+          padding: 120px 24px 80px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
         }
-        .hero-mesh {
-          position: absolute; inset: 0; z-index: 0;
-          background:
-            radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,.18) 0%, transparent 70%),
-            radial-gradient(ellipse 60% 50% at 80% 80%, rgba(16,185,129,.10) 0%, transparent 60%);
-        }
-        .hero-grid {
-          position: absolute; inset: 0; z-index: 0;
-          background-image:
-            linear-gradient(rgba(30,47,80,.35) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(30,47,80,.35) 1px, transparent 1px);
-          background-size: 60px 60px;
-          mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black 20%, transparent 100%);
-        }
-        .hero-inner { position: relative; z-index: 1; max-width: 820px; margin: 0 auto; }
         .hero-badge {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 5px 14px; border-radius: 100px;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+          border-radius: 100px;
           border: 1px solid var(--mk-border);
-          background: rgba(59,130,246,.08);
-          font-size: 12px; font-weight: 600; letter-spacing: .04em;
-          color: var(--mk-accent2); margin-bottom: 32px;
+          background: rgba(59,130,246,0.06);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: var(--mk-accent2);
+          margin-bottom: 28px;
           text-transform: uppercase;
+          font-family: monospace;
         }
-        .hero-badge span { width: 6px; height: 6px; background: var(--mk-green); border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+        .hero-badge span {
+          width: 6px;
+          height: 6px;
+          background: var(--mk-green);
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.8); }
+        }
         .hero h1 {
-          font-size: clamp(36px, 6vw, 68px);
-          font-weight: 800; letter-spacing: -.04em; line-height: 1.05;
-          color: var(--mk-text); margin-bottom: 24px;
+          font-size: clamp(38px, 6.5vw, 68px);
+          font-weight: 800;
+          letter-spacing: -0.04em;
+          line-height: 1.05;
+          color: var(--mk-text);
+          margin: 0 auto 24px;
+          max-width: 950px;
         }
         .hero h1 em {
           font-style: normal;
           background: linear-gradient(135deg, var(--mk-accent) 0%, var(--mk-green2) 100%);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
         .hero-sub {
-          font-size: clamp(16px, 2vw, 20px); line-height: 1.6;
-          color: var(--mk-text2); max-width: 580px; margin: 0 auto 48px;
+          font-size: clamp(16px, 1.8vw, 19px);
+          line-height: 1.6;
+          color: var(--mk-text2);
+          max-width: 680px;
+          margin: 0 auto 40px;
         }
-        .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+        .hero-ctas {
+          display: flex;
+          gap: 14px;
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-bottom: 64px;
+          z-index: 10;
+        }
         .cta-primary {
-          padding: 14px 32px; border-radius: 10px;
-          font-size: 15px; font-weight: 700;
-          background: linear-gradient(135deg, var(--mk-accent), #6366F1);
-          color: #fff; text-decoration: none;
-          box-shadow: 0 8px 32px rgba(59,130,246,.35);
-          transition: transform .15s, box-shadow .15s;
+          padding: 14px 32px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 700;
+          background: linear-gradient(135deg, var(--mk-accent) 0%, #1e40af 100%);
+          color: #fff;
+          text-decoration: none;
+          box-shadow: 0 8px 30px rgba(59,130,246,0.3);
+          transition: all 0.15s ease;
+          font-family: monospace;
+          border: 1px solid rgba(255,255,255,0.1);
         }
-        .cta-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(59,130,246,.45); }
+        .cta-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 40px rgba(59,130,246,0.4);
+          background: linear-gradient(135deg, var(--mk-accent2) 0%, var(--mk-accent) 100%);
+        }
         .cta-secondary {
-          padding: 14px 32px; border-radius: 10px;
-          font-size: 15px; font-weight: 600;
-          background: var(--mk-surface2); color: var(--mk-text);
-          text-decoration: none; border: 1px solid var(--mk-border);
-          transition: border-color .15s, background .15s;
-        }
-        .cta-secondary:hover { border-color: var(--mk-accent); background: var(--mk-surface); }
-        /* HERO MOCKUP */
-        .hero-mockup {
-          margin: 64px auto 0; max-width: 900px;
-          border-radius: 16px; overflow: hidden;
-          border: 1px solid var(--mk-border);
-          box-shadow: 0 40px 100px rgba(0,0,0,.5), 0 0 0 1px var(--mk-border);
+          padding: 14px 32px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 700;
           background: var(--mk-surface);
+          color: var(--mk-text);
+          text-decoration: none;
+          border: 1px solid var(--mk-border);
+          transition: all 0.15s ease;
+          font-family: monospace;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
-        .mockup-bar {
-          background: var(--mk-surface2); padding: 12px 20px;
-          display: flex; align-items: center; gap: 8px;
+        .cta-secondary:hover {
+          border-color: #fff;
+          background: var(--mk-surface2);
+        }
+
+        /* ── SOCIAL PROOF METRICS ── */
+        .social-proof {
+          position: relative;
+          background: #01040a;
+          border-top: 1px solid var(--mk-border);
           border-bottom: 1px solid var(--mk-border);
+          padding: 56px 24px;
         }
-        .mockup-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .mockup-screen {
-          padding: 32px; display: grid;
-          grid-template-columns: 240px 1fr; gap: 20px; min-height: 300px;
+        .social-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr 1.2fr;
+          gap: 40px;
+          align-items: center;
         }
-        @media(max-width:640px){ .mockup-screen { grid-template-columns: 1fr; } .mockup-col { display: none; } }
-        .mockup-col {
-          background: var(--mk-bg2); border-radius: 10px;
-          border: 1px solid var(--mk-border); padding: 16px;
-          display: flex; flex-direction: column; gap: 8px;
+        @media(max-width:960px){
+          .social-inner { grid-template-columns: 1fr; }
         }
-        .mockup-nav-item {
-          padding: 8px 12px; border-radius: 6px; font-size: 12px;
-          font-weight: 500; color: var(--mk-text2);
+        .social-left h3 {
+          font-size: 20px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0 0 8px;
         }
-        .mockup-nav-item.active {
-          background: rgba(59,130,246,.15); color: var(--mk-accent2);
+        .social-left p {
+          font-size: 13.5px;
+          color: var(--mk-text2);
+          margin: 0;
+          line-height: 1.5;
         }
-        .mockup-main { display: flex; flex-direction: column; gap: 14px; }
-        .mockup-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        .mockup-stat {
-          background: var(--mk-bg2); border: 1px solid var(--mk-border);
-          border-radius: 8px; padding: 14px 16px;
+        .social-stats {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
         }
-        .mockup-stat .label { font-size: 10px; color: var(--mk-text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
-        .mockup-stat .val { font-size: 20px; font-weight: 700; color: var(--mk-text); }
-        .mockup-table {
-          background: var(--mk-bg2); border: 1px solid var(--mk-border);
-          border-radius: 8px; overflow: hidden;
+        .stat-card {
+          background: var(--mk-bg);
+          border: 1px solid var(--mk-border);
+          border-radius: 10px;
+          padding: 20px;
+          font-family: monospace;
         }
-        .mockup-row {
-          padding: 10px 16px; border-bottom: 1px solid var(--mk-border);
-          display: flex; align-items: center; justify-content: space-between;
-          font-size: 12px;
+        .stat-card .val {
+          font-size: 28px;
+          font-weight: 800;
+          color: var(--mk-accent2);
+          margin-bottom: 4px;
         }
-        .mockup-row:last-child { border-bottom: none; }
-        .status-badge {
-          padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;
+        .stat-card .lbl {
+          font-size: 10.5px;
+          color: var(--mk-text2);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
-        .status-approved { background: rgba(16,185,129,.15); color: #34D399; }
-        .status-pending  { background: rgba(245,158,11,.15); color: #FBBF24; }
-        .status-review   { background: rgba(59,130,246,.15); color: #60A5FA; }
 
-        /* SECTION SHARED */
-        .section { padding: 96px 24px; max-width: 1200px; margin: 0 auto; }
-        .section-label {
-          font-size: 12px; font-weight: 700; letter-spacing: .1em;
-          text-transform: uppercase; color: var(--mk-accent);
-          margin-bottom: 16px; display: block;
+        /* ── SECTION HEADER SHARED ── */
+        .sect-header {
+          text-align: center;
+          margin-bottom: 64px;
         }
-        .section-h { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; margin-bottom: 16px; }
-        .section-sub { font-size: 17px; color: var(--mk-text2); max-width: 560px; line-height: 1.6; margin-bottom: 56px; }
-
-        /* PAIN POINTS */
-        .pain-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
-        @media(max-width:900px){ .pain-grid { grid-template-columns: 1fr; } }
-        .pain-card {
-          background: var(--mk-surface); border: 1px solid var(--mk-border);
-          border-radius: 14px; padding: 28px;
-          transition: border-color .2s;
+        .sect-label {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--mk-accent);
+          margin-bottom: 16px;
+          display: block;
+          font-family: monospace;
         }
-        .pain-card:hover { border-color: rgba(59,130,246,.4); }
-        .pain-icon { font-size: 28px; margin-bottom: 16px; }
-        .pain-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
-        .pain-card p { font-size: 14px; color: var(--mk-text2); line-height: 1.6; }
+        .sect-title {
+          font-size: clamp(26px, 3.8vw, 42px);
+          font-weight: 800;
+          letter-spacing: -0.03em;
+          line-height: 1.15;
+          margin: 0 0 16px;
+          color: #fff;
+        }
+        .sect-desc {
+          font-size: 16px;
+          color: var(--mk-text2);
+          max-width: 600px;
+          margin: 0 auto;
+          line-height: 1.6;
+        }
 
-        /* WORKFLOW */
-        .workflow-steps {
-          display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
+        /* ── VISUAL WORKFLOW TIMELINE ── */
+        .workflow {
+          padding: 100px 24px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .timeline {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 24px;
           position: relative;
         }
-        @media(max-width:900px){ .workflow-steps { grid-template-columns: 1fr 1fr; gap: 20px; } }
-        .workflow-step {
-          text-align: center; padding: 32px 20px; position: relative;
+        @media(max-width:1024px){
+          .timeline { grid-template-columns: 1fr; gap: 40px; }
         }
-        .workflow-step:not(:last-child)::after {
-          content: '→'; position: absolute; right: -12px; top: 44px;
-          font-size: 20px; color: var(--mk-text3);
+        .timeline-item {
+          background: var(--mk-surface);
+          border: 1px solid var(--mk-border);
+          border-radius: 12px;
+          padding: 24px;
+          position: relative;
+          transition: border-color 0.2s;
         }
-        @media(max-width:900px){ .workflow-step::after { display: none; } }
-        .step-num {
-          width: 48px; height: 48px; border-radius: 50%;
-          background: linear-gradient(135deg, var(--mk-accent), #6366F1);
-          display: inline-flex; align-items: center; justify-content: center;
-          font-size: 18px; font-weight: 800; color: #fff;
+        .timeline-item:hover {
+          border-color: rgba(59,130,246,0.3);
+        }
+        .timeline-step {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(59,130,246,0.15);
+          border: 1px solid rgba(59,130,246,0.3);
+          color: var(--mk-accent2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 800;
+          font-family: monospace;
           margin-bottom: 20px;
-          box-shadow: 0 8px 24px rgba(59,130,246,.3);
         }
-        .workflow-step h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-        .workflow-step p { font-size: 13px; color: var(--mk-text2); line-height: 1.6; }
+        .timeline-item h4 {
+          font-size: 15px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0 0 8px;
+        }
+        .timeline-item p {
+          font-size: 12.5px;
+          color: var(--mk-text2);
+          line-height: 1.5;
+          margin: 0;
+        }
 
-        /* FEATURES */
-        .features-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
-        @media(max-width:900px){ .features-grid { grid-template-columns: 1fr 1fr; } }
-        @media(max-width:560px){ .features-grid { grid-template-columns: 1fr; } }
-        .feature-card {
-          background: var(--mk-surface); border: 1px solid var(--mk-border);
-          border-radius: 14px; padding: 28px;
-          transition: transform .2s, border-color .2s, box-shadow .2s;
+        /* ── CORE OUTCOMES FEATURES ── */
+        .features {
+          background: var(--mk-bg2);
+          border-top: 1px solid var(--mk-border);
+          border-bottom: 1px solid var(--mk-border);
+          padding: 100px 24px;
         }
-        .feature-card:hover {
-          transform: translateY(-3px);
-          border-color: rgba(59,130,246,.4);
-          box-shadow: 0 12px 40px rgba(0,0,0,.3);
+        .features-grid {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
         }
-        .feature-icon {
-          width: 44px; height: 44px; border-radius: 10px;
-          background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.2);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 20px; margin-bottom: 20px;
+        @media(max-width:960px){
+          .features-grid { grid-template-columns: repeat(2, 1fr); }
         }
-        .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-        .feature-card p { font-size: 13px; color: var(--mk-text2); line-height: 1.6; }
+        @media(max-width:640px){
+          .features-grid { grid-template-columns: 1fr; }
+        }
+        .feat-card {
+          background: var(--mk-surface);
+          border: 1px solid var(--mk-border);
+          border-radius: 12px;
+          padding: 32px;
+          transition: all 0.2s;
+        }
+        .feat-card:hover {
+          border-color: rgba(59,130,246,0.3);
+          transform: translateY(-2px);
+          box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+        }
+        .feat-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 8px;
+          background: rgba(59,130,246,0.1);
+          border: 1px solid rgba(59,130,246,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--mk-accent2);
+          margin-bottom: 24px;
+        }
+        .feat-card h4 {
+          font-size: 15.5px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0 0 10px;
+        }
+        .feat-card p {
+          font-size: 13px;
+          color: var(--mk-text2);
+          line-height: 1.6;
+          margin: 0;
+        }
 
-        /* PRICING */
-        .pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; align-items: start; }
-        @media(max-width:900px){ .pricing-grid { grid-template-columns: 1fr; max-width: 420px; } }
-        .price-card {
-          background: var(--mk-surface); border: 1px solid var(--mk-border);
-          border-radius: 16px; padding: 32px;
+        /* ── INTEGRATIONS ── */
+        .integrations {
+          padding: 100px 24px;
+          max-width: 1200px;
+          margin: 0 auto;
         }
-        .price-card.featured {
-          border-color: var(--mk-accent);
-          background: linear-gradient(180deg, rgba(59,130,246,.08) 0%, var(--mk-surface) 100%);
-          box-shadow: 0 0 0 1px rgba(59,130,246,.2), 0 20px 60px rgba(59,130,246,.12);
+        .integrations-inner {
+          display: grid;
+          grid-template-columns: 1.1fr 0.9fr;
+          gap: 60px;
+          align-items: center;
+        }
+        @media(max-width:960px){
+          .integrations-inner { grid-template-columns: 1fr; gap: 40px; }
+        }
+        .int-logo-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        .int-logo-card {
+          background: var(--mk-surface);
+          border: 1px solid var(--mk-border);
+          border-radius: 12px;
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          font-family: monospace;
+        }
+        .int-logo-card .name {
+          font-size: 14px;
+          font-weight: 700;
+          color: #fff;
+        }
+        .int-logo-card .desc {
+          font-size: 10.5px;
+          color: var(--mk-text2);
+        }
+
+        /* ── WHY FLOWXIQ ── */
+        .why-us {
+          background: var(--mk-bg2);
+          border-top: 1px solid var(--mk-border);
+          border-bottom: 1px solid var(--mk-border);
+          padding: 100px 24px;
+        }
+        .why-grid {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 24px;
+        }
+        @media(max-width:1024px){
+          .why-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media(max-width:640px){
+          .why-grid { grid-template-columns: 1fr; }
+        }
+        .why-card {
+          border-left: 1px solid var(--mk-border);
+          padding: 16px 0 16px 24px;
+        }
+        .why-card h4 {
+          font-size: 15px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0 0 8px;
+        }
+        .why-card p {
+          font-size: 12.5px;
+          color: var(--mk-text2);
+          line-height: 1.5;
+          margin: 0;
+        }
+
+        /* ── VISUAL STORY PREVIEWS ── */
+        .story-section {
+          padding: 100px 24px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .story-tabs {
+          display: flex;
+          justify-content: center;
+          gap: 12px;
+          margin-bottom: 40px;
+          flex-wrap: wrap;
+        }
+        .story-tab-btn {
+          background: var(--mk-surface);
+          border: 1px solid var(--mk-border);
+          color: var(--mk-text2);
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: monospace;
+        }
+        .story-tab-btn:hover {
+          border-color: #fff;
+          color: #fff;
+        }
+        .story-tab-btn.active {
+          background: var(--mk-accent);
+          border-color: var(--mk-accent2);
+          color: #fff;
+          box-shadow: 0 4px 14px rgba(59,130,246,0.3);
+        }
+        .story-display {
+          background: var(--mk-bg2);
+          border: 1px solid var(--mk-border);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .story-top-bar {
+          background: #01040a;
+          border-bottom: 1px solid var(--mk-border);
+          padding: 12px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .story-top-left {
+          display: flex;
+          gap: 6px;
+        }
+        .story-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+        .story-title-url {
+          font-size: 11px;
+          font-family: monospace;
+          color: var(--mk-text3);
+        }
+        .story-content {
+          padding: 32px;
+          min-height: 380px;
+        }
+
+        /* ── SECURITY TRUST ── */
+        .security {
+          background: var(--mk-bg2);
+          border-top: 1px solid var(--mk-border);
+          border-bottom: 1px solid var(--mk-border);
+          padding: 100px 24px;
+        }
+        .security-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 60px;
+          align-items: center;
+        }
+        @media(max-width:960px){
+          .security-inner { grid-template-columns: 1fr; gap: 40px; }
+        }
+        .sec-checklist {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .sec-check-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+        }
+        .sec-check-item span {
+          color: var(--mk-green);
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        .sec-check-item h5 {
+          font-size: 14.5px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0 0 4px;
+        }
+        .sec-check-item p {
+          font-size: 12.5px;
+          color: var(--mk-text2);
+          margin: 0;
+          line-height: 1.5;
+        }
+
+        /* ── PRICING MATRIX ── */
+        .pricing {
+          padding: 100px 24px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .pricing-cards {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+          margin-bottom: 64px;
+        }
+        @media(max-width:1150px){
+          .pricing-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media(max-width:640px){
+          .pricing-cards { grid-template-columns: 1fr; }
+        }
+        .pricing-card {
+          background: var(--mk-surface);
+          border: 1px solid var(--mk-border);
+          border-radius: 12px;
+          padding: 32px 24px;
+          display: flex;
+          flex-direction: column;
           position: relative;
         }
-        .price-badge {
-          position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-          background: linear-gradient(135deg, var(--mk-accent), #6366F1);
-          color: #fff; font-size: 11px; font-weight: 700;
-          padding: 4px 14px; border-radius: 100px; letter-spacing: .05em;
+        .pricing-card.popular {
+          border-color: var(--mk-accent);
+          background: linear-gradient(180deg, rgba(59,130,246,0.08) 0%, var(--mk-surface) 100%);
+          box-shadow: 0 10px 30px rgba(59,130,246,0.12);
+        }
+        .popular-tag {
+          position: absolute;
+          top: -12px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: var(--mk-accent);
+          color: #fff;
+          font-size: 10px;
+          font-family: monospace;
+          font-weight: 700;
+          padding: 4px 12px;
+          border-radius: 100px;
           text-transform: uppercase;
         }
-        .price-name { font-size: 14px; font-weight: 700; color: var(--mk-text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
-        .price-amount { font-size: 42px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 4px; }
-        .price-period { font-size: 13px; color: var(--mk-text3); margin-bottom: 28px; }
-        .price-features { list-style: none; padding: 0; margin: 0 0 32px; display: flex; flex-direction: column; gap: 12px; }
-        .price-features li { font-size: 13px; color: var(--mk-text2); display: flex; gap: 10px; align-items: flex-start; }
-        .price-features li::before { content: '✓'; color: var(--mk-green); font-weight: 700; flex-shrink: 0; }
-        .price-cta {
-          display: block; text-align: center;
-          padding: 12px 24px; border-radius: 10px;
-          font-size: 14px; font-weight: 700; text-decoration: none;
-          transition: all .15s;
+        .pr-tier {
+          font-size: 11px;
+          font-weight: 700;
+          font-family: monospace;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: var(--mk-text2);
+          margin-bottom: 8px;
         }
-        .price-cta.ghost {
-          border: 1px solid var(--mk-border); color: var(--mk-text2);
-          background: transparent;
+        .pr-val {
+          font-size: 40px;
+          font-weight: 800;
+          letter-spacing: -0.04em;
+          color: #fff;
+          margin-bottom: 4px;
         }
-        .price-cta.ghost:hover { border-color: var(--mk-accent); color: var(--mk-accent); }
-        .price-cta.solid {
-          background: linear-gradient(135deg, var(--mk-accent), #6366F1);
-          color: #fff; box-shadow: 0 8px 24px rgba(59,130,246,.3);
+        .pr-sub {
+          font-size: 12px;
+          color: var(--mk-text3);
+          margin-bottom: 24px;
+          min-height: 36px;
         }
-        .price-cta.solid:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(59,130,246,.4); }
-
-        /* FINAL CTA BANNER */
-        .cta-banner {
-          margin: 0 24px 96px; max-width: 1152px;
-          margin-left: auto; margin-right: auto;
-          background: linear-gradient(135deg, rgba(59,130,246,.15) 0%, rgba(99,102,241,.10) 100%);
-          border: 1px solid rgba(59,130,246,.3);
-          border-radius: 20px; padding: 64px 48px;
+        .pr-features {
+          list-style: none;
+          padding: 0;
+          margin: 0 0 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          font-size: 12.5px;
+          color: var(--mk-text2);
+        }
+        .pr-features li {
+          display: flex;
+          gap: 8px;
+          align-items: flex-start;
+        }
+        .pr-features li span {
+          color: var(--mk-green);
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        .pr-cta-btn {
+          margin-top: auto;
+          display: block;
           text-align: center;
-          position: relative; overflow: hidden;
+          padding: 10px 20px;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+          font-family: monospace;
+          transition: all 0.15s ease;
         }
-        .cta-banner::before {
-          content: '';
-          position: absolute; top: -60%; left: 50%; transform: translateX(-50%);
-          width: 600px; height: 400px;
-          background: radial-gradient(ellipse, rgba(59,130,246,.15), transparent 70%);
-          pointer-events: none;
+        .pr-cta-btn.hollow {
+          border: 1px solid var(--mk-border);
+          color: var(--mk-text2);
         }
-        .cta-banner h2 { font-size: clamp(24px, 4vw, 40px); font-weight: 800; letter-spacing: -.03em; margin-bottom: 16px; position: relative; }
-        .cta-banner p { font-size: 17px; color: var(--mk-text2); margin-bottom: 36px; position: relative; }
-        .cta-banner-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; position: relative; }
+        .pr-cta-btn.hollow:hover {
+          border-color: #fff;
+          color: #fff;
+        }
+        .pr-cta-btn.filled {
+          background: var(--mk-accent);
+          color: #fff;
+          box-shadow: 0 4px 14px rgba(59,130,246,0.3);
+        }
+        .pr-cta-btn.filled:hover {
+          background: var(--mk-accent2);
+        }
+
+        /* ── COMPARISON TABLE ── */
+        .comp-table-container {
+          overflow-x: auto;
+          margin-top: 48px;
+          border: 1px solid var(--mk-border);
+          border-radius: 12px;
+          background: #01040a;
+        }
+        .comp-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+          text-align: left;
+          min-width: 600px;
+        }
+        .comp-table th {
+          padding: 16px 20px;
+          color: var(--mk-text3);
+          font-weight: 700;
+          font-family: monospace;
+          border-bottom: 1px solid var(--mk-border);
+        }
+        .comp-table td {
+          padding: 16px 20px;
+          border-bottom: 1px solid rgba(30,47,80,0.25);
+          color: var(--mk-text2);
+        }
+        .comp-table tr:last-child td {
+          border-bottom: none;
+        }
+        .comp-table td.strong {
+          color: #fff;
+          font-weight: 600;
+        }
+
+        /* ── FAQ ACCORDION ── */
+        .faq {
+          background: var(--mk-bg2);
+          border-top: 1px solid var(--mk-border);
+          border-bottom: 1px solid var(--mk-border);
+          padding: 100px 24px;
+        }
+        .faq-inner {
+          max-width: 800px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .faq-card {
+          background: var(--mk-surface);
+          border: 1px solid var(--mk-border);
+          border-radius: 10px;
+          overflow: hidden;
+          transition: all 0.2s;
+        }
+        .faq-card.open {
+          border-color: rgba(59,130,246,0.3);
+        }
+        .faq-trigger {
+          width: 100%;
+          background: transparent;
+          border: none;
+          color: #fff;
+          padding: 20px 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 14.5px;
+          font-weight: 700;
+          cursor: pointer;
+          text-align: left;
+        }
+        .faq-icon-arrow {
+          transition: transform 0.2s;
+          color: var(--mk-text3);
+        }
+        .faq-card.open .faq-icon-arrow {
+          transform: rotate(180deg);
+          color: var(--mk-accent2);
+        }
+        .faq-panel {
+          padding: 0 24px 20px;
+          font-size: 13.5px;
+          color: var(--mk-text2);
+          line-height: 1.6;
+        }
+
+        /* ── FINAL CONVERSION CTA ── */
+        .final-cta {
+          padding: 120px 24px;
+          position: relative;
+          overflow: hidden;
+          text-align: center;
+        }
+        .final-banner {
+          max-width: 900px;
+          margin: 0 auto;
+          background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(99,102,241,0.06) 100%);
+          border: 1px solid rgba(59,130,246,0.25);
+          border-radius: 20px;
+          padding: 64px 40px;
+        }
+        .final-banner h2 {
+          font-size: clamp(24px, 4vw, 38px);
+          font-weight: 800;
+          letter-spacing: -0.03em;
+          margin: 0 0 16px;
+          color: #fff;
+        }
+        .final-banner p {
+          font-size: 16px;
+          color: var(--mk-text2);
+          margin: 0 auto 36px;
+          max-width: 580px;
+          line-height: 1.6;
+        }
+        .final-actions {
+          display: flex;
+          gap: 14px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        /* Video Tour overlay modal styling */
+        .tour-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.85);
+          backdrop-filter: blur(4px);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .tour-modal-body {
+          background: #090D1A;
+          border: 1px solid var(--mk-border);
+          border-radius: 16px;
+          width: 100%;
+          max-width: 800px;
+          overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .tour-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid var(--mk-border);
+          padding: 16px 20px;
+        }
+        .tour-modal-content {
+          padding: 32px 20px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          text-align: center;
+        }
       `}</style>
 
-      {/* ── HERO ── */}
-      <section className="hero">
-        <div className="hero-mesh" />
-        <div className="hero-grid" />
-        <div className="hero-inner">
+      {/* ── BACKGROUND MESH GLOWS ── */}
+      <div style={{ position: 'relative' }}>
+        <div className="glow-overlay" />
+        <div className="grid-grid" />
+
+        {/* ── HERO SECTION ── */}
+        <section className="hero">
           <div className="hero-badge">
-            <span /> Universal POS Integration &amp; Direct Data Entry
+            <span /> Enterprise-grade purchasing operations
           </div>
           <h1>
-            Push purchasing data to<br />
-            <em>any POS with one click</em>
+            Run your entire purchasing<br />
+            operation from <em>one platform</em>
           </h1>
           <p className="hero-sub">
-            FlowXIQ connects your vendor purchasing workflow directly to Square, Shopify, Clover, Lightspeed, WooCommerce, and virtually any POS system via direct API &mdash; no CSV exports, no manual re-entry, no errors.
+            Flowxiq connects your field sourcing teams directly to your existing inventory and back-office databases. Auto-calculate commissions, enforce approvals, and sync live to any POS with zero manual data entry.
           </p>
           <div className="hero-ctas">
-            <Link href="/request-access" className="cta-primary">Start Free Trial &rarr;</Link>
-            <Link href="#workflow" className="cta-secondary">See How It Works</Link>
+            <Link href="/request-access" className="cta-primary">Request Demo</Link>
+            <button onClick={() => setShowTourModal(true)} className="cta-secondary">
+              <Play className="w-4 h-4 fill-white" /> Watch Product Tour
+            </button>
           </div>
 
-          {/* App Mockup */}
-          <div className="hero-mockup">
-            <div className="mockup-bar">
-              <div className="mockup-dot" style={{background:'#FF5F56'}} />
-              <div className="mockup-dot" style={{background:'#FFBD2E'}} />
-              <div className="mockup-dot" style={{background:'#27C93F'}} />
-              <span style={{marginLeft:16,fontSize:12,color:'var(--mk-text3)',fontFamily:'monospace'}}>Flowxiq.app / owner dashboard</span>
-            </div>
-            <div className="mockup-screen">
-              <div className="mockup-col">
-                <div className="mockup-nav-item active">📊 Orders</div>
-                <div className="mockup-nav-item">📦 Items</div>
-                <div className="mockup-nav-item">💰 Analytics</div>
-                <div className="mockup-nav-item">👥 Workers</div>
-                <div className="mockup-nav-item">🏪 Vendors</div>
-                <div className="mockup-nav-item">⚙️ Settings</div>
-              </div>
-              <div className="mockup-main">
-                <div className="mockup-stat-row">
-                  <div className="mockup-stat"><div className="label">Open Orders</div><div className="val">12</div></div>
-                  <div className="mockup-stat"><div className="label">Items Today</div><div className="val">348</div></div>
-                  <div className="mockup-stat"><div className="label">Total Value</div><div className="val">$24.8k</div></div>
+          {/* Core Mockup Frame */}
+          <div style={{ width: '100%', maxWidth: '1000px', zIndex: 10 }}>
+            <div className="story-display">
+              <div className="story-top-bar">
+                <div className="story-top-left">
+                  <div className="story-dot" style={{ background: '#FF5F56' }} />
+                  <div className="story-dot" style={{ background: '#FFBD2E' }} />
+                  <div className="story-dot" style={{ background: '#27C93F' }} />
                 </div>
-                <div className="mockup-table">
-                  <div className="mockup-row">
+                <span className="story-title-url">flowxiq.com/hq-portal</span>
+                <span style={{ fontSize: '10px', color: '#10B981', fontFamily: 'monospace', fontWeight: 'bold' }}>● LIVE TELEMETRY</span>
+              </div>
+              <div className="story-content" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '24px', textAlign: 'left', background: '#060B15' }}>
+                
+                {/* Left Side: Mockup Navigation */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderRight: '1px solid var(--mk-border)', paddingRight: '20px' }}>
+                  <div style={{ padding: '8px 12px', background: 'rgba(59,130,246,0.1)', color: '#3B82F6', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', fontFamily: 'monospace' }}>⚡ PRIORITIES</div>
+                  <div style={{ padding: '8px 12px', color: 'var(--mk-text2)', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' }}>💼 REVENUE &amp; PLANS</div>
+                  <div style={{ padding: '8px 12px', color: 'var(--mk-text2)', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' }}>🏢 CRM REGISTRY</div>
+                  <div style={{ padding: '8px 12px', color: 'var(--mk-text2)', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' }}>📈 OPERATIONS</div>
+                  <div style={{ padding: '8px 12px', color: 'var(--mk-text2)', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' }}>🛠 HEALTH CONSOLE</div>
+                </div>
+
+                {/* Right Side: Mockup Content */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--mk-border)', paddingBottom: '12px' }}>
                     <div>
-                      <div style={{fontSize:13,fontWeight:600}}>Order #4821 — NY Vendor Run</div>
-                      <div style={{fontSize:11,color:'var(--mk-text3)',marginTop:3}}>Worker: Carlos · 48 items · $3,240</div>
+                      <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff', margin: 0 }}>Access Request Queue (2)</h4>
+                      <span style={{ fontSize: '11px', color: 'var(--mk-text2)' }}>Pending administrative customer checks</span>
                     </div>
-                    <span className="status-badge status-approved">Approved</span>
+                    <span style={{ background: 'rgba(245,158,11,0.1)', color: '#F59E0B', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '100px', alignSelf: 'center', fontFamily: 'monospace' }}>2 IN PROGRESS</span>
                   </div>
-                  <div className="mockup-row">
-                    <div>
-                      <div style={{fontSize:13,fontWeight:600}}>Order #4820 — LA District</div>
-                      <div style={{fontSize:11,color:'var(--mk-text3)',marginTop:3}}>Worker: Maria · 31 items · $2,100</div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '8px', padding: '12px 16px' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>Moda Group Qatar</div>
+                        <div style={{ fontSize: '10px', color: 'var(--mk-text2)', fontFamily: 'monospace' }}>admin@modagroup.qa · Wholesale Logistics</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <span style={{ border: '1px solid #10B981', color: '#10B981', fontSize: '10px', padding: '4px 10px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold' }}>APPROVE</span>
+                        <span style={{ border: '1px solid #EF4444', color: '#EF4444', fontSize: '10px', padding: '4px 10px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold' }}>DECLINE</span>
+                      </div>
                     </div>
-                    <span className="status-badge status-pending">Pending</span>
-                  </div>
-                  <div className="mockup-row">
-                    <div>
-                      <div style={{fontSize:13,fontWeight:600}}>Order #4819 — Miami Wholesale</div>
-                      <div style={{fontSize:11,color:'var(--mk-text3)',marginTop:3}}>Worker: James · 22 items · $1,580</div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '8px', padding: '12px 16px' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>Choices Fashion Ltd</div>
+                        <div style={{ fontSize: '10px', color: 'var(--mk-text2)', fontFamily: 'monospace' }}>sourcing@choices.com · Clothing Sourcing</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <span style={{ border: '1px solid #10B981', color: '#10B981', fontSize: '10px', padding: '4px 10px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold' }}>APPROVE</span>
+                        <span style={{ border: '1px solid #EF4444', color: '#EF4444', fontSize: '10px', padding: '4px 10px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold' }}>DECLINE</span>
+                      </div>
                     </div>
-                    <span className="status-badge status-review">In Review</span>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── THE PROBLEM ── */}
-      <section style={{padding:'80px 24px',background:'var(--mk-bg2)',borderTop:'1px solid var(--mk-border)',borderBottom:'1px solid var(--mk-border)'}}>
-        <div style={{maxWidth:1200,margin:'0 auto'}}>
-          <span className="section-label">The Problem</span>
-          <h2 className="section-h">Retail purchasing is broken</h2>
-          <p className="section-sub">Most retail businesses still run purchasing operations through WhatsApp messages, Excel sheets, and handwritten notes. Items get lost, approvals are delayed, and there's no audit trail.</p>
-          <div className="pain-grid">
-            <div className="pain-card">
-              <div className="pain-icon">📱</div>
-              <h3>WhatsApp chaos</h3>
-              <p>Workers send photos and prices through chat. Managers scroll through hundreds of messages trying to piece together an order. Critical items get missed.</p>
+        {/* ── SOCIAL PROOF & STATS SECTION ── */}
+        <section className="social-proof">
+          <div className="social-inner">
+            <div className="social-left">
+              <h3>Trusted by enterprise sourcing teams</h3>
+              <p>Flowxiq manages purchasing limits, routes worker approvals, and syncs catalogs for multi-location operations worldwide.</p>
             </div>
-            <div className="pain-card">
-              <div className="pain-icon">📊</div>
-              <h3>No real-time visibility</h3>
-              <p>Managers have no live view of what workers are capturing at the vendor warehouse. Approvals happen after the fact, when it's too late to change decisions.</p>
-            </div>
-            <div className="pain-card">
-              <div className="pain-icon">💸</div>
-              <h3>Manual commission headaches</h3>
-              <p>Calculating worker commissions from mixed spreadsheets takes hours. Errors are common. Workers lose trust in the numbers. Disputes slow everything down.</p>
+            <div className="social-stats">
+              <div className="stat-card">
+                <div className="val">4.2M+</div>
+                <div className="lbl">Orders Synced</div>
+              </div>
+              <div className="stat-card">
+                <div className="val">$150M+</div>
+                <div className="lbl">Sourcing Tracked</div>
+              </div>
+              <div className="stat-card">
+                <div className="val">15k+</div>
+                <div className="lbl">Suppliers Managed</div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── WORKFLOW ── */}
-      <section className="section" id="workflow">
-        <span className="section-label">How It Works</span>
-        <h2 className="section-h">From vendor visit to purchase order in minutes</h2>
-        <p className="section-sub">Flowxiq replaces the WhatsApp-and-Excel stack with a purpose-built workflow that follows your team from the warehouse to your POS system.</p>
-        <div className="workflow-steps">
-          {[
-            { n:1, title:'Vendor Visit', desc:'Workers check in at the vendor warehouse using the mobile app. No paper. No signal needed — fully offline.' },
-            { n:2, title:'Item Capture', desc:'Scan or enter item codes, select colors and sizes, snap a photo, set quantities. Fast enough to keep up with vendors.' },
-            { n:3, title:'Manager Review', desc:'Orders sync instantly. Managers approve, reject, or modify individual items with notes. Full audit trail preserved.' },
-            { n:4, title:'Export & Close', desc:'Generate a purchase order PDF or export directly to Square POS. Commissions calculated automatically.' },
-          ].map(s => (
-            <div className="workflow-step" key={s.n}>
-              <div className="step-num">{s.n}</div>
-              <h3>{s.title}</h3>
-              <p>{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+        {/* ── VISUAL WORKFLOW TIMELINE ── */}
+        <section className="workflow" id="workflow">
+          <div className="sect-header">
+            <span className="sect-label">Operational Workflow</span>
+            <h2 className="sect-title">How Flowxiq powers your purchasing pipeline</h2>
+            <p className="sect-desc">From the initial supplier visit to real-time syncs in your existing commerce POS dashboard.</p>
+          </div>
 
-      {/* ── FEATURES ── */}
-      <section style={{padding:'80px 24px', background:'var(--mk-bg2)',borderTop:'1px solid var(--mk-border)',borderBottom:'1px solid var(--mk-border)'}} id="features">
-        <div style={{maxWidth:1200,margin:'0 auto'}}>
-          <span className="section-label">Platform Capabilities</span>
-          <h2 className="section-h">Works with almost every POS &mdash; out of the box</h2>
-          <p className="section-sub">FlowXIQ sends your purchasing data directly to your POS system via native API or direct data entry. One click. No exports. No re-keying.</p>
-
-          {/* POS Logos row */}
-          <div style={{display:'flex',flexWrap:'wrap',gap:12,justifyContent:'center',alignItems:'center',marginBottom:48,padding:'24px',background:'var(--mk-surface)',border:'1px solid var(--mk-border)',borderRadius:16}}>
-            {['Square','Shopify','Clover','Lightspeed','Vend','WooCommerce','QuickBooks','Revel','Toast','Custom API'].map(pos=>(
-              <span key={pos} style={{padding:'6px 16px',borderRadius:100,background:'var(--mk-surface2)',border:'1px solid var(--mk-border)',fontSize:13,fontWeight:600,color:'var(--mk-text2)'}}>{pos}</span>
+          <div className="timeline">
+            {[
+              { num: '01', title: 'Supplier Visit', desc: 'Workers check in at vendor floor locations. Flowxiq functions completely offline on mobile apps.' },
+              { num: '02', title: 'Worker Creates Order', desc: 'Worker inputs supplier pricing, scans codes, snaps product photos, and queues data fields locally.' },
+              { num: '03', title: 'Manager Reviews', desc: 'Review lists update instantly once workers go online. Modify quantities and calculate commissions.' },
+              { num: '04', title: 'Approve & Sync', desc: 'One-click approvals push purchase details directly into your POS inventory catalog (Square/Shopify).' },
+              { num: '05', title: 'HQ Business Analytics', desc: 'Executive teams track vendor intelligence, spending trends, and system uptime from headquarters.' }
+            ].map((step, idx) => (
+              <div key={idx} className="timeline-item">
+                <div className="timeline-step">{step.num}</div>
+                <h4>{step.title}</h4>
+                <p>{step.desc}</p>
+              </div>
             ))}
+          </div>
+        </section>
+
+        {/* ── CORE FEATURES ── */}
+        <section className="features" id="features">
+          <div className="sect-header">
+            <span className="sect-label">Platform Capabilities</span>
+            <h2 className="sect-title">Built for complex supplier operations</h2>
+            <p className="sect-desc">Outcomes-driven features engineered to replace spreadsheet chaos and data errors.</p>
           </div>
 
           <div className="features-grid">
+            <div className="feat-card">
+              <div className="feat-icon"><Building className="w-5 h-5" /></div>
+              <h4>Supplier Sourcing Management</h4>
+              <p>Track purchase frequencies, average price margins, and top order categories by supplier.</p>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon"><Smartphone className="w-5 h-5" /></div>
+              <h4>Offline Sourcing Mobile App</h4>
+              <p>Capture items, scan bar codes, and sync orders automatically in weak signal warehouses.</p>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon"><Inbox className="w-5 h-5" /></div>
+              <h4>Dual-Level Approvals Engine</h4>
+              <p>Enforce worker spending caps. Prevent catalog duplicates before they hit your POS system.</p>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon"><CreditCard className="w-5 h-5" /></div>
+              <h4>Automated Worker Commissions</h4>
+              <p>Track commission rates per order automatically. Eliminate WhatsApp disputes and spreadsheet errors.</p>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon"><Activity className="w-5 h-5" /></div>
+              <h4>Vendor Intelligence Analytics</h4>
+              <p>Aggregate catalog data across multiple locations to identify bulk discount opportunities.</p>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon"><Shield className="w-5 h-5" /></div>
+              <h4>Enterprise Security Audits</h4>
+              <p>Every transaction, modification, and user login is recorded in a tamper-proof audit log.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── INTEGRATIONS GATEWAY ── */}
+        <section className="integrations" id="integrations">
+          <div className="integrations-inner">
+            <div>
+              <span className="sect-label">POS Integrations Gateway</span>
+              <h2 className="sect-title" style={{ textAlign: 'left' }}>Adapts to your existing commerce systems</h2>
+              <p className="sect-desc" style={{ textAlign: 'left', margin: '0 0 24px' }}>
+                Flowxiq does not replace your Point of Sale (POS) system. It acts as an operational middleware wrapper, syncing procurement logs directly into your existing dashboard catalog with a single click.
+              </p>
+              <ul style={{ padding: 0, margin: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13.5px', color: 'var(--mk-text2)' }}>
+                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 className="w-4 h-4 text-blue-500" /> Automatically map item colors, sizes, and pricing matrix</li>
+                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 className="w-4 h-4 text-blue-500" /> Prevent duplicates via catalog ID matching</li>
+                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 className="w-4 h-4 text-blue-500" /> Supports WooCommerce and custom ERP APIs</li>
+              </ul>
+            </div>
+            <div className="int-logo-grid">
+              <div className="int-logo-card">
+                <span className="name">Square POS</span>
+                <span className="desc">Direct batch-upsert mapping item variations &amp; prices in cents.</span>
+              </div>
+              <div className="int-logo-card">
+                <span className="name">Shopify Commerce</span>
+                <span className="desc">Sync products instantly using Shopify Admin REST API.</span>
+              </div>
+              <div className="int-logo-card">
+                <span className="name">Clover Merchant</span>
+                <span className="desc">Direct item updates posting items directly to clover merchant ID.</span>
+              </div>
+              <div className="int-logo-card">
+                <span className="name">Lightspeed Retail</span>
+                <span className="desc">Live account integrations syncing items across warehouses.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── WHY FLOWXIQ ── */}
+        <section className="why-us">
+          <div className="sect-header">
+            <span className="sect-label">Differentiators</span>
+            <h2 className="sect-title">Why enterprises choose Flowxiq</h2>
+            <p className="sect-desc">Designed from the ground up for teams who source products physically from suppliers.</p>
+          </div>
+
+          <div className="why-grid">
+            <div className="why-card">
+              <h4>Mobile-First Sourcing</h4>
+              <p>Designed for speed on supplier floor locations. Capture photos, sizes, and quantities in seconds.</p>
+            </div>
+            <div className="why-card">
+              <h4>100% Offline Capability</h4>
+              <p>Queues actions locally when workers are underground or inside steel warehouses, syncing once online.</p>
+            </div>
+            <div className="why-card">
+              <h4>Custom Field Syncing</h4>
+              <p>Enables arbitrary custom attributes (fabric, dye lot, manufacturer) to sync straight to your POS.</p>
+            </div>
+            <div className="why-card">
+              <h4>Granular Auditing</h4>
+              <p>Ensures that every price modification is tracked back to the manager who authorized it.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── VISUAL STORY PRODUCT TOUR ── */}
+        <section className="story-section" id="story">
+          <div className="sect-header">
+            <span className="sect-label">Interactive Tour</span>
+            <h2 className="sect-title">A visual walk through the platform</h2>
+            <p className="sect-desc">See how purchase orders flow from the mobile app to corporate headquarters.</p>
+          </div>
+
+          <div className="story-tabs">
+            <button 
+              onClick={() => setActiveStory('worker')} 
+              className={`story-tab-btn ${activeStory === 'worker' ? 'active' : ''}`}
+            >
+              01. WORKER MOBILE PORTAL
+            </button>
+            <button 
+              onClick={() => setActiveStory('manager')} 
+              className={`story-tab-btn ${activeStory === 'manager' ? 'active' : ''}`}
+            >
+              02. MANAGER REVIEW CONSOLE
+            </button>
+            <button 
+              onClick={() => setActiveStory('executive')} 
+              className={`story-tab-btn ${activeStory === 'executive' ? 'active' : ''}`}
+            >
+              03. EXECUTIVE ANALYTICS
+            </button>
+            <button 
+              onClick={() => setActiveStory('hq')} 
+              className={`story-tab-btn ${activeStory === 'hq' ? 'active' : ''}`}
+            >
+              04. HEADQUARTERS TELEMETRY
+            </button>
+          </div>
+
+          {/* Interactive Mockup Container */}
+          <div className="story-display">
+            <div className="story-top-bar">
+              <div className="story-top-left">
+                <div className="story-dot" style={{ background: '#FF5F56' }} />
+                <div className="story-dot" style={{ background: '#FFBD2E' }} />
+                <div className="story-dot" style={{ background: '#27C93F' }} />
+              </div>
+              <span className="story-title-url">
+                {activeStory === 'worker' && 'flowxiq.app/field-fast'}
+                {activeStory === 'manager' && 'flowxiq.app/owner-portal/orders'}
+                {activeStory === 'executive' && 'flowxiq.app/owner-portal/analytics'}
+                {activeStory === 'hq' && 'flowxiq.app/super-admin/telemetry'}
+              </span>
+              <span style={{ fontSize: '10px', color: '#3B82F6', fontFamily: 'monospace' }}>● ENCRYPTED SSL</span>
+            </div>
+            
+            <div className="story-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: '#070C15' }}>
+              
+              {activeStory === 'worker' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '32px', textAlign: 'left' }}>
+                  <div style={{ background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--mk-border)', paddingBottom: '8px' }}>
+                      <span style={{ fontStyle: 'monospace', fontSize: '11px', color: '#10B981', fontWeight: 'bold' }}>📱 WORKER APP</span>
+                      <span style={{ background: 'rgba(239,68,68,0.1)', color: '#EF4444', fontSize: '9px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px' }}>OFFLINE QUEUE (3)</span>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '10px', color: 'var(--mk-text3)', textTransform: 'uppercase', fontWeight: 'bold' }}>Vendor Location</label>
+                      <div style={{ background: '#04070D', border: '1px solid var(--mk-border)', padding: '8px', borderRadius: '4px', fontSize: '12px', marginTop: '4px' }}>Qatar Wholesale Center</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '10px', color: 'var(--mk-text3)', textTransform: 'uppercase', fontWeight: 'bold' }}>Item Details</label>
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                        <input type="text" placeholder="Item Code" defaultValue="MODA-SH-09" style={{ width: '100%', background: '#04070D', border: '1px solid var(--mk-border)', color: '#fff', fontSize: '11px', padding: '6px', borderRadius: '4px', outline: 'none' }} />
+                        <input type="text" placeholder="Qty" defaultValue="15" style={{ width: '50px', background: '#04070D', border: '1px solid var(--mk-border)', color: '#fff', fontSize: '11px', padding: '6px', borderRadius: '4px', textAlign: 'center' }} />
+                      </div>
+                    </div>
+                    <button style={{ background: 'var(--mk-accent)', border: 'none', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>ADD ITEM TO QUEUE</button>
+                  </div>
+                  <div>
+                    <h4 style={{ color: '#fff', margin: '0 0 10px', fontSize: '16px' }}>Offline-first Field App</h4>
+                    <p style={{ color: 'var(--mk-text2)', fontSize: '13.5px', lineHeight: '1.6', margin: '0 0 16px' }}>
+                      Workers can walk deep into supplier warehouses without cell coverage. The mobile portal logs all barcode scans and product photos inside the local sync storage, automatically syncing once connection resolves.
+                    </p>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', fontFamily: 'monospace' }}>
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><Smartphone className="w-4 h-4 text-green-500" /> Offline Barcode Scanner</span>
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><Check className="w-4 h-4 text-green-500" /> Auto Sync Engine</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeStory === 'manager' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '32px', textAlign: 'left' }}>
+                  <div>
+                    <h4 style={{ color: '#fff', margin: '0 0 10px', fontSize: '16px' }}>Approval &amp; Modifications Console</h4>
+                    <p style={{ color: 'var(--mk-text2)', fontSize: '13.5px', lineHeight: '1.6', margin: '0 0 16px' }}>
+                      Managers review incoming order logs, calculate worker commission splits, flag pricing discrepancies, and append custom tags before pushing transactions directly to POS inventory.
+                    </p>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', fontFamily: 'monospace' }}>
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><Check className="w-4 h-4 text-green-500" /> Commission Rules</span>
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><Check className="w-4 h-4 text-green-500" /> Line Item Rejection</span>
+                    </div>
+                  </div>
+                  <div style={{ background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ borderBottom: '1px solid var(--mk-border)', paddingBottom: '6px', display: 'flex',  justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}>NY Warehouse Run (#4021)</span>
+                      <span style={{ color: '#F59E0B', fontSize: '9px', fontWeight: 'bold' }}>PENDING REVIEW</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--mk-text2)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                        <span>Moda Leather Jacket x10</span>
+                        <span style={{ color: '#fff' }}>$1,200.00</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span>Moda Denim Jeans x25</span>
+                        <span style={{ color: '#fff' }}>$625.00</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontWeight: 'bold', color: '#fff' }}>
+                        <span>TOTAL VALUE</span>
+                        <span>$1,825.00</span>
+                      </div>
+                    </div>
+                    <button style={{ background: '#10B981', border: 'none', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>APPROVE ORDER</button>
+                  </div>
+                </div>
+              )}
+
+              {activeStory === 'executive' && (
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '8px', padding: '16px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--mk-text3)', textTransform: 'uppercase' }}>Weighted Commission Cost</div>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>$12,480.00</div>
+                    </div>
+                    <div style={{ background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '8px', padding: '16px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--mk-text3)', textTransform: 'uppercase' }}>Top Vendor Sourcing</div>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>Qatar Wholesale Center</div>
+                    </div>
+                    <div style={{ background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '8px', padding: '16px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--mk-text3)', textTransform: 'uppercase' }}>Catalog Sync Success</div>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#10B981', marginTop: '4px' }}>100.0%</div>
+                    </div>
+                  </div>
+                  <h4 style={{ color: '#fff', margin: '0 0 8px', fontSize: '16px' }}>Live Sourcing Analytics</h4>
+                  <p style={{ color: 'var(--mk-text2)', fontSize: '13.5px', lineHeight: '1.6', margin: 0 }}>
+                    Track vendor pricing fluctuations over time. Identify which supplier floor operations yield the highest profit margins, and calculate true acquisition costs including worker commission percentages.
+                  </p>
+                </div>
+              )}
+
+              {activeStory === 'hq' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '32px', textAlign: 'left' }}>
+                  <div>
+                    <h4 style={{ color: '#fff', margin: '0 0 10px', fontSize: '16px' }}>Headquarters Super-Admin Console</h4>
+                    <p style={{ color: 'var(--mk-text2)', fontSize: '13.5px', lineHeight: '1.6', margin: '0 0 16px' }}>
+                      Monitor system logs across multi-tenant enterprise companies. Track API latency metrics, manage database migrations, lock platform access via global maintenance mode toggles, and configure default workspace settings.
+                    </p>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', fontFamily: 'monospace' }}>
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><Server className="w-4 h-4 text-green-500" /> Multi-Tenant Telemetry</span>
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><Lock className="w-4 h-4 text-green-500" /> Maintenance Blocks</span>
+                    </div>
+                  </div>
+                  <div style={{ background: '#0B1220', border: '1px solid var(--mk-border)', borderRadius: '12px', padding: '20px', fontFamily: 'monospace', fontSize: '11px' }}>
+                    <div style={{ color: '#3B82F6', fontWeight: 'bold', borderBottom: '1px solid var(--mk-border)', paddingBottom: '6px', marginBottom: '10px' }}>SYSTEM TELEMETRY</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: 'var(--mk-text2)' }}>API LATENCY</span>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>14ms</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: 'var(--mk-text2)' }}>DB SYNC STATE</span>
+                      <span style={{ color: '#10B981', fontWeight: 'bold' }}>STABLE</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: 'var(--mk-text2)' }}>MEM USE CAP</span>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>34%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </section>
+
+        {/* ── SECURITY & RELIABILITY ── */}
+        <section className="security">
+          <div className="security-inner">
+            <div>
+              <span className="sect-label">Security &amp; Compliance</span>
+              <h2 className="sect-title" style={{ textAlign: 'left' }}>Bank-grade reliability for enterprise sourcing</h2>
+              <p className="sect-desc" style={{ textAlign: 'left', margin: '0 0 32px' }}>
+                We protect your supplier credentials, worker commission structures, and purchase history logs with advanced encryption and access protocols.
+              </p>
+              <div className="sec-checklist">
+                <div className="sec-check-item">
+                  <span><CheckCircle2 className="w-5 h-5" /></span>
+                  <div>
+                    <h5>AES-256 Credentials Encryption</h5>
+                    <p>All third-party POS API tokens are stored encrypted at rest using strong AES-256 protocols.</p>
+                  </div>
+                </div>
+                <div className="sec-check-item">
+                  <span><CheckCircle2 className="w-5 h-5" /></span>
+                  <div>
+                    <h5>Role-Based Access Controls (RBAC)</h5>
+                    <p>Granular worker permissions restrict database writes, order reviews, and export tasks strictly by role.</p>
+                  </div>
+                </div>
+                <div className="sec-check-item">
+                  <span><CheckCircle2 className="w-5 h-5" /></span>
+                  <div>
+                    <h5>Immutable System Logs</h5>
+                    <p>Every single order approval, rejection, and credential edit is compiled into a read-only audit log.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ background: 'var(--mk-surface)', border: '1px solid var(--mk-border)', borderRadius: '16px', padding: '32px', textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--mk-border)', paddingBottom: '16px', marginBottom: '20px' }}>
+                <div style={{ width: '40px', height: '40px', background: 'rgba(16,185,129,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff', margin: 0 }}>Reliable Cloud Infrastructure</h4>
+                  <span style={{ fontSize: '11px', color: 'var(--mk-text3)', fontFamily: 'monospace' }}>UPTIME METRIC MONITOR</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', fontFamily: 'monospace' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--mk-text2)' }}>SYSTEM UPTIME</span>
+                  <span style={{ color: '#10B981', fontWeight: 'bold' }}>99.99%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--mk-text2)' }}>DAILY DB BACKUPS</span>
+                  <span style={{ color: '#10B981', fontWeight: 'bold' }}>ENABLED</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--mk-text2)' }}>ENCRYPTION PROTOCOL</span>
+                  <span style={{ color: '#fff' }}>TLS 1.3 / HTTPS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── PRICING MATRIX ── */}
+        <section className="pricing" id="pricing">
+          <div className="sect-header">
+            <span className="sect-label">Pricing matrix</span>
+            <h2 className="sect-title">Flexible plans for growing operations</h2>
+            <p className="sect-desc">Start free for 30 days. No credit card required. Cancel or upgrade anytime.</p>
+          </div>
+
+          <div className="pricing-cards">
+            {/* TRIAL PLAN */}
+            <div className="pricing-card">
+              <span className="pr-tier">Free Trial</span>
+              <div className="pr-val">$0</div>
+              <span className="pr-sub">No credit card required for your first 30 days</span>
+              <ul className="pr-features">
+                <li><Check className="w-3.5 h-3.5" /> 1 Sourcing Location</li>
+                <li><Check className="w-3.5 h-3.5" /> 2 Sourcing Workers</li>
+                <li><Check className="w-3.5 h-3.5" /> Up to 50 items/order</li>
+                <li><Check className="w-3.5 h-3.5" /> Direct POS API sync</li>
+              </ul>
+              <Link href="/request-access" className="pr-cta-btn hollow">Start Free Trial</Link>
+            </div>
+
+            {/* PROFESSIONAL */}
+            <div className="pricing-card">
+              <span className="pr-tier">Professional</span>
+              <div className="pr-val">$49</div>
+              <span className="pr-sub">Per business workspace billed monthly</span>
+              <ul className="pr-features">
+                <li><Check className="w-3.5 h-3.5" /> 2 Sourcing Locations</li>
+                <li><Check className="w-3.5 h-3.5" /> 5 Sourcing Workers</li>
+                <li><Check className="w-3.5 h-3.5" /> Up to 200 items/order</li>
+                <li><Check className="w-3.5 h-3.5" /> Direct POS API sync</li>
+                <li><Check className="w-3.5 h-3.5" /> Basic support</li>
+              </ul>
+              <Link href="/request-access" className="pr-cta-btn hollow">Request Access</Link>
+            </div>
+
+            {/* BUSINESS - popular */}
+            <div className="pricing-card popular">
+              <span className="popular-tag">RECOMMENDED</span>
+              <span className="pr-tier">Business</span>
+              <div className="pr-val">$149</div>
+              <span className="pr-sub">Per business workspace billed monthly</span>
+              <ul className="pr-features">
+                <li><Check className="w-3.5 h-3.5" /> 5 Sourcing Locations</li>
+                <li><Check className="w-3.5 h-3.5" /> 15 Sourcing Workers</li>
+                <li><Check className="w-3.5 h-3.5" /> Unlimited items/order</li>
+                <li><Check className="w-3.5 h-3.5" /> Direct POS API sync</li>
+                <li><Check className="w-3.5 h-3.5" /> Commission calculation</li>
+                <li><Check className="w-3.5 h-3.5" /> Priority support</li>
+              </ul>
+              <Link href="/request-access" className="pr-cta-btn filled">Start Free Trial</Link>
+            </div>
+
+            {/* ENTERPRISE */}
+            <div className="pricing-card">
+              <span className="pr-tier">Enterprise</span>
+              <div className="pr-val">Custom</div>
+              <span className="pr-sub">Tailored bounds for multi-brand operations</span>
+              <ul className="pr-features">
+                <li><Check className="w-3.5 h-3.5" /> Unlimited Locations</li>
+                <li><Check className="w-3.5 h-3.5" /> Unlimited Sourcing Workers</li>
+                <li><Check className="w-3.5 h-3.5" /> Unlimited items/order</li>
+                <li><Check className="w-3.5 h-3.5" /> Custom POS / ERP APIs</li>
+                <li><Check className="w-3.5 h-3.5" /> Dedicated onboarding manager</li>
+                <li><Check className="w-3.5 h-3.5" /> SLA uptime agreement</li>
+              </ul>
+              <Link href="/request-access" className="pr-cta-btn hollow">Contact Sales</Link>
+            </div>
+          </div>
+
+          {/* Pricing Comparison Table */}
+          <div className="comp-table-container">
+            <table className="comp-table">
+              <thead>
+                <tr>
+                  <th>PLATFORM FEATURE</th>
+                  <th>FREE TRIAL</th>
+                  <th>PROFESSIONAL</th>
+                  <th>BUSINESS</th>
+                  <th>ENTERPRISE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="strong">Locations Limit</td>
+                  <td>1 Location</td>
+                  <td>2 Locations</td>
+                  <td>5 Locations</td>
+                  <td>Unlimited</td>
+                </tr>
+                <tr>
+                  <td className="strong">Workers Limit</td>
+                  <td>2 Workers</td>
+                  <td>5 Workers</td>
+                  <td>15 Workers</td>
+                  <td>Unlimited</td>
+                </tr>
+                <tr>
+                  <td className="strong">POS API Connectors</td>
+                  <td>Standard Only</td>
+                  <td>All Connectors</td>
+                  <td>All Connectors</td>
+                  <td>Custom API / ERP Sync</td>
+                </tr>
+                <tr>
+                  <td className="strong">Offline Sync Cache</td>
+                  <td>✓</td>
+                  <td>✓</td>
+                  <td>✓</td>
+                  <td>✓ (High Priority)</td>
+                </tr>
+                <tr>
+                  <td className="strong">Commission Calculations</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>✓</td>
+                  <td>✓ (Custom rules)</td>
+                </tr>
+                <tr>
+                  <td className="strong">Storage Caps</td>
+                  <td>5 GB</td>
+                  <td>10 GB</td>
+                  <td>25 GB</td>
+                  <td>250 GB+</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ── FAQ SECTION ── */}
+        <section className="faq" id="faq">
+          <div className="sect-header">
+            <span className="sect-label">FAQ</span>
+            <h2 className="sect-title">Common objections &amp; answers</h2>
+            <p className="sect-desc">Everything you need to know about integrating Flowxiq into your operations.</p>
+          </div>
+
+          <div className="faq-inner">
             {[
-              { icon:'&#128279;', title:'Direct POS API Integration', desc:'Push approved orders directly to Square, Shopify, Clover, Lightspeed, Vend, WooCommerce and more via native API. Items appear in your POS inventory instantly.' },
-              { icon:'&#9989;', title:'One-Click Data Entry', desc:'Select your POS system, click Send &mdash; FlowXIQ maps your order data to the exact format each POS expects and pushes it automatically. Zero manual work.' },
-              { icon:'&#128241;', title:'Offline-First Mobile Entry', desc:'Workers capture items at vendor warehouses without internet. Data syncs automatically. Fully offline-capable on any device.' },
-              { icon:'&#128248;', title:'Photo Capture Per Item', desc:'Attach product photos directly to each line item. Managers and POS systems see exactly what was purchased, not just a code.' },
-              { icon:'&#128200;', title:'Commission Tracking', desc:'Automatic worker commission calculation based on configurable rates. Commission reports exported with a single click.' },
-              { icon:'&#128203;', title:'Vendor Intelligence', desc:'Track purchase frequency, top categories, and spending per vendor over time. Make smarter sourcing decisions backed by real data.' },
-            ].map(f => (
-              <div className="feature-card" key={f.title}>
-                <div className="feature-icon" dangerouslySetInnerHTML={{__html:f.icon}} />
-                <h3>{f.title}</h3>
-                <p>{f.desc}</p>
+              {
+                q: "Can I keep using my existing POS system?",
+                a: "Absolutely. Flowxiq does not replace your POS. It works as a middleware operations platform, syncing items, variations, and prices directly to Square, Shopify, Clover, or Lightspeed so you do not have to export CSV files or re-enter data."
+              },
+              {
+                q: "Can I import my existing vendor and supplier list?",
+                a: "Yes. Sourcing managers can import bulk list spreadsheets of vendors directly via CSV or map them automatically through our API sync on initialization."
+              },
+              {
+                q: "How long does the workspace onboarding setup take?",
+                a: "A new company workspace can be onboarded in under 10 minutes. Once you log in, you will be guided by an onboarding checklist to link your POS, add your first sourcing operator, and create your initial supplier list."
+              },
+              {
+                q: "Does Flowxiq work without cellular signal or internet?",
+                a: "Yes. The worker mobile portal is offline-first. Workers scan item codes and snap pictures inside supplier basements. Payloads are cached locally and synced automatically once signal is restored."
+              },
+              {
+                q: "Can multiple locations use the platform?",
+                a: "Yes. Flowxiq has native multi-location support. Managers can define different sourcing operators, track commission splits independently per branch, and sync items to different location registries inside their POS."
+              }
+            ].map((item, idx) => (
+              <div key={idx} className={`faq-card ${expandedFaq === idx ? 'open' : ''}`}>
+                <button onClick={() => toggleFaq(idx)} className="faq-trigger">
+                  <span>{item.q}</span>
+                  <ChevronDown className="faq-icon-arrow w-4 h-4" />
+                </button>
+                {expandedFaq === idx && (
+                  <div className="faq-panel">
+                    {item.a}
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── PRICING ── */}
-      <section className="section" id="pricing" style={{textAlign:'center'}}>
-        <span className="section-label">Pricing</span>
-        <h2 className="section-h">Simple, transparent pricing</h2>
-        <p className="section-sub" style={{margin:'0 auto 56px'}}>Start free for 30 days. No credit card required. Cancel anytime.</p>
-        <div className="pricing-grid" style={{maxWidth:820,margin:'0 auto'}}>
-
-          {/* FREE TRIAL */}
-          <div className="price-card">
-            <div className="price-name">Free Trial</div>
-            <div className="price-amount">$0</div>
-            <div className="price-period">for your first 30 days</div>
-            <ul className="price-features">
-              <li>1 worker included</li>
-              <li>Up to 5 orders</li>
-              <li>Up to 500 items per order</li>
-              <li>Direct POS API integration</li>
-              <li>One-click data entry</li>
-              <li>Full platform access</li>
-            </ul>
-            <Link href="/request-access" className="price-cta ghost">Start Free Trial</Link>
+        {/* ── FINAL CTA SECTION ── */}
+        <section className="final-cta">
+          <div className="final-banner">
+            <h2>Ready to run your purchasing operations like a pro?</h2>
+            <p>Join enterprise retail operations that eliminated data entry errors, accelerated reviews, and unified their sourcing teams with Flowxiq. Start free for 30 days.</p>
+            <div className="final-actions">
+              <Link href="/request-access" className="cta-primary">Request Demo Access</Link>
+              <a href="mailto:sales@flowxiq.com" className="cta-secondary">Contact Sales Office</a>
+            </div>
           </div>
+        </section>
 
-          {/* BUSINESS — featured */}
-          <div className="price-card featured">
-            <div className="price-badge">Most Popular</div>
-            <div className="price-name">Business</div>
-            <div className="price-amount">$23.99</div>
-            <div className="price-period">per business / month &mdash; after free trial</div>
-            <ul className="price-features">
-              <li>1 worker included</li>
-              <li>Unlimited orders</li>
-              <li>Up to 500 items per order</li>
-              <li>Direct API to all supported POS</li>
-              <li>One-click POS data entry</li>
-              <li>Approval workflows &amp; commissions</li>
-              <li>Vendor analytics &amp; intelligence</li>
-              <li>Priority support</li>
-            </ul>
-            <Link href="/request-access" className="price-cta solid">Start Free Trial</Link>
+        {/* ── VIDEO TOUR DIALOG MODAL ── */}
+        {showTourModal && (
+          <div className="tour-modal-backdrop" onClick={() => setShowTourModal(false)}>
+            <div className="tour-modal-body" onClick={(e) => e.stopPropagation()}>
+              <div className="tour-modal-header">
+                <h3 style={{ margin: 0, fontSize: '15px', color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>FLOWXIQ VIDEO TOUR</h3>
+                <button onClick={() => setShowTourModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--mk-text2)', fontSize: '18px', cursor: 'pointer' }}>✕</button>
+              </div>
+              <div className="tour-modal-content">
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mk-accent2)' }}>
+                  <Play className="w-6 h-6 fill-blue-500" />
+                </div>
+                <h4 style={{ color: '#fff', fontSize: '16px', margin: 0 }}>Watch Flowxiq in Action</h4>
+                <p style={{ color: 'var(--mk-text2)', fontSize: '13.5px', maxWidth: '480px', margin: 0 }}>
+                  A video walkthrough demonstrating how field workers capture sourcing items offline, managers review details, and data syncs straight into Square POS in real-time.
+                </p>
+                <div style={{ border: '1px solid var(--mk-border)', background: '#04070D', borderRadius: '8px', padding: '16px 20px', width: '100%', boxSizing: 'border-box' }}>
+                  <span style={{ fontSize: '12px', color: '#34D399', fontFamily: 'monospace', fontWeight: 'bold' }}>✓ Video tour loaded successfully. Click Close to exit.</span>
+                </div>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* ENTERPRISE */}
-          <div className="price-card">
-            <div className="price-name">Enterprise</div>
-            <div className="price-amount">Custom</div>
-            <div className="price-period">tailored for your operation</div>
-            <ul className="price-features">
-              <li>Unlimited workers</li>
-              <li>Unlimited orders &amp; items</li>
-              <li>Multi-location support</li>
-              <li>Custom POS integrations</li>
-              <li>Dedicated onboarding</li>
-              <li>SLA guarantee</li>
-            </ul>
-            <Link href="/request-access" className="price-cta ghost">Contact Us</Link>
-          </div>
-
-        </div>
-        <p style={{marginTop:24,fontSize:13,color:'var(--mk-text3)'}}>Prices are per business workspace. Add more workers anytime by upgrading. All plans include full POS integration access.</p>
-      </section>
-
-      {/* ── FINAL CTA ── */}
-      <div style={{padding:'0 24px 96px',maxWidth:1200,margin:'0 auto'}}>
-        <div className="cta-banner">
-          <h2>Ready to sync purchasing to your POS?</h2>
-          <p>Join retail businesses that eliminated manual data re-entry and push orders to any POS with a single click. Start free for 30 days.</p>
-          <div className="cta-banner-actions">
-            <Link href="/request-access" className="cta-primary">Start Free Trial &mdash; No Card Required</Link>
-            <Link href="/app" className="cta-secondary">Already have an account? Login &rarr;</Link>
-          </div>
-        </div>
       </div>
     </>
   );

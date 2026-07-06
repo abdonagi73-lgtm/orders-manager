@@ -10,14 +10,15 @@ export default function MarketingNav() {
           <FlowxiqCombinedLogo height={28} />
         </Link>
         <ul className="mk-nav-links">
+          <li><a href="/#workflow">Timeline</a></li>
           <li><a href="/#features">Features</a></li>
-          <li><a href="/#workflow">How It Works</a></li>
+          <li><a href="/#integrations">Integrations</a></li>
+          <li><a href="/#story">Product Tour</a></li>
           <li><a href="/#pricing">Pricing</a></li>
-          <li><a href="/request-access">Request Access</a></li>
         </ul>
         <div className="mk-nav-actions">
-          <Link href="/app" className="mk-btn-ghost">Login</Link>
-          <Link href="/request-access" className="mk-btn-primary">Request Access →</Link>
+          <Link href="/app" className="mk-btn-ghost">Log In</Link>
+          <Link href="/request-access" className="mk-btn-primary">Request Demo</Link>
         </div>
       </div>
     </nav>
