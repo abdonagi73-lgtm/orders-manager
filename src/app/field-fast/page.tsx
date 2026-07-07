@@ -465,11 +465,13 @@ function FieldFastInner() {
   const [lang, setLang] = useState<'en'|'ar'|'tr'>('en');
   const [companyName, setCompanyName] = useState('Flowxiq');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [companyInputId, setCompanyInputId] = useState('');
 
   // Comprehensive translations for worker portal
   const T:{[k:string]:{[k:string]:string}} = {
     en:{
       signIn: 'Sign in', pin: 'Password', incorrectPin: 'Incorrect password',
+      companyId: 'Company ID',
       backToHome: 'Back to home', earnings: 'Earnings', signOut: 'Sign out',
       startOrder: '+ Start new order', orderEntry: 'Order Entry', back: 'Back',
       vendor: 'Vendor', addItem: '+ Add item code under', saveItem: '+ Add item',
@@ -506,6 +508,7 @@ function FieldFastInner() {
     },
     ar:{
       signIn: 'تسجيل الدخول', pin: 'كلمة المرور', incorrectPin: 'كلمة المرور غير صحيحة',
+      companyId: 'معرّف الشركة',
       backToHome: 'العودة للرئيسية', earnings: 'الأرباح', signOut: 'خروج',
       startOrder: '+ بدء طلب جديد', orderEntry: 'إدخال الطلب', back: 'رجوع',
       vendor: 'المورد', addItem: '+ أضف كود تحت', saveItem: '+ إضافة منتج',
@@ -542,6 +545,7 @@ function FieldFastInner() {
     },
     tr:{
       signIn: 'Giriş yap', pin: 'Çalışan şifresi', incorrectPin: 'Hatalı şifre',
+      companyId: 'Şirket ID',
       backToHome: 'Ana sayfaya dön', earnings: 'Kazanç', signOut: 'Çıkış',
       startOrder: '+ Yeni sipariş', orderEntry: 'Sipariş Girişi', back: 'Geri',
       vendor: 'Satıcı', addItem: '+ Ürün kodu ekle', saveItem: '+ Ürün ekle',
@@ -765,6 +769,12 @@ function FieldFastInner() {
   }
 
   useEffect(()=>{
+    // 0. Check companyId from query parameter
+    const urlCompanyId = searchParams.get('companyId');
+    if (urlCompanyId) {
+      localStorage.setItem('flowxiq_selected_company_id', urlCompanyId);
+    }
+
     // 1. Restore from sessionStorage (page refresh / back navigation)
     const savedWorker = sessionStorage.getItem('ff_worker');
     const savedScreen = sessionStorage.getItem('ff_screen') as Screen|null;
@@ -894,7 +904,17 @@ function FieldFastInner() {
 
   async function verifyPin(){
     setPinLoading(true); setPinError(false);
-    const storedCompanyId = localStorage.getItem('flowxiq_selected_company_id') || '';
+    let storedCompanyId = localStorage.getItem('flowxiq_selected_company_id') || '';
+    if (!storedCompanyId && companyInputId.trim()) {
+      storedCompanyId = companyInputId.trim().toLowerCase();
+    }
+
+    if (!storedCompanyId) {
+      setPinLoading(false);
+      showToast(lang === 'ar' ? 'يرجى إدخال معرف الشركة' : lang === 'tr' ? 'Lütfen Şirket ID girin' : 'Please enter your Company ID');
+      return;
+    }
+
     const res = await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'verify-worker',pin,companyId:storedCompanyId})});
     const d = await res.json();
@@ -911,6 +931,15 @@ function FieldFastInner() {
       // Load user language immediately
       const ws = localStorage.getItem(`workerSettings_${d.worker.id}`);
       if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
+      
+      // Fetch fresh session to cache vendors, company info, etc.
+      fetch(`/api/session?companyId=${d.worker.companyId}`)
+        .then(r=>r.json())
+        .then(sessionData=>{
+          localStorage.setItem('flowxiq_cached_session', JSON.stringify(sessionData));
+          if(sessionData.registry) setVendors(Object.keys(sessionData.registry));
+        }).catch(()=>{});
+
       loadOrders(d.worker.id);
       goTo('orders');
     }
@@ -1546,7 +1575,17 @@ function FieldFastInner() {
           )}
           <div className="login-brand" style={{textAlign:'center'}}>{t('orderEntry')}</div>
           <div className="login-sub" style={{textAlign:'center'}}>{companyName}{location?` · ${location}`:''}</div>
-          <div className="field" style={{marginTop:20}}>
+          
+          {companyName === 'Flowxiq' && (
+            <div className="field" style={{marginTop:20}}>
+              <label className="label">{t('companyId')}</label>
+              <input type="text" value={companyInputId}
+                onChange={e=>{setCompanyInputId(e.target.value);setPinError(false);}}
+                placeholder="e.g. moda-group"/>
+            </div>
+          )}
+
+          <div className="field" style={{marginTop:companyName === 'Flowxiq' ? 12 : 20}}>
             <label className="label">{t('pin')}</label>
             <input type="password" value={pin} autoFocus
               onChange={e=>{setPin(e.target.value);setPinError(false);}}
