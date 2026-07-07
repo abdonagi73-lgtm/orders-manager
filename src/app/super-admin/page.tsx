@@ -2284,6 +2284,9 @@ export default function HQPlatformOperations() {
                       <option value="shopify">Shopify</option>
                       <option value="clover">Clover</option>
                       <option value="lightspeed">Lightspeed</option>
+                      <option value="woocommerce">WooCommerce</option>
+                      <option value="custom">Custom CSV Exporter</option>
+                      <option value="other">Other</option>
                     </select>
                   </div>
                 </div>
