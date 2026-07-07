@@ -958,22 +958,29 @@ function OwnerPageInner() {
 
   async function doExport() {
     if(!selectedOrder) return;
-    showConfirmModal('📜', 'Download Square CSV?',
-      `This will export ${exportableRows} rows for "${selectedOrder.name}" using Tax: ${settings.tax}%, Markup: ${settings.markup}&times;, Shipping: $${settings.shipping}/kg.`,
-      'Download CSV', async()=>{
-        setExporting(true);
-        try {
-          const res = await fetch(`/api/export?orderId=${selectedOrder.id}`);
-          if(!res.ok){ const d=await res.json(); throw new Error(d.error); }
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href=url;
-          a.download=`SQUARE_${selectedOrder.name.replace(/\s+/g,'_')}.csv`;
-          a.click(); URL.revokeObjectURL(url);
-          showSuccess('✅', 'CSV downloaded!', `${exportableRows} rows exported for "${selectedOrder.name}". Import it to Square POS now.`);
-        } catch(e:any){ showToast('Export failed: '+e.message); }
-        finally{ setExporting(false); }
-      });
+    const hasCustom = !!settings.pos_csv_template;
+    const confirmTitle = hasCustom ? 'Download POS CSV?' : 'Download Square CSV?';
+    const confirmMsg = hasCustom
+      ? `This will export items for "${selectedOrder.name}" using your configured Custom POS template mappings.`
+      : `This will export ${exportableRows} rows for "${selectedOrder.name}" using Tax: ${settings.tax}%, Markup: ${settings.markup}&times;, Shipping: $${settings.shipping}/kg.`;
+
+    showConfirmModal('📜', confirmTitle, confirmMsg, 'Download CSV', async()=>{
+      setExporting(true);
+      try {
+        const urlParam = hasCustom ? `&format=custom` : '';
+        const res = await fetch(`/api/export?orderId=${selectedOrder.id}${urlParam}`);
+        if(!res.ok){ const d=await res.json(); throw new Error(d.error); }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url;
+        const fileExt = settings.pos_csv_template?.delimiter === '\t' ? 'tsv' : 'csv';
+        const filePrefix = hasCustom ? 'POS_EXPORT' : 'SQUARE';
+        a.download=`${filePrefix}_${selectedOrder.name.replace(/\s+/g,'_')}.${fileExt}`;
+        a.click(); URL.revokeObjectURL(url);
+        showSuccess('✅', 'CSV downloaded!', `File downloaded successfully for "${selectedOrder.name}". Import it to your POS system now.`);
+      } catch(e:any){ showToast('Export failed: '+e.message); }
+      finally{ setExporting(false); }
+    });
   }
 
   async function saveSettings() {

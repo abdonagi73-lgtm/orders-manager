@@ -225,12 +225,33 @@ export function IntegrationsSection() {
   const [removing, setRemoving]       = useState<string | null>(null);
   const [error, setError]             = useState('');
 
+  // Custom POS CSV exporter template state
+  const [template, setTemplate]       = useState<any>(null);
+  const [showConfig, setShowConfig]   = useState(false);
+  const [uploadedHeaders, setUploadedHeaders] = useState<string[]>([]);
+  const [mappings, setMappings]       = useState<Record<string, string>>({});
+  const [constants, setConstants]     = useState<Record<string, string>>({});
+  const [delim, setDelim]             = useState(',');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateMsg, setTemplateMsg] = useState('');
+
   const load = () => {
     setLoading(true);
     fetch('/api/v1/integrations')
       .then(r => r.json())
       .then(r => { if (r.success) setData(r.data); })
       .finally(() => setLoading(false));
+
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d.settings?.pos_csv_template) {
+          setTemplate(d.settings.pos_csv_template);
+        } else {
+          setTemplate(null);
+        }
+      })
+      .catch(() => {});
   };
 
   useEffect(() => { load(); }, []);
@@ -389,6 +410,265 @@ export function IntegrationsSection() {
       {!adding && connected.length === 0 && available.length === 0 && !isPlanLocked && (
         <div className="card" style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>
           No integrations available. Check your plan.
+        </div>
+      )}
+
+      {/* Custom POS CSV Exporter Mapping Section */}
+      {!adding && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>📝 Custom POS CSV Exporter</div>
+            {template && !showConfig && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-sm" onClick={() => {
+                  setUploadedHeaders(template.headers || []);
+                  setMappings(template.mapping || {});
+                  setConstants(template.constants || {});
+                  setDelim(template.delimiter || ',');
+                  setShowConfig(true);
+                  setTemplateMsg('');
+                }}>Edit Schema</button>
+                <button className="btn btn-sm" style={{ color: 'var(--red)', borderColor: 'var(--red-border)' }} onClick={async () => {
+                  if (confirm('Delete custom template mapping?')) {
+                    const res = await fetch('/api/settings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ key: 'pos_csv_template', value: null })
+                    });
+                    if (res.ok) {
+                      setTemplate(null);
+                      setShowConfig(false);
+                    }
+                  }
+                }}>Reset</button>
+              </div>
+            )}
+          </div>
+
+          {!template && !showConfig && (
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>
+                Upload a sample import CSV/TSV template file from your customer's POS system. Our engine will map columns dynamically to your Flowxiq product data.
+              </p>
+              <button className="btn btn-primary" onClick={() => {
+                setShowConfig(true);
+                setUploadedHeaders([]);
+                setMappings({});
+                setConstants({});
+                setTemplateMsg('');
+              }}>Configure Exporter</button>
+            </div>
+          )}
+
+          {showConfig && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <div className="field">
+                <label className="label">1. Upload POS CSV/TSV File Template</label>
+                <input
+                  type="file"
+                  accept=".csv,.tsv"
+                  style={{ background: 'var(--surface-2)', padding: '10px', borderRadius: 'var(--r)', width: '100%', border: '1px solid var(--border)' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const text = event.target?.result as string;
+                      const firstLine = text.split('\n')[0] || '';
+                      const autoDelim = firstLine.includes('\t') ? '\t' : ',';
+                      const parsedHeaders = firstLine.split(autoDelim).map(h => h.trim().replace(/^["']|["']$/g, ''));
+                      setUploadedHeaders(parsedHeaders);
+                      setDelim(autoDelim);
+
+                      // Smart Mapping Heuristics Guesser
+                      const initialMappings: Record<string, string> = {};
+                      const initialConstants: Record<string, string> = {};
+
+                      parsedHeaders.forEach(header => {
+                        const lower = header.toLowerCase();
+                        if (lower.includes('name') && !lower.includes('variation') && !lower.includes('variant')) {
+                          initialMappings[header] = 'item_name';
+                        } else if (lower.includes('brand') || lower.includes('vendor') || lower.includes('supplier')) {
+                          initialMappings[header] = 'vendor';
+                        } else if (lower.includes('category') && !lower.includes('sub')) {
+                          initialMappings[header] = 'category';
+                        } else if (lower.includes('sku') && !lower.includes('variation') && !lower.includes('variant')) {
+                          initialMappings[header] = 'base_sku';
+                        } else if (lower.includes('product type') || lower.includes('product_type') || lower === 'type') {
+                          initialMappings[header] = 'product_type';
+                        } else if (lower.includes('variation name') || lower.includes('variant name') || lower === 'variation') {
+                          initialMappings[header] = 'variation_name';
+                        } else if (lower.includes('variation values') || lower.includes('variant values') || lower.includes('variation value')) {
+                          initialMappings[header] = 'variation_values';
+                        } else if (lower.includes('variation skus') || lower.includes('variant skus') || lower.includes('variation sku')) {
+                          initialMappings[header] = 'variation_skus';
+                        } else if (lower.includes('purchase price') || lower.includes('purchase_price') || lower === 'cost' || lower.includes('buy price')) {
+                          initialMappings[header] = 'purchase_price';
+                        } else if (lower.includes('selling price') || lower.includes('selling_price') || lower === 'price' || lower.includes('retail')) {
+                          initialMappings[header] = 'selling_price';
+                        } else if (lower.includes('stock') || lower.includes('opening stock') || lower.includes('qty') || lower.includes('quantity')) {
+                          initialMappings[header] = 'opening_stock';
+                        } else if (lower.includes('image') || lower.includes('photo')) {
+                          initialMappings[header] = 'photo';
+                        } else {
+                          // Check for standard constants heuristics
+                          if (lower.includes('unit')) {
+                            initialConstants[header] = 'pc';
+                          } else if (lower.includes('manage stock') || lower.includes('track stock')) {
+                            initialConstants[header] = '1';
+                          } else if (lower.includes('tax type')) {
+                            initialConstants[header] = 'inclusive';
+                          }
+                        }
+                      });
+
+                      setMappings(initialMappings);
+                      setConstants(initialConstants);
+                    };
+                    reader.readAsText(file);
+                  }}
+                />
+              </div>
+
+              {uploadedHeaders.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <label className="label">2. Review & Adjust Schema Mapping</label>
+                  <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', maxHeight: '350px', overflowY: 'auto', padding: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                          <th style={{ padding: '6px', color: 'var(--text-3)' }}>CSV Header</th>
+                          <th style={{ padding: '6px', color: 'var(--text-3)' }}>Flowxiq Mapping</th>
+                          <th style={{ padding: '6px', color: 'var(--text-3)' }}>Default / Static Constant</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {uploadedHeaders.map(header => {
+                          const currentMapping = mappings[header] || '';
+                          const currentConstant = constants[header] || '';
+                          return (
+                            <tr key={header} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                              <td style={{ padding: '8px 6px', fontWeight: 600, color: 'var(--text)' }}>
+                                {header}
+                              </td>
+                              <td style={{ padding: '8px 6px' }}>
+                                <select
+                                  value={currentMapping}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setMappings(prev => {
+                                      const updated = { ...prev };
+                                      if (val) updated[header] = val;
+                                      else delete updated[header];
+                                      return updated;
+                                    });
+                                  }}
+                                  style={{ padding: '4px 8px', borderRadius: '4px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                                >
+                                  <option value="">[Static Constant]</option>
+                                  <option value="item_name">Product Name (e.g. Nike - Shirt)</option>
+                                  <option value="vendor">Brand/Vendor (e.g. Nike)</option>
+                                  <option value="category">Category (e.g. Shirts)</option>
+                                  <option value="base_sku">Parent SKU</option>
+                                  <option value="product_type">Product Type (single/variable)</option>
+                                  <option value="variation_name">Variation Dimension Name</option>
+                                  <option value="variation_values">Variation Values (pipe-separated)</option>
+                                  <option value="variation_skus">Variation SKUs (pipe-separated)</option>
+                                  <option value="purchase_price">Purchase Cost (pipe-separated)</option>
+                                  <option value="selling_price">Selling Price (pipe-separated)</option>
+                                  <option value="opening_stock">Opening Stock Qty (pipe-separated)</option>
+                                  <option value="photo">Product Image URL</option>
+                                </select>
+                              </td>
+                              <td style={{ padding: '8px 6px' }}>
+                                {!currentMapping && (
+                                  <input
+                                    type="text"
+                                    placeholder="Enter static text..."
+                                    value={currentConstant}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setConstants(prev => {
+                                        const updated = { ...prev };
+                                        if (val) updated[header] = val;
+                                        else delete updated[header];
+                                        return updated;
+                                      });
+                                    }}
+                                    style={{ padding: '4px 8px', borderRadius: '4px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', width: '130px' }}
+                                  />
+                                )}
+                                {currentMapping && <span style={{ color: 'var(--text-3)', fontSize: '11px' }}>Using dynamic field</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <button
+                      className="btn btn-primary"
+                      disabled={savingTemplate}
+                      onClick={async () => {
+                        setSavingTemplate(true);
+                        setTemplateMsg('');
+                        try {
+                          const res = await fetch('/api/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              key: 'pos_csv_template',
+                              value: {
+                                headers: uploadedHeaders,
+                                mapping: mappings,
+                                constants,
+                                delimiter: delim
+                              }
+                            })
+                          });
+                          if (res.ok) {
+                            setTemplate({
+                              headers: uploadedHeaders,
+                              mapping: mappings,
+                              constants,
+                              delimiter: delim
+                            });
+                            setShowConfig(false);
+                            setTemplateMsg('✅ Template saved successfully!');
+                          } else {
+                            setTemplateMsg('❌ Failed to save mappings.');
+                          }
+                        } catch (e: any) {
+                          setTemplateMsg('❌ Error saving mappings: ' + e.message);
+                        } finally {
+                          setSavingTemplate(false);
+                        }
+                      }}
+                    >
+                      {savingTemplate ? 'Saving...' : 'Save POS Template Mapping'}
+                    </button>
+                    <button className="btn" onClick={() => { setShowConfig(false); setTemplateMsg(''); }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {templateMsg && <div style={{ fontSize: '13px', color: templateMsg.startsWith('✅') ? 'var(--green)' : 'var(--red)', marginTop: '8px' }}>{templateMsg}</div>}
+            </div>
+          )}
+
+          {template && !showConfig && (
+            <div style={{ marginTop: 12, padding: '12px', background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 'var(--r)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>✓ Exporter Configured ({template.delimiter === '\t' ? 'TSV Tab-Separated' : 'CSV Comma-Separated'})</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                <strong>Detected columns ({template.headers?.length || 0})</strong>: {template.headers?.slice(0, 5).join(', ')}
+                {(template.headers?.length || 0) > 5 ? '...' : ''}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                Any order exports will now output matching this template structure.
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

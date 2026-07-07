@@ -59,6 +59,7 @@ export interface SessionSettings {
   markup: number;
   shipping: number;
   ownerPin: string;
+  pos_csv_template?: any;
 }
 
 // For offline queue

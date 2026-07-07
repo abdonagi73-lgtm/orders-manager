@@ -8,11 +8,79 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decryptSession } from '@/lib/auth';
 import { db } from '@/db/db';
-import { orders, orderItems } from '@/db/schema';
+import { orders, orderItems, settings } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { squareConnector } from '@/lib/integrations/connectors/square';
 import type { CanonicalProduct, CanonicalVariant } from '@/lib/integrations/types';
 import { err } from '@/lib/api/response';
+
+function productsToCustomCsv(
+  products: CanonicalProduct[],
+  template: { headers: string[]; mapping: Record<string, string>; constants: Record<string, string>; delimiter?: string }
+): string {
+  const { headers, mapping, constants } = template;
+  const delim = template.delimiter || ',';
+  const rows: string[] = [headers.join(delim)];
+
+  for (const product of products) {
+    const isVariable = product.variants.length > 1 || (product.variants[0]?.color || product.variants[0]?.size);
+    const rowValues = headers.map(header => {
+      const field = mapping[header];
+      if (field) {
+        if (field === 'item_name') {
+          return `"${product.name.replace(/"/g, '""')}"`;
+        }
+        if (field === 'vendor') {
+          return `"${product.vendor.replace(/"/g, '""')}"`;
+        }
+        if (field === 'category') {
+          return `"${product.category.replace(/"/g, '""')}"`;
+        }
+        if (field === 'base_sku') {
+          return `"${product.sku.replace(/"/g, '""')}"`;
+        }
+        if (field === 'product_type') {
+          return isVariable ? 'variable' : 'single';
+        }
+        if (field === 'variation_name') {
+          return isVariable ? 'Size-Color' : '';
+        }
+        if (field === 'variation_values') {
+          if (!isVariable) return '';
+          return `"${product.variants.map(v => [v.size, v.color].filter(Boolean).join('-')).join('|')}"`;
+        }
+        if (field === 'variation_skus') {
+          if (!isVariable) return '';
+          return `"${product.variants.map(v => v.sku || '').join('|')}"`;
+        }
+        if (field === 'purchase_price') {
+          if (!isVariable) return (product.baseCost || (product.basePrice * 0.5)).toFixed(2);
+          return `"${product.variants.map(v => (v.cost || (v.price * 0.5)).toFixed(2)).join('|')}"`;
+        }
+        if (field === 'selling_price') {
+          if (!isVariable) return product.basePrice.toFixed(2);
+          return `"${product.variants.map(v => v.price.toFixed(2)).join('|')}"`;
+        }
+        if (field === 'opening_stock') {
+          if (!isVariable) return '10';
+          return `"${product.variants.map(() => '10').join('|')}"`;
+        }
+        if (field === 'photo') {
+          return product.imageUrl ? `"${product.imageUrl}"` : '';
+        }
+      }
+      // Fallback to constants
+      const constVal = constants[header];
+      if (constVal !== undefined) {
+        return `"${constVal.replace(/"/g, '""')}"`;
+      }
+      return '';
+    });
+    rows.push(rowValues.join(delim));
+  }
+
+  return rows.join('\n');
+}
 
 async function getSession() {
   const token = cookies().get('session')?.value;
@@ -99,12 +167,39 @@ export async function GET(req: NextRequest) {
         variants,
         basePrice:   item.price,
         baseCost:    item.price * 0.5,
+        imageUrl:    item.photo || '',
       };
     });
 
+    const format = req.nextUrl.searchParams.get('format');
+    const orderNameSafe = order.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+
+    if (format === 'custom') {
+      const [customRow] = await db
+        .select()
+        .from(settings)
+        .where(and(eq(settings.company_id, session.companyId), eq(settings.key, 'pos_csv_template')))
+        .limit(1);
+
+      if (customRow) {
+        try {
+          const template = JSON.parse(customRow.value);
+          const csvContent = productsToCustomCsv(canonical, template);
+          const filename = `POS_EXPORT_${orderNameSafe}_${new Date().toISOString().slice(0, 10)}.csv`;
+          return new NextResponse(csvContent, {
+            headers: {
+              'Content-Type':        'text/csv; charset=utf-8',
+              'Content-Disposition': `attachment; filename="${filename}"`,
+            },
+          });
+        } catch (e: any) {
+          console.error('[export custom parsing]', e);
+        }
+      }
+    }
+
     // Use Square connector to generate the CSV
     const exported = await squareConnector.generateExport!(canonical, {});
-    const orderNameSafe = order.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
     const filename = `SQUARE_${orderNameSafe}_${new Date().toISOString().slice(0, 10)}.csv`;
 
     return new NextResponse(exported.content, {
