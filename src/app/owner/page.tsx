@@ -466,7 +466,7 @@ function OwnerPageInner() {
   const [currentCompanyId, setCurrentCompanyId] = useState<string>('');
 
   // Settings tab state ' must live at component level (React hook rules)
-  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'workers'|'appearance'|'subscription'|'integrations'|'activity'|'about'|'formsetup'>('business');
+  const [settingsSection, setSettingsSection] = useState<'account'|'business'|'catalog'|'appearance'|'subscription'|'integrations'|'activity'|'about'|'formsetup'>('business');
   const [catList, setCatList] = useState<string[]>([]);
   const [colorList, setColorList] = useState<string[]>([]);
   const [sizeList, setSizeList] = useState<string[]>([]);
@@ -2160,7 +2160,6 @@ function OwnerPageInner() {
                 {sectionBtn('account', '👤', 'Account')}
                 {sectionBtn('business', '🏢', 'Business')}
                 {sectionBtn('catalog', '📋', 'Catalog')}
-                {sectionBtn('workers', '👥', 'Workers')}
                 {sectionBtn('appearance', '🎨', 'Appearance')}
                 <div style={{height:1,background:'var(--border)',margin:'6px 0'}}/>
                 {sectionBtn('subscription', '💳', 'Subscription')}
@@ -2451,45 +2450,6 @@ function OwnerPageInner() {
                   </div>
                 )}
 
-                {/* -- WORKERS -- (reuse existing workers tab content) */}
-                {settingsSection==='workers'&&(
-                  <div className="card">
-                    <div className="card-title">👥 Workers</div>
-                    <div style={{fontSize:12,color:'var(--text-3)',marginBottom:14}}>Manage workers and their commission settings.</div>
-                    {workers.map((w:any)=>(
-                      <div key={w.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-                        padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
-                        <div>
-                          <div style={{fontWeight:600,fontSize:14}}>{w.name}</div>
-                          <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-                            PIN: {w.pin} &middot; Commission: 3% &middot; Joined: {w.createdAt||''}
-                          </div>
-                        </div>
-                        <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                          <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,
-                            background:'var(--green-light)',color:'var(--green)',fontWeight:600}}>Active</span>
-                        </div>
-                      </div>
-                    ))}
-                    <div style={{marginTop:16,paddingTop:12,borderTop:'2px solid var(--border)'}}>
-                      <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Add worker</div>
-                      <div style={{display:'flex',gap:8}}>
-                        <input type="text" placeholder="Name" id="newWorkerNameSett"/>
-                        <input type="text" placeholder="PIN" id="newWorkerPinSett" style={{width:80}}/>
-                        <button className="btn btn-sm btn-primary" onClick={async()=>{
-                          const n=(document.getElementById('newWorkerNameSett') as HTMLInputElement)?.value.trim();
-                          const p=(document.getElementById('newWorkerPinSett') as HTMLInputElement)?.value.trim();
-                          if(!n||!p) return;
-                          const newW={id:'w_'+Date.now(),name:n,pin:p,role:'worker' as const};
-                          const updated=[...workers,newW];
-                          await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-                            body:JSON.stringify({action:'save-workers',workers:updated})});
-                          setWorkers(updated); showToast('Worker added');
-                        }}>Add</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* -- APPEARANCE -- */}
                 {settingsSection==='appearance'&&(
