@@ -50,7 +50,15 @@ export async function GET(req: NextRequest) {
     }
 
     // Determine company context
-    let company = { id: '', name: 'Flowxiq', logo_url: null as string | null, currency: 'USD', commission_rate: 0.03 };
+    let company = {
+      id: '',
+      name: 'Flowxiq',
+      logo_url: null as string | null,
+      currency: 'USD',
+      commission_rate: 0.03,
+      pos_type: null as string | null,
+      form_fields: null as any
+    };
     if (companyId) {
       const companyList = await db.select().from(companies).where(eq(companies.id, companyId));
       if (companyList[0]) {
@@ -60,6 +68,8 @@ export async function GET(req: NextRequest) {
           logo_url: companyList[0].logo_url,
           currency: companyList[0].currency,
           commission_rate: companyList[0].commission_rate,
+          pos_type: companyList[0].pos_type,
+          form_fields: companyList[0].form_fields ? JSON.parse(companyList[0].form_fields) : null,
         };
       }
     } else {
@@ -74,6 +84,8 @@ export async function GET(req: NextRequest) {
           logo_url: activeClient.logo_url,
           currency: activeClient.currency,
           commission_rate: activeClient.commission_rate,
+          pos_type: activeClient.pos_type,
+          form_fields: activeClient.form_fields ? JSON.parse(activeClient.form_fields) : null,
         };
         companyId = activeClient.id;
       }
@@ -118,7 +130,12 @@ export async function GET(req: NextRequest) {
       registry,
       workers,
       managers,
-      company: { name: company.name, logoUrl: company.logo_url },
+      company: {
+        name: company.name,
+        logoUrl: company.logo_url,
+        pos_type: company.pos_type,
+        form_fields: company.form_fields
+      },
       user: userContext,
       subscriptionActive: active
     });

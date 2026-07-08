@@ -446,6 +446,8 @@ function OwnerPageInner() {
   const [darkMode, setDarkMode]         = useState(false);
   const [setupComplete, setSetupComplete] = useState(true); // default true to avoid flash
   const [companyNameForWizard, setCompanyNameForWizard] = useState('');
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(1);
   // Credential editing state
   const [credName, setCredName]         = useState('');
   const [credNameSaving, setCredNameSaving] = useState(false);
@@ -724,9 +726,16 @@ function OwnerPageInner() {
   useEffect(()=>{ if(!authed) return;
     fetch('/api/v1/subscription')
       .then(r=>r.ok?r.json():null)
-      .then(d=>{ if(d?.success && d.data) setSubInfo(d.data); })
       .catch(()=>{});
   },[authed]);
+
+  useEffect(() => {
+    if (localStorage.getItem('flowxiq_trigger_owner_tutorial') === 'true') {
+      localStorage.removeItem('flowxiq_trigger_owner_tutorial');
+      setShowTour(true);
+      setTourStep(1);
+    }
+  }, []);
 
   // Sync current order summary dynamically when items change in manager dashboard
   useEffect(() => {
@@ -2811,6 +2820,64 @@ function OwnerPageInner() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* ONBOARDING TUTORIAL TOUR */}
+      {showTour && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div className="hq-card" style={{ width: '100%', maxWidth: '480px', background: '#090D1A', border: '1px solid #1F2937', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 32 }}>
+              {tourStep === 1 && '📊'}
+              {tourStep === 2 && '👥'}
+              {tourStep === 3 && '📂'}
+              {tourStep === 4 && '⚙️'}
+            </div>
+            
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'white', margin: 0, fontFamily: 'inherit' }}>
+              {tourStep === 1 && '1. Orders Dashboard'}
+              {tourStep === 2 && '2. Workers Portal'}
+              {tourStep === 3 && '3. POS Data Export'}
+              {tourStep === 4 && '4. Settings Customization'}
+            </h3>
+            
+            <p style={{ fontSize: '13px', color: '#9CA3AF', lineHeight: '1.6', margin: 0 }}>
+              {tourStep === 1 && 'This is your Orders command center. All order packages entered in real-time by your floor workers will appear here instantly for review.'}
+              {tourStep === 2 && 'Under the "Workers" tab, you can add employee names and passwords, track their individual productivity metrics, and manage commissions.'}
+              {tourStep === 3 && 'Under the "POS Export" tab, you can download files containing floor orders formatted specifically to import directly into your store\'s POS.'}
+              {tourStep === 4 && 'In "Settings", you can customize the order entry fields, adjust default tax rates, markup margins, and update your profile anytime.'}
+            </p>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+              <button
+                onClick={() => {
+                  setShowTour(false);
+                }}
+                style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Skip Tour
+              </button>
+              
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {[1, 2, 3, 4].map(s => (
+                  <div key={s} style={{ width: 6, height: 6, borderRadius: '50%', background: s === tourStep ? '#3B82F6' : '#1F2937' }} />
+                ))}
+              </div>
+              
+              <button
+                onClick={() => {
+                  if (tourStep < 4) {
+                    setTourStep(s => s + 1);
+                  } else {
+                    setShowTour(false);
+                  }
+                }}
+                className="btn btn-primary"
+                style={{ padding: '8px 16px', fontSize: '12px', height: 'auto' }}
+              >
+                {tourStep < 4 ? 'Next Option →' : 'Get Started 🚀'}
+              </button>
+            </div>
           </div>
         </div>
       )}

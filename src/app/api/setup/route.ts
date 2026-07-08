@@ -6,9 +6,10 @@ import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { decryptSession } from '@/lib/auth';
 import { db } from '@/db/db';
-import { companies } from '@/db/schema';
+import { companies, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { ok, internalError } from '@/lib/api/response';
+import * as bcrypt from 'bcryptjs';
 
 async function getSession() {
   const token = cookies().get('session')?.value;
@@ -50,7 +51,14 @@ export async function POST(req: NextRequest) {
     if (!session?.companyId) return new Response('Unauthorized', { status: 401 });
 
     const body = await req.json();
-    const { business_type, pos_type, form_fields, complete } = body;
+    const {
+      business_type,
+      pos_type,
+      form_fields,
+      complete,
+      firstWorkerName,
+      firstWorkerPin
+    } = body;
 
     const updates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
@@ -65,6 +73,31 @@ export async function POST(req: NextRequest) {
       .update(companies)
       .set(updates)
       .where(eq(companies.id, session.companyId));
+
+    // Register first worker if provided
+    if (firstWorkerName && firstWorkerPin) {
+      const nameClean = String(firstWorkerName).trim();
+      const pinClean = String(firstWorkerPin).trim();
+      if (nameClean && pinClean.length >= 8) {
+        const pinHash = bcrypt.hashSync(pinClean, 10);
+        const workerId = `${session.companyId}-${nameClean.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+        
+        // Safety: check if user already exists
+        const existing = await db.select().from(users).where(eq(users.id, workerId)).limit(1);
+        if (existing.length === 0) {
+          await db.insert(users).values({
+            id: workerId,
+            company_id: session.companyId,
+            name: nameClean,
+            pin_hash: pinHash,
+            role: 'worker',
+            is_activated: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+    }
 
     return ok({ success: true });
   } catch (e) {

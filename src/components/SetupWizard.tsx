@@ -121,6 +121,13 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
   const [error, setError]             = useState('');
   const [loading, setLoading]         = useState(inline && !initialBizType); // load from API if no initials given
 
+  // Additional onboarding questions states
+  const [goal, setGoal]               = useState('');
+  const [syncPref, setSyncPref]       = useState('csv');
+  const [workerCount, setWorkerCount] = useState('3');
+  const [firstWorkerName, setFirstWorkerName] = useState('');
+  const [firstWorkerPin, setFirstWorkerPin]   = useState('');
+
   // When rendered inline (settings), auto-load saved values from the API
   useEffect(() => {
     if (!inline || initialBizType) return; // skip if not inline or already pre-populated
@@ -160,7 +167,7 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
 
   function toggleField(id: string) {
     setFields(prev => prev.map(f =>
-      f.id === id && !f.required ? { ...f, required: !f.required } : f
+      f.id === id ? { ...f, required: !f.required } : f
     ));
   }
 
@@ -206,9 +213,17 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
           pos_type:      posType,
           form_fields:   fields,
           complete,
+          // Onboarding questions parameters
+          goal,
+          sync_pref:     syncPref,
+          worker_count:  Number(workerCount) || 1,
+          firstWorkerName: firstWorkerName.trim() || undefined,
+          firstWorkerPin:  firstWorkerPin.trim() || undefined,
         }),
       });
       if (res.ok) {
+        // Trigger onboarding tour overlay on the main owner dashboard
+        localStorage.setItem('flowxiq_trigger_owner_tutorial', 'true');
         onComplete();
       } else {
         setError('Failed to save — please try again.');
@@ -220,7 +235,7 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
     }
   }
 
-  const stepLabels = ['Business', 'POS', 'Fields', 'Custom', 'Launch'];
+  const stepLabels = ['Goals', 'POS Setup', 'Workers', 'Form Fields', 'Launch'];
 
   // ── Wrapper: overlay (first-login) or inline card (settings) ─────────────
   if (loading) {
@@ -261,70 +276,168 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
 
         <div style={{ padding: '28px 32px' }}>
 
-          {/* ── STEP 1: Business Type ─────────────────────────────────────── */}
+          {/* ── STEP 1: Goal & Business Type ──────────────────────────────── */}
           {step === 1 && (
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                What type of business are you?
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                  What is your primary goal using Flowxiq?
+                </div>
+                <select value={goal} onChange={e => setGoal(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 14, outline: 'none' }}>
+                  <option value="">Select your goal...</option>
+                  <option value="Taking orders faster on the retail floor">Taking orders faster on the retail floor</option>
+                  <option value="Eliminating manual sheets and exporting clean POS CSVs">Eliminating manual sheets and exporting clean POS CSVs</option>
+                  <option value="Connecting real-time API integrations with my POS">Connecting real-time API integrations with my POS</option>
+                  <option value="Taking orders offline in remote vendor sites">Taking orders offline in remote vendor sites</option>
+                  <option value="General workspace evaluation">General workspace evaluation</option>
+                </select>
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>
-                This helps us tailor the default view to your industry.
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {BUSINESS_TYPES.map(t => (
-                  <button key={t} onClick={() => setBizType(t)} style={{
-                    padding: '14px 16px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                    border: bizType === t ? '2px solid var(--green)' : '1px solid var(--border)',
-                    background: bizType === t ? 'var(--green-light)' : 'var(--surface-2)',
-                    color: bizType === t ? 'var(--green)' : 'var(--text)',
-                    fontWeight: bizType === t ? 600 : 400, fontSize: 14, transition: 'all .15s',
-                  }}>
-                    {t}
-                  </button>
-                ))}
+
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                  What is your business type?
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 12 }}>
+                  This pre-configures your workspace layout.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {BUSINESS_TYPES.map(t => (
+                    <button key={t} onClick={() => setBizType(t)} style={{
+                      padding: '14px 16px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                      border: bizType === t ? '2px solid var(--green)' : '1px solid var(--border)',
+                      background: bizType === t ? 'var(--green-light)' : 'var(--surface-2)',
+                      color: bizType === t ? 'var(--green)' : 'var(--text)',
+                      fontWeight: bizType === t ? 600 : 400, fontSize: 14, transition: 'all .15s',
+                    }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {/* ── STEP 2: POS System ───────────────────────────────────────── */}
+          {/* ── STEP 2: Sync Preference & POS selection ────────────────────── */}
           {step === 2 && (
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                Which POS system do you use?
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>
-                We'll pre-fill your order form with the required fields for that system.
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {POS_OPTIONS.map(p => (
-                  <button key={p.id} onClick={() => selectPos(p.id)} style={{
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                  How do you want to sync order data?
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                  <button onClick={() => setSyncPref('csv')} style={{
                     padding: '14px 16px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                    border: posType === p.id ? '2px solid #3B82F6' : '1px solid var(--border)',
-                    background: posType === p.id ? 'rgba(59,130,246,.08)' : 'var(--surface-2)',
-                    color: posType === p.id ? '#60A5FA' : 'var(--text)',
-                    fontWeight: posType === p.id ? 600 : 400, fontSize: 14, transition: 'all .15s',
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    border: syncPref === 'csv' ? '2px solid #3B82F6' : '1px solid var(--border)',
+                    background: syncPref === 'csv' ? 'rgba(59,130,246,.08)' : 'var(--surface-2)',
+                    color: syncPref === 'csv' ? '#60A5FA' : 'var(--text)',
                   }}>
-                    <span style={{ fontSize: 20 }}>{p.icon}</span>
-                    {p.label}
+                    <strong style={{ display: 'block', fontSize: 14 }}>📂 Manual CSV Exporter</strong>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginTop: 4, lineHeight: '1.4' }}>
+                      Download POS-ready CSV files and upload them manually.
+                    </span>
                   </button>
-                ))}
+                  <button onClick={() => setSyncPref('api')} style={{
+                    padding: '14px 16px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                    border: syncPref === 'api' ? '2px solid #3B82F6' : '1px solid var(--border)',
+                    background: syncPref === 'api' ? 'rgba(59,130,246,.08)' : 'var(--surface-2)',
+                    color: syncPref === 'api' ? '#60A5FA' : 'var(--text)',
+                  }}>
+                    <strong style={{ display: 'block', fontSize: 14 }}>⚡ Direct API Connection</strong>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginTop: 4, lineHeight: '1.4' }}>
+                      Direct secure credentials mapping with real-time webhooks.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                  Which POS system are you using?
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+                  {POS_OPTIONS.map(p => (
+                    <button key={p.id} onClick={() => selectPos(p.id)} style={{
+                      padding: '12px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                      border: posType === p.id ? '2px solid #3B82F6' : '1px solid var(--border)',
+                      background: posType === p.id ? 'rgba(59,130,246,.08)' : 'var(--surface-2)',
+                      color: posType === p.id ? '#60A5FA' : 'var(--text)',
+                      fontWeight: posType === p.id ? 600 : 400, fontSize: 13, transition: 'all .15s',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}>
+                      <span style={{ fontSize: 18 }}>{p.icon}</span>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {/* ── STEP 3: Form Fields ──────────────────────────────────────── */}
+          {/* ── STEP 3: Workers / Employees Onboarding ─────────────────────── */}
           {step === 3 && (
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                Your order form fields
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                  Employees & Order-Entry Workers
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 12 }}>
+                  How many workers will be active on the floor taking orders?
+                </div>
+                <input type="number" min="1" max="100" value={workerCount} onChange={e => setWorkerCount(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 14, outline: 'none' }} />
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>
-                Fields marked <span style={{ color: 'var(--red)' }}>*</span> are required by {posType ? POS_OPTIONS.find(p => p.id === posType)?.label : 'your POS'} and cannot be removed.
-                Toggle optional fields on or off.
+
+              <div style={{ padding: 18, borderRadius: 12, border: '1px dashed var(--border)', background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                  ⚡ Add Your First Employee Profile
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-3)', margin: 0 }}>
+                  Create their login credentials now so they can immediately log in to the mobile worker app to start taking orders.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>Worker Full Name</label>
+                    <input type="text" value={firstWorkerName} onChange={e => setFirstWorkerName(e.target.value)} placeholder="e.g. Sarah Connor"
+                      style={{ width: '100%', padding: '10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: 13, outline: 'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>Login Password</label>
+                    <input type="password" value={firstWorkerPin} onChange={e => setFirstWorkerPin(e.target.value)} placeholder="Min 8 characters"
+                      style={{ width: '100%', padding: '10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)', color: 'white', fontSize: 13, outline: 'none' }} />
+                  </div>
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* ── STEP 4: Form Fields & Customization ───────────────────────── */}
+          {step === 4 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                  Order Form Custom Fields Settings
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 12 }}>
+                  Toggle which fields workers see. Required POS fields cannot be fully turned off without alerts.
+                </div>
+              </div>
+
+              {/* Alert Warning for missing POS requirement */}
+              {(() => {
+                const missing = POS_TEMPLATES[posType]?.filter(t => t.required && !fields.some(f => f.id === t.id && f.required)) || [];
+                if (missing.length === 0) return null;
+                return (
+                  <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 10, padding: 14, color: '#FBBF24', fontSize: 13, display: 'flex', gap: 10, alignItems: 'center', lineHeight: '1.4' }}>
+                    <span style={{ fontSize: 18 }}>⚠️</span>
+                    <div>
+                      <strong>Omitted POS Requirements:</strong> Your POS ({POS_OPTIONS.find(p => p.id === posType)?.label}) requires the following fields: <strong>{missing.map(m => m.label).join(', ')}</strong>. Leaving these disabled or optional will cause POS import failures.
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {fields.filter(f => f.source === 'pos').map((f, i) => {
+                {fields.map((f, i) => {
                   const locked = POS_TEMPLATES[posType]?.find(t => t.id === f.id)?.required ?? false;
                   return (
                     <div key={f.id} style={{
@@ -332,21 +445,28 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
                       padding: '10px 14px', borderRadius: 8,
                       background: 'var(--surface-2)', border: '1px solid var(--border)',
                     }}>
-                      <input type="checkbox" checked={f.required} disabled={locked}
+                      <input type="checkbox" checked={f.required}
                         onChange={() => toggleField(f.id)}
-                        style={{ width: 16, height: 16, cursor: locked ? 'default' : 'pointer' }} />
+                        style={{ width: 16, height: 16, cursor: 'pointer' }} />
                       <span style={{ flex: 1, fontSize: 14, color: 'var(--text)' }}>
                         {f.label}
-                        {locked && <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span>}
+                        {f.required && <span style={{ color: 'var(--red)', marginLeft: 4 }}>*</span>}
+                        {locked && <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 8 }}>(POS Required Template)</span>}
                       </span>
                       <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface)',
                         padding: '2px 6px', borderRadius: 4 }}>{f.type}</span>
+                      {f.source === 'custom' && (
+                        <button onClick={() => removeField(f.id)} style={{
+                          background: 'none', border: 'none', color: 'var(--red)',
+                          cursor: 'pointer', fontSize: 16, marginLeft: 6
+                        }}>×</button>
+                      )}
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button onClick={() => moveField(f.id, 'up')} disabled={i === 0}
                           style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer',
                             color: 'var(--text-3)', fontSize: 12, opacity: i === 0 ? .3 : 1 }}>▲</button>
                         <button onClick={() => moveField(f.id, 'down')}
-                          disabled={i === fields.filter(f => f.source === 'pos').length - 1}
+                          disabled={i === fields.length - 1}
                           style={{ background: 'none', border: 'none', cursor: 'pointer',
                             color: 'var(--text-3)', fontSize: 12 }}>▼</button>
                       </div>
@@ -354,57 +474,19 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
                   );
                 })}
               </div>
-            </div>
-          )}
 
-          {/* ── STEP 4: Custom Fields ────────────────────────────────────── */}
-          {step === 4 && (
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                Add your own fields
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>
-                Any additional fields specific to your business. Workers will see these on every order.
-              </div>
-
-              {/* Existing custom fields */}
-              {fields.filter(f => f.source === 'custom').length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                  {fields.filter(f => f.source === 'custom').map(f => (
-                    <div key={f.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 14px', borderRadius: 8,
-                      background: 'var(--surface-2)', border: '1px solid var(--border)',
-                    }}>
-                      <span style={{ flex: 1, fontSize: 14, color: 'var(--text)' }}>
-                        {f.label}
-                        {f.required && <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span>}
-                      </span>
-                      <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface)',
-                        padding: '2px 6px', borderRadius: 4 }}>{f.type}</span>
-                      <span style={{ fontSize: 11, background: 'rgba(59,130,246,.1)', color: '#60A5FA',
-                        padding: '2px 6px', borderRadius: 4 }}>custom</span>
-                      <button onClick={() => removeField(f.id)} style={{
-                        background: 'none', border: 'none', color: 'var(--red)',
-                        cursor: 'pointer', fontSize: 16, lineHeight: 1,
-                      }}>×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add new custom field */}
+              {/* Add Custom Field card */}
               <div style={{
                 padding: 16, borderRadius: 10,
-                border: '1px dashed var(--border)', background: 'var(--surface-2)',
+                border: '1px dashed var(--border)', background: 'var(--surface-2)', marginTop: 10
               }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)',
                   marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                  + Add Field
+                  + Add Custom Business Field
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>Field Label</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>Field Name</div>
                     <input value={cfLabel} onChange={e => setCfLabel(e.target.value)}
                       placeholder="e.g. Color, Size, Ref #"
                       style={{ width: '100%', padding: '8px 10px', borderRadius: 7, fontSize: 13,
@@ -454,34 +536,44 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
             </div>
           )}
 
-          {/* ── STEP 5: Review & Launch ──────────────────────────────────── */}
+          {/* ── STEP 5: Review & Save ────────────────────────────────────── */}
           {step === 5 && (
             <div>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                Your portal is ready 🚀
+                Your Portal Configuration is Ready! 🚀
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>
-                Here's what your order form will look like. You can change any of this later in Settings.
+                Review your launch settings. You can edit everything later in Settings.
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
                 <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface-2)',
                   border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2 }}>Business Type</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{bizType || '—'}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>Main Goal</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{goal || 'Testing Platform'}</div>
                 </div>
                 <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface-2)',
                   border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2 }}>POS System</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                    {POS_OPTIONS.find(p => p.id === posType)?.label || posType || '—'}
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>POS Integration</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                    {POS_OPTIONS.find(p => p.id === posType)?.label || posType || 'Manual'} ({syncPref === 'csv' ? 'CSV manual sync' : 'Real-time API'})
                   </div>
                 </div>
               </div>
 
+              {firstWorkerName && (
+                <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>First Employee Created</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'flex', gap: 10 }}>
+                    <span>👤 {firstWorkerName}</span>
+                    <span style={{ color: 'var(--text-3)' }}>· Passcode configured</span>
+                  </div>
+                </div>
+              )}
+
               <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8,
                 textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                Order form fields ({fields.filter(f => f.required).length} required, {fields.length} total)
+                Active Order Form Fields ({fields.filter(f => f.required).length} required)
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {fields.map(f => (
@@ -527,12 +619,11 @@ export default function SetupWizard({ companyName, onComplete, onSkip, inline, i
                 onClick={() => setStep(s => (s + 1) as any)}
                 disabled={
                   (step === 1 && !bizType) ||
-                  (step === 2 && !posType) ||
-                  (step === 3 && fields.length === 0)
+                  (step === 2 && !posType)
                 }
                 style={{
                   padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600,
-                  background: ((step === 1 && !bizType) || (step === 2 && !posType) || (step === 3 && fields.length === 0))
+                  background: ((step === 1 && !bizType) || (step === 2 && !posType))
                     ? 'var(--border)' : '#3B82F6',
                   color: '#fff', border: 'none',
                   cursor: ((step === 1 && !bizType) || (step === 2 && !posType)) ? 'not-allowed' : 'pointer',

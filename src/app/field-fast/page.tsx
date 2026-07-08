@@ -45,6 +45,16 @@ interface CartItem {
   orig?:OrderItem;
 }
 
+const defaultFields = [
+  { id: 'code', label: 'Item code', type: 'text', required: true, source: 'pos' },
+  { id: 'category', label: 'Category', type: 'text', required: false, source: 'pos' },
+  { id: 'colors', label: 'Colors', type: 'text', required: false, source: 'pos' },
+  { id: 'sizes', label: 'Sizes', type: 'text', required: false, source: 'pos' },
+  { id: 'price', label: 'Price', type: 'number', required: true, source: 'pos' },
+  { id: 'photo', label: 'Photo', type: 'text', required: false, source: 'pos' },
+  { id: 'notes', label: 'Notes', type: 'text', required: false, source: 'pos' }
+];
+
 function parseVoiceInput(transcript: string, vendors: string[], categories: string[]) {
   const text = transcript.toLowerCase();
   let foundVendor = '';
@@ -628,6 +638,10 @@ function FieldFastInner() {
   const [toast, setToast] = useState('');
   const [errorBox, setErrorBox] = useState<{title:string;items:string[]}|null>(null);
   
+  // Custom form setup settings
+  const [formFields, setFormFields] = useState<any[]>([]);
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+
   // ── Offline First Synchronization Queue ──
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
 
@@ -807,6 +821,22 @@ function FieldFastInner() {
           setCompanyName(d.company.name);
           setLogoUrl(d.company.logo_url || d.company.logoUrl || null);
         }
+        if (d.company && d.company.form_fields) {
+          try {
+            const parsed = typeof d.company.form_fields === 'string'
+              ? JSON.parse(d.company.form_fields)
+              : d.company.form_fields;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setFormFields(parsed);
+            } else {
+              setFormFields(defaultFields);
+            }
+          } catch {
+            setFormFields(defaultFields);
+          }
+        } else {
+          setFormFields(defaultFields);
+        }
         if(d.subscriptionActive === false) {
           setSubscriptionActive(false);
         }
@@ -825,6 +855,22 @@ function FieldFastInner() {
         if (cached) {
           const d = JSON.parse(cached);
           if(d.registry) setVendors(Object.keys(d.registry));
+          if (d.company && d.company.form_fields) {
+            try {
+              const parsed = typeof d.company.form_fields === 'string'
+                ? JSON.parse(d.company.form_fields)
+                : d.company.form_fields;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setFormFields(parsed);
+              } else {
+                setFormFields(defaultFields);
+              }
+            } catch {
+              setFormFields(defaultFields);
+            }
+          } else {
+            setFormFields(defaultFields);
+          }
           if(d.company) {
             setCompanyName(d.company.name);
             setLogoUrl(d.company.logo_url || d.company.logoUrl || null);
@@ -938,6 +984,22 @@ function FieldFastInner() {
         .then(sessionData=>{
           localStorage.setItem('flowxiq_cached_session', JSON.stringify(sessionData));
           if(sessionData.registry) setVendors(Object.keys(sessionData.registry));
+          if (sessionData.company && sessionData.company.form_fields) {
+            try {
+              const parsed = typeof sessionData.company.form_fields === 'string'
+                ? JSON.parse(sessionData.company.form_fields)
+                : sessionData.company.form_fields;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setFormFields(parsed);
+              } else {
+                setFormFields(defaultFields);
+              }
+            } catch {
+              setFormFields(defaultFields);
+            }
+          } else {
+            setFormFields(defaultFields);
+          }
         }).catch(()=>{});
 
       loadOrders(d.worker.id);
@@ -949,18 +1011,49 @@ function FieldFastInner() {
   function resetItemForm(){
     setCode(''); setCategory(''); setColors([]); setSizes([]);
     setPrice(''); setNotes(''); setPhoto(''); setEditingTempId(null);
+    setCustomValues({});
   }
 
   const autoQty = total(colors)*total(sizes);
 
   function validateItem():string[] {
     const missing:string[]=[];
-    if(!code.trim()) missing.push('Item code');
-    if(!category) missing.push('Category');
-    if(colors.length===0) missing.push('At least one color');
-    if(sizes.length===0) missing.push('At least one size');
-    if(!price||Number(price)<=0) missing.push('Purchase price');
-    if(orderType==='online'&&!photo) missing.push('Photo (required for online)');
+    if (formFields && formFields.length > 0) {
+      formFields.forEach(f => {
+        if (!f.required) return;
+        if (f.id === 'code' && !code.trim()) {
+          missing.push(f.label);
+        } else if (f.id === 'category' && !category) {
+          missing.push(f.label);
+        } else if (f.id === 'colors' && colors.length === 0) {
+          missing.push('At least one color');
+        } else if (f.id === 'sizes' && sizes.length === 0) {
+          missing.push('At least one size');
+        } else if (f.id === 'price' && (!price || Number(price) <= 0)) {
+          missing.push('Purchase price');
+        } else if (f.id === 'photo' && !photo) {
+          missing.push('Photo');
+        } else if (f.id === 'notes' && !notes.trim()) {
+          missing.push('Notes / Description');
+        } else if (f.source === 'custom') {
+          const val = customValues[f.id] || '';
+          if (!val.trim()) {
+            missing.push(f.label);
+          }
+        }
+      });
+    } else {
+      // Fallback default validation
+      if (!code.trim()) missing.push('Item code');
+      if (!category) missing.push('Category');
+      if (colors.length === 0) missing.push('At least one color');
+      if (sizes.length === 0) missing.push('At least one size');
+      if (!price || Number(price) <= 0) missing.push('Purchase price');
+    }
+
+    if (orderType === 'online' && !photo && formFields.some(f => f.id === 'photo')) {
+      missing.push('Photo (required for online)');
+    }
     return missing;
   }
 
@@ -975,6 +1068,17 @@ function FieldFastInner() {
     }
     const vendorForItem = currentVendor || (editingTempId ? cart.find(i=>i.tempId===editingTempId)?.vendor||'' : '');
     if(!vendorForItem){ setErrorBox({title:'No vendor selected',items:['Please select a vendor first']}); setSavingItem(false); return; }
+
+    // Format custom values to append to item notes
+    const customNotes = Object.entries(customValues)
+      .map(([id, val]) => {
+        const label = formFields.find(f => f.id === id)?.label;
+        return (val && val.trim()) ? `${label}: ${val.trim()}` : '';
+      })
+      .filter(Boolean)
+      .join(', ');
+    const finalNotes = notes.trim() + (customNotes ? ` [${customNotes}]` : '');
+
     try {
       const isOffline = !navigator.onLine || activeOrder.id.startsWith('offline-');
       if (isOffline) {
@@ -989,7 +1093,7 @@ function FieldFastInner() {
             sizes: flat(sizes),
             price: Number(price),
             qty: autoQty || 1,
-            notes,
+            notes: finalNotes,
             photo
           };
           addOfflineQueue('item', {
@@ -1023,7 +1127,7 @@ function FieldFastInner() {
             sizes: flat(sizes),
             price: Number(price),
             qty: autoQty || 1,
-            notes,
+            notes: finalNotes,
             photo
           };
           addOfflineQueue('item', {
@@ -1037,7 +1141,7 @@ function FieldFastInner() {
             sizes: flat(sizes),
             price: Number(price),
             qty: autoQty || 1,
-            notes,
+            notes: finalNotes,
             photo
           });
           setCart(prev => [newItem, ...prev]);
@@ -1070,7 +1174,7 @@ function FieldFastInner() {
       if(editingTempId){
         const existing=cart.find(i=>i.tempId===editingTempId);
         const updated={...existing,code:code.trim(),category,colors:flat(colors),sizes:flat(sizes),
-          price:Number(price),qty:autoQty||1,notes,photo};
+          price:Number(price),qty:autoQty||1,notes:finalNotes,photo};
         if(existing?.serverId){
           await fetch('/api/items',{method:'PATCH',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({...(existing.orig||{}),id:existing.serverId,
@@ -1078,13 +1182,10 @@ function FieldFastInner() {
               code:updated.code,category:updated.category,colors:updated.colors,
               sizes:updated.sizes,price:updated.price,qty:updated.qty,notes:updated.notes})}).catch(()=>{});
           if(photo&&photo!==existing.photo){
-            // If photo is still base64 (upload failed), try sending to DB via /api/photos
-            // If it's already a URL, just update the item record with the URL
             if(photo.startsWith('data:')){
               fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({itemId:existing.serverId,photo})}).catch(()=>{});
             } else {
-              // It's a CDN URL — update the item record directly
               fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({itemId:existing.serverId,photo})}).catch(()=>{});
             }
@@ -1096,11 +1197,10 @@ function FieldFastInner() {
         const r=await fetch('/api/items',{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({orderId:activeOrder.id,workerId:worker!.id,vendor:vendorForItem,
             code:code.trim(),category,colors:flat(colors),sizes:flat(sizes),
-            price:Number(price),qty:autoQty||1,notes,photo})});
+            price:Number(price),qty:autoQty||1,notes:finalNotes,photo})});
         const itemData=await r.json();
         const serverId=itemData.item?.id;
         if(serverId&&photo){
-          // Store the photo URL (or base64 fallback) in the item record
           fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({itemId:serverId,photo})}).catch(()=>{});
         }
@@ -1114,7 +1214,7 @@ function FieldFastInner() {
         const newItem:CartItem={
           tempId:'t_'+Date.now()+Math.random(), serverId, orig:itemData.item,
           vendor:vendorForItem, code:code.trim(), category,
-          colors:flat(colors), sizes:flat(sizes), price:Number(price), qty:autoQty||1, notes, photo,
+          colors:flat(colors), sizes:flat(sizes), price:Number(price), qty:autoQty||1, notes:finalNotes, photo,
         };
         setCart(prev=>[newItem,...prev]);
         showToast('Item saved');
@@ -1140,7 +1240,32 @@ function FieldFastInner() {
   function editRow(item:CartItem){
     setCode(item.code); setCategory(item.category);
     setColors(toSel(item.colors)); setSizes(toSel(item.sizes));
-    setPrice(String(item.price)); setNotes(item.notes); setPhoto(item.photo);
+    setPrice(String(item.price)); setPhoto(item.photo);
+    
+    // Parse custom fields from notes e.g. "Some text [Rack: A1, Row: 2]"
+    const parsedCustoms: Record<string, string> = {};
+    const match = item.notes.match(/\[(.*?)\]$/);
+    let baseNotes = item.notes;
+    if (match && match[1]) {
+      const parts = match[1].split(',');
+      parts.forEach(p => {
+        const idx = p.indexOf(':');
+        if (idx > -1) {
+          const label = p.substring(0, idx).trim();
+          const val = p.substring(idx + 1).trim();
+          // Find matching FormField
+          const f = formFields.find(x => x.label.toLowerCase() === label.toLowerCase());
+          if (f) {
+            parsedCustoms[f.id] = val;
+          }
+        }
+      });
+      // Strip custom fields bracket from notes input
+      baseNotes = item.notes.replace(/\s*\[(.*?)\]$/, '');
+    }
+    setCustomValues(parsedCustoms);
+    setNotes(baseNotes);
+
     setEditingTempId(item.tempId);
     setCurrentVendor(item.vendor);
     setFormOpen(true);
@@ -2210,149 +2335,180 @@ function FieldFastInner() {
                     <button className="btn btn-sm btn-ghost" onClick={()=>{resetItemForm();setFormOpen(false);}}>✕</button>
                   </div>
                 </div>
-                <div className="field">
-                  <label className="label">{lang==='ar'?'كود المنتج':'Item code'} {editingTempId&&<span style={{fontSize:10,background:'var(--amber)',color:'#fff',borderRadius:4,padding:'1px 6px',marginLeft:6}}>editing</span>}</label>
-                  <input type="text" placeholder="e.g. 4567" value={code} onChange={e=>setCode(e.target.value)} autoFocus key={editingTempId||'new'}/>
-                </div>
-                <div className="field">
-                  <label className="label">Category</label>
-                  {/* Search/add */}
-                  <ComboBox options={categories} value={category}
-                    onChange={v=>{ setCategory(v); if(!categories.includes(v)) setCategories(prev=>[...prev,v]); }}
-                    usage={usage.categories} placeholder="Search or add category..."/>
-                  {/* Sticky strip — sorted by usage for current vendor first, then global */}
-                  <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,marginTop:8,scrollbarWidth:'none'}}>
-                    {(()=>{
-                      // Vendor-specific usage: count how many items in cart under this vendor use each category
-                      const vendorCatCount:Record<string,number> = {};
-                      (cartByVendor[currentVendor]||[]).forEach(i=>{
-                        vendorCatCount[i.category]=(vendorCatCount[i.category]||0)+1;
-                      });
-                      return [...categories].sort((a,b)=>{
-                        const vDiff=(vendorCatCount[b]||0)-(vendorCatCount[a]||0);
-                        if(vDiff!==0) return vDiff;
-                        return (usage.categories?.[b]||0)-(usage.categories?.[a]||0);
-                      });
-                    })().map(c=>(
-                      <div key={c} className="chip" style={{flexShrink:0,
-                        background:category===c?'var(--green)':'',
-                        color:category===c?'#fff':'',
-                        borderColor:category===c?'var(--green)':'',
-                      }} onClick={()=>setCategory(c)}>{c}</div>
-                    ))}
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'code')) && (
+                  <div className="field">
+                    <label className="label">{lang==='ar'?'كود المنتج':'Item code'} {formFields?.find(f => f.id === 'code')?.required && <span style={{color:'var(--red)'}}>*</span>} {editingTempId&&<span style={{fontSize:10,background:'var(--amber)',color:'#fff',borderRadius:4,padding:'1px 6px',marginLeft:6}}>editing</span>}</label>
+                    <input type="text" placeholder="e.g. 4567" value={code} onChange={e=>setCode(e.target.value)} autoFocus key={editingTempId||'new'}/>
                   </div>
-                </div>
-                <div className="field">
-                  <label className="label">Colors {colors.length>0&&<span style={{color:'var(--green)'}}>({total(colors)})</span>}</label>
-                  {/* Searchable color input */}
-                  <ComboBox options={colorOptions} value=""
-                    onChange={v=>{ setColors(prev=>addOrInc(prev,v)); if(!colorOptions.includes(v)) setColorOptions(prev=>[...prev,v]); }}
-                    usage={usage.colors} placeholder="Search or add color..."/>
-                  {/* Sticky color strip */}
-                  <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,marginTop:8,scrollbarWidth:'none'}}>
-                    {[...colorOptions].sort((a,b)=>(usage.colors?.[b]||0)-(usage.colors?.[a]||0)).map(c=>(
-                      <div key={c} className="chip" style={{flexShrink:0,
-                        background:colors.find(x=>x.value===c)?'var(--blue)':'',
-                        color:colors.find(x=>x.value===c)?'#fff':'',
-                        borderColor:colors.find(x=>x.value===c)?'var(--blue)':'',
-                      }}
-                        onClick={()=>setColors(prev=>addOrInc(prev,c))}>
-                        {c}{colors.find(x=>x.value===c)&&colors.find(x=>x.value===c)!.count>1&&
-                          <span style={{marginLeft:3,fontSize:9,background:'rgba(255,255,255,.3)',borderRadius:8,padding:'0 4px'}}>
-                            ×{colors.find(x=>x.value===c)!.count}
-                          </span>}
+                )}
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'category')) && (
+                  <div className="field">
+                    <label className="label">Category {formFields?.find(f => f.id === 'category')?.required && <span style={{color:'var(--red)'}}>*</span>}</label>
+                    <ComboBox options={categories} value={category}
+                      onChange={v=>{ setCategory(v); if(!categories.includes(v)) setCategories(prev=>[...prev,v]); }}
+                      usage={usage.categories} placeholder="Search or add category..."/>
+                    <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,marginTop:8,scrollbarWidth:'none'}}>
+                      {(()=>{
+                        const vendorCatCount:Record<string,number> = {};
+                        (cartByVendor[currentVendor]||[]).forEach(i=>{
+                          vendorCatCount[i.category]=(vendorCatCount[i.category]||0)+1;
+                        });
+                        return [...categories].sort((a,b)=>{
+                          const vDiff=(vendorCatCount[b]||0)-(vendorCatCount[a]||0);
+                          if(vDiff!==0) return vDiff;
+                          return (usage.categories?.[b]||0)-(usage.categories?.[a]||0);
+                        });
+                      })().map(c=>(
+                        <div key={c} className="chip" style={{flexShrink:0,
+                          background:category===c?'var(--green)':'',
+                          color:category===c?'#fff':'',
+                          borderColor:category===c?'var(--green)':'',
+                        }} onClick={()=>setCategory(c)}>{c}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'colors')) && (
+                  <div className="field">
+                    <label className="label">Colors {formFields?.find(f => f.id === 'colors')?.required && <span style={{color:'var(--red)'}}>*</span>} {colors.length>0&&<span style={{color:'var(--green)'}}>({total(colors)})</span>}</label>
+                    <ComboBox options={colorOptions} value=""
+                      onChange={v=>{ setColors(prev=>addOrInc(prev,v)); if(!colorOptions.includes(v)) setColorOptions(prev=>[...prev,v]); }}
+                      usage={usage.colors} placeholder="Search or add color..."/>
+                    <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,marginTop:8,scrollbarWidth:'none'}}>
+                      {[...colorOptions].sort((a,b)=>(usage.colors?.[b]||0)-(usage.colors?.[a]||0)).map(c=>(
+                        <div key={c} className="chip" style={{flexShrink:0,
+                          background:colors.find(x=>x.value===c)?'var(--blue)':'',
+                          color:colors.find(x=>x.value===c)?'#fff':'',
+                          borderColor:colors.find(x=>x.value===c)?'var(--blue)':'',
+                        }}
+                          onClick={()=>setColors(prev=>addOrInc(prev,c))}>
+                          {c}{colors.find(x=>x.value===c)&&colors.find(x=>x.value===c)!.count>1&&
+                            <span style={{marginLeft:3,fontSize:9,background:'rgba(255,255,255,.3)',borderRadius:8,padding:'0 4px'}}>
+                              ×{colors.find(x=>x.value===c)!.count}
+                            </span>}
+                        </div>
+                      ))}
+                    </div>
+                    {colors.length>0&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
+                        {colors.map(c=>(
+                          <span key={c.value} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 6px 4px 10px',borderRadius:100,fontSize:12,fontWeight:500,background:'var(--blue-light)',border:'1px solid var(--blue-border)',color:'var(--blue)'}}>
+                            {c.value}{c.count>1&&<span style={{background:'var(--blue)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10}}>×{c.count}</span>}
+                            <span style={{cursor:'pointer',background:'var(--blue)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}} onClick={()=>setColors(prev=>addOrInc(prev,c.value))}>+</span>
+                            <span style={{cursor:'pointer',color:'var(--red)',fontSize:16,marginLeft:1}} onClick={()=>setColors(prev=>dec(prev,c.value))}>×</span>
+                          </span>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                  {/* Selected colors chips */}
-                  {colors.length>0&&(
-                    <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
-                      {colors.map(c=>(
-                        <span key={c.value} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 6px 4px 10px',borderRadius:100,fontSize:12,fontWeight:500,background:'var(--blue-light)',border:'1px solid var(--blue-border)',color:'var(--blue)'}}>
-                          {c.value}{c.count>1&&<span style={{background:'var(--blue)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10}}>×{c.count}</span>}
-                          <span style={{cursor:'pointer',background:'var(--blue)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}} onClick={()=>setColors(prev=>addOrInc(prev,c.value))}>+</span>
-                          <span style={{cursor:'pointer',color:'var(--red)',fontSize:16,marginLeft:1}} onClick={()=>setColors(prev=>dec(prev,c.value))}>×</span>
-                        </span>
+                )}
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'sizes')) && (
+                  <div className="field">
+                    <label className="label">{t('sizes')} {formFields?.find(f => f.id === 'sizes')?.required && <span style={{color:'var(--red)'}}>*</span>} {sizes.length>0&&<span style={{color:'var(--green)'}}>({total(sizes)})</span>}</label>
+                    <div style={{display:'flex',gap:6,marginBottom:8}}>
+                      <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`} onClick={()=>setSizeMode('letter')}>{lang==='ar'?'حروف':'Letter'}</button>
+                      <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`} onClick={()=>setSizeMode('numeric')}>{lang==='ar'?'أرقام':'Numeric'}</button>
+                    </div>
+                    <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
+                      {(sizeMode==='letter'?LETTER_SIZES:NUMERIC_SIZES).map(s=>(
+                        <div key={s} className="chip" style={{flexShrink:0}} onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>
                       ))}
                     </div>
-                  )}
-                </div>
-                 <div className="field">
-                  <label className="label">{t('sizes')} {sizes.length>0&&<span style={{color:'var(--green)'}}>({total(sizes)})</span>}</label>
-                  <div style={{display:'flex',gap:6,marginBottom:8}}>
-                    <button className={`btn btn-sm ${sizeMode==='letter'?'btn-primary':''}`} onClick={()=>setSizeMode('letter')}>{lang==='ar'?'حروف':'Letter'}</button>
-                    <button className={`btn btn-sm ${sizeMode==='numeric'?'btn-primary':''}`} onClick={()=>setSizeMode('numeric')}>{lang==='ar'?'أرقام':'Numeric'}</button>
-                  </div>
-                  <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
-                    {(sizeMode==='letter'?LETTER_SIZES:NUMERIC_SIZES).map(s=>(
-                      <div key={s} className="chip" style={{flexShrink:0}} onClick={()=>setSizes(prev=>addOrInc(prev,s))}>{s}</div>
-                    ))}
-                  </div>
-                  {/* Custom size input */}
-                  <div style={{display:'flex',gap:6,marginTop:8}}>
-                    <input type="text" placeholder={lang==='ar'?'مقاس مخصص مثل 29، XXS...':'Custom size e.g. 29, XXS…'} id="customSizeInput"
-                      style={{flex:1,fontSize:13}}
-                      onKeyDown={e=>{
-                        if(e.key==='Enter'){
-                          const v=(e.target as HTMLInputElement).value.trim();
-                          if(v){ setSizes(prev=>addOrInc(prev,v)); (e.target as HTMLInputElement).value=''; }
-                        }
-                      }}/>
-                    <button className="btn btn-sm" onClick={()=>{
-                      const el=document.getElementById('customSizeInput') as HTMLInputElement;
-                      if(el?.value.trim()){ setSizes(prev=>addOrInc(prev,el.value.trim())); el.value=''; }
-                    }}>{lang==='ar'?'إضافة':'Add'}</button>
-                  </div>
-                  {sizes.length>0&&(
-                    <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
-                      {sizes.map(s=>(
-                        <span key={s.value} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 6px 4px 10px',borderRadius:100,fontSize:12,fontWeight:500,background:'var(--green-light)',border:'1px solid var(--green-border)',color:'var(--green)'}}>
-                          {s.value}{s.count>1&&<span style={{background:'var(--green)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10}}>×{s.count}</span>}
-                          <span style={{cursor:'pointer',background:'var(--green)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}} onClick={()=>setSizes(prev=>addOrInc(prev,s.value))}>+</span>
-                          <span style={{cursor:'pointer',color:'var(--red)',fontSize:16,marginLeft:1}} onClick={()=>setSizes(prev=>dec(prev,s.value))}>×</span>
-                        </span>
-                      ))}
+                    <div style={{display:'flex',gap:6,marginTop:8}}>
+                      <input type="text" placeholder={lang==='ar'?'مقاس مخصص مثل 29، XXS...':'Custom size e.g. 29, XXS…'} id="customSizeInput"
+                        style={{flex:1,fontSize:13}}
+                        onKeyDown={e=>{
+                          if(e.key==='Enter'){
+                            const v=(e.target as HTMLInputElement).value.trim();
+                            if(v){ setSizes(prev=>addOrInc(prev,v)); (e.target as HTMLInputElement).value=''; }
+                          }
+                        }}/>
+                      <button className="btn btn-sm" onClick={()=>{
+                        const el=document.getElementById('customSizeInput') as HTMLInputElement;
+                        if(el?.value.trim()){ setSizes(prev=>addOrInc(prev,el.value.trim())); el.value=''; }
+                      }}>{lang==='ar'?'إضافة':'Add'}</button>
                     </div>
-                  )}
-                </div>
-                <div className="field">
-                  <label className="label">{t('unitPrice')}</label>
-                  <input type="number" step="0.5" placeholder="0.00" value={price} onChange={e=>setPrice(e.target.value)}/>
-                </div>
+                    {sizes.length>0&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
+                        {sizes.map(s=>(
+                          <span key={s.value} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 6px 4px 10px',borderRadius:100,fontSize:12,fontWeight:500,background:'var(--green-light)',border:'1px solid var(--green-border)',color:'var(--green)'}}>
+                            {s.value}{s.count>1&&<span style={{background:'var(--green)',color:'#fff',borderRadius:10,padding:'1px 5px',fontSize:10}}>×{s.count}</span>}
+                            <span style={{cursor:'pointer',background:'var(--green)',color:'#fff',borderRadius:'50%',width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14}} onClick={()=>setSizes(prev=>addOrInc(prev,s.value))}>+</span>
+                            <span style={{cursor:'pointer',color:'var(--red)',fontSize:16,marginLeft:1}} onClick={()=>setSizes(prev=>dec(prev,s.value))}>×</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'price')) && (
+                  <div className="field">
+                    <label className="label">{t('unitPrice')} {formFields?.find(f => f.id === 'price')?.required && <span style={{color:'var(--red)'}}>*</span>}</label>
+                    <input type="number" step="0.5" placeholder="0.00" value={price} onChange={e=>setPrice(e.target.value)}/>
+                  </div>
+                )}
+
                 {autoQty>0&&(
                   <div style={{background:'var(--green-light)',border:'1px solid var(--green-border)',borderRadius:'var(--r)',padding:'10px 14px',marginBottom:14,fontSize:13}}>
                     <strong style={{color:'var(--green)',fontSize:20}}>{autoQty}</strong>
                     <span style={{color:'var(--text-3)',marginLeft:8}}>{t('variants')} · {total(colors)} {t('colors').toLowerCase()} × {total(sizes)} {t('sizes').toLowerCase()}</span>
                   </div>
                 )}
-                <div className="field">
-                  <label className="label">{lang==='ar'?'صورة القماش':'Photo'} {orderType==='online'?<span style={{color:'var(--red)'}}>{lang==='ar'?'*مطلوب':'*required'}</span>:<span>{lang==='ar'?'(اختياري)':'(optional)'}</span>}</label>
-                  {photo?(
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
-                       <div style={{position:'relative',display:'inline-block'}}>
-                         <img src={photo} alt="" style={{width:56,height:56,borderRadius:8,objectFit:'cover',opacity:photoUploading?0.6:1}}/>
-                         {photoUploading&&(
-                           <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8,background:'rgba(0,0,0,0.4)'}}>
-                             <span style={{fontSize:9,color:'#fff',fontWeight:700,animation:'pulse 1s infinite'}}>⏳</span>
-                           </div>
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'photo')) && (
+                  <div className="field">
+                    <label className="label">{lang==='ar'?'صورة القماش':'Photo'} {formFields?.find(f => f.id === 'photo')?.required ? <span style={{color:'var(--red)'}}>*required</span> : <span>(optional)</span>}</label>
+                    {photo?(
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                         <div style={{position:'relative',display:'inline-block'}}>
+                           <img src={photo} alt="" style={{width:56,height:56,borderRadius:8,objectFit:'cover',opacity:photoUploading?0.6:1}}/>
+                           {photoUploading&&(
+                             <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8,background:'rgba(0,0,0,0.4)'}}>
+                               <span style={{fontSize:9,color:'#fff',fontWeight:700,animation:'pulse 1s infinite'}}>⏳</span>
+                             </div>
+                           )}
+                         </div>
+                         {photoUploading?(
+                           <span style={{fontSize:12,color:'var(--text-3)'}}>Uploading…</span>
+                         ):(
+                           <button className="btn btn-sm" onClick={()=>setPhoto('')}>{lang==='ar'?'إزالة':'Remove'}</button>
                          )}
-                       </div>
-                       {photoUploading?(
-                         <span style={{fontSize:12,color:'var(--text-3)'}}>Uploading…</span>
-                       ):(
-                         <button className="btn btn-sm" onClick={()=>setPhoto('')}>{lang==='ar'?'إزالة':'Remove'}</button>
-                       )}
-                    </div>
-                  ):(
-                    <label className="btn btn-sm" style={{cursor:'pointer'}}>{t('takePhoto')}
-                      <input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={handlePhoto}/>
-                    </label>
-                  )}
-                </div>
-                <div className="field" style={{marginBottom:14}}>
-                  <label className="label">{t('note')}</label>
-                  <input type="text" placeholder={lang==='ar'?'أي ملاحظة...':'Any note...'} value={notes} onChange={e=>setNotes(e.target.value)}/>
-                </div>
+                      </div>
+                    ):(
+                      <label className="btn btn-sm" style={{cursor:'pointer'}}>{t('takePhoto')}
+                        <input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={handlePhoto}/>
+                      </label>
+                    )}
+                  </div>
+                )}
+
+                {(!formFields || formFields.length === 0 || formFields.some(f => f.id === 'notes')) && (
+                  <div className="field">
+                    <label className="label">{t('note')} {formFields?.find(f => f.id === 'notes')?.required && <span style={{color:'var(--red)'}}>*</span>}</label>
+                    <input type="text" placeholder={lang==='ar'?'أي ملاحظة...':'Any note...'} value={notes} onChange={e=>setNotes(e.target.value)}/>
+                  </div>
+                )}
+
+                {/* Render Custom Fields dynamically */}
+                {formFields?.filter(f => f.source === 'custom').map(f => (
+                  <div className="field" key={f.id}>
+                    <label className="label">{f.label} {f.required && <span style={{color:'var(--red)'}}>*</span>}</label>
+                    {f.type === 'dropdown' ? (
+                      <select value={customValues[f.id] || ''} onChange={e => setCustomValues(prev => ({...prev, [f.id]: e.target.value}))} style={{width:'100%', padding:'10px', borderRadius:'var(--r)', background:'var(--surface-2)', border:'1px solid var(--border)', color:'var(--text)'}}>
+                        <option value="">Select option...</option>
+                        {f.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <input type={f.type === 'number' ? 'number' : 'text'} placeholder={`Enter ${f.label.toLowerCase()}...`} value={customValues[f.id] || ''} onChange={e => setCustomValues(prev => ({...prev, [f.id]: e.target.value}))} style={{width:'100%'}} />
+                    )}
+                  </div>
+                ))}
+
                 <button className="btn btn-primary" style={{width:'100%',padding:13,fontSize:15}} onClick={saveItem} disabled={savingItem}>
                   {savingItem?t('saving'):editingTempId?t('saveChanges'):t('saveItem')}
                 </button>

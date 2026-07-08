@@ -203,6 +203,7 @@ export default function HQPlatformOperations() {
   const [wizardError, setWizardError] = useState("");
   const [createdCredentials, setCreatedCredentials] = useState<any | null>(null);
   const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<AccessRequest | null>(null);
 
   // --- Support Tickets Registry ---
   const [supportTickets, setSupportTickets] = useState([
@@ -1295,8 +1296,7 @@ export default function HQPlatformOperations() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "8px" }}>
-                        <button onClick={() => handleRequestAction(req.id, "approved")} className="bg-[#10B981] hover:bg-[#059669] text-white px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase cursor-pointer">APPROVE</button>
-                        <button onClick={() => handleRequestAction(req.id, "rejected")} className="bg-[#EF4444]/10 border border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/20 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase cursor-pointer">DECLINE</button>
+                        <button onClick={() => setViewingRequest(req)} className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase cursor-pointer">Review Request</button>
                       </div>
                     </div>
                   ))}
@@ -1857,18 +1857,10 @@ export default function HQPlatformOperations() {
                         {req.status === "pending" && (
                           <div style={{ display: "flex", gap: "8px" }}>
                             <button
-                              onClick={() => handleRequestAction(req.id, "approved")}
-                              disabled={actionLoading === req.id + "approved"}
-                              className="bg-[#10B981] hover:bg-[#059669] text-white px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer"
+                              onClick={() => setViewingRequest(req)}
+                              className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer"
                             >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRequestAction(req.id, "rejected")}
-                              disabled={actionLoading === req.id + "rejected"}
-                              className="bg-[#EF4444]/10 border border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/20 px-3 py-1.5 rounded text-xs font-mono font-bold uppercase cursor-pointer"
-                            >
-                              Reject
+                              Review Request
                             </button>
                           </div>
                         )}
@@ -2497,6 +2489,115 @@ export default function HQPlatformOperations() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* MODAL: VIEW ACCESS REQUEST DETAILS */}
+      {viewingRequest && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(5px)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div className="hq-card hq-flex-col" style={{ width: "100%", maxWidth: "600px", background: "#090D1A", border: "1px solid #1F2937", borderRadius: "12px", padding: "24px", gap: "16px", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1F2937", paddingBottom: "12px" }}>
+              <h3 className="text-sm font-bold text-white font-mono uppercase">Review Inbound Access Request</h3>
+              <button onClick={() => setViewingRequest(null)} style={{ background: "transparent", border: "none", color: "#6B7280", fontSize: "16px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "12px", color: "#9CA3AF" }}>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Business Name</strong>
+                <span className="text-white font-bold">{viewingRequest.business_name}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Owner / Manager Name</strong>
+                <span className="text-white font-bold">{viewingRequest.owner_name || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Business Email</strong>
+                <span className="text-white">{viewingRequest.email}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Primary Phone</strong>
+                <span className="text-white">{viewingRequest.phone || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">WhatsApp Number</strong>
+                <span className="text-white">{viewingRequest.whatsapp || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Industry</strong>
+                <span className="text-white">{viewingRequest.industry}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Business Type</strong>
+                <span className="text-white uppercase">{viewingRequest.business_type || "retail"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Country</strong>
+                <span className="text-white">{viewingRequest.country}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">State / Province</strong>
+                <span className="text-white">{viewingRequest.state_province || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">City</strong>
+                <span className="text-white">{viewingRequest.city || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Currency</strong>
+                <span className="text-white uppercase">{viewingRequest.currency || "USD"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Language</strong>
+                <span className="text-white uppercase">{viewingRequest.language || "en"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Website</strong>
+                <span className="text-white">{viewingRequest.website || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Tax ID / License</strong>
+                <span className="text-white">{viewingRequest.tax_id || "—"}</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Workers Count</strong>
+                <span className="text-white">{viewingRequest.num_workers} Workers</span>
+              </div>
+              <div>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase">Current System Used</strong>
+                <span className="text-white">{viewingRequest.current_system || "—"}</span>
+              </div>
+            </div>
+
+            {viewingRequest.notes && (
+              <div style={{ background: "#030712", border: "1px solid #1F2937", borderRadius: "8px", padding: "12px", fontSize: "12px" }}>
+                <strong className="text-[10px] text-[#6B7280] block font-mono uppercase mb-1">Notes / Special Instructions</strong>
+                <span className="text-white italic">&quot;{viewingRequest.notes}&quot;</span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "12px", borderTop: "1px solid #1F2937", paddingTop: "16px", marginTop: "8px" }}>
+              <button
+                onClick={() => {
+                  const reqId = viewingRequest.id;
+                  setViewingRequest(null);
+                  handleRequestAction(reqId, "approved");
+                }}
+                className="bg-[#10B981] hover:bg-[#059669] text-white flex-1 py-2.5 rounded text-xs font-mono font-bold uppercase transition-all cursor-pointer"
+              >
+                Approve & Onboard
+              </button>
+              <button
+                onClick={() => {
+                  const reqId = viewingRequest.id;
+                  setViewingRequest(null);
+                  handleRequestAction(reqId, "rejected");
+                }}
+                className="bg-[#EF4444]/10 border border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/20 py-2.5 px-6 rounded text-xs font-mono font-bold uppercase transition-all cursor-pointer"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
