@@ -641,6 +641,7 @@ function FieldFastInner() {
   // Custom form setup settings
   const [formFields, setFormFields] = useState<any[]>([]);
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const [showHelp, setShowHelp] = useState(false);
 
   // ── Offline First Synchronization Queue ──
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
@@ -2300,7 +2301,7 @@ function FieldFastInner() {
               } catch{} finally { setDetailLoading(false); }
             }
           }} title="Refresh">↻</button>
-          {editingExisting&&<button className="btn btn-sm" onClick={()=>goTo('detail')}>{lang==='ar'?'تفاصيل':'Detail'}</button>}
+          <button className="btn btn-sm" style={{borderColor:'var(--blue-border)',background:'var(--blue-light)',color:'var(--blue)',fontWeight:600}} onClick={()=>setShowHelp(true)}>❓ {lang==='ar'?'مساعدة':'Help'}</button>
           <button className="btn btn-sm btn-primary" onClick={()=>goTo('cart')}>{t('review')} ({cart.length})</button>
         </div>
       </div></div></div>
@@ -2561,6 +2562,42 @@ function FieldFastInner() {
         </div>
       )}
       {overlays}
+      {/* WORKER HELP GUIDE OVERLAY */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div className="card hq-flex-col" style={{ width: '100%', maxWidth: '440px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', gap: '16px', color: 'var(--text)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📱</span> {lang==='ar'?'دليل مساعد الموظف السريع':'Worker Fast-Entry Guide'}
+              </h3>
+              <button onClick={() => setShowHelp(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-3)', lineHeight: '1.4' }}>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📝 {lang==='ar'?'١. اختيار المورد':'1. Select Vendor First'}:</strong>
+                <span>{lang==='ar'?'اختر اسم المورد من القائمة بالأعلى لفتح نموذج إدخال البضاعة.':'Choose a vendor name from the dropdown to unlock the item details form.'}</span>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📦 {lang==='ar'?'٢. إدخال البضاعة وحفظها':'2. Adding Items'}:</strong>
+                <span>{lang==='ar'?'أدخل الكود، واللون، والمقاسات، والسعر ثم اضغط "حفظ البضاعة".':'Fill in the code, color list, sizes, and price. Click "Save Item" to add to current order.'}</span>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📶 {lang==='ar'?'٣. العمل بدون إنترنت':'3. Offline Support'}:</strong>
+                <span>{lang==='ar'?'يمكنك كتابة الطلبات حتى لو انقطع الإنترنت. سيتم حفظها محلياً ومزامنتها تلقائياً لاحقاً.':'You can enter orders offline. They will save locally and auto-sync when network is back.'}</span>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>⚠️ {lang==='ar'?'٤. حقول إجبارية':'4. Required Fields'}:</strong>
+                <span>{lang==='ar'?'الحقول التي بجانبها نجمة حمراء (*) هي إجبارية ويجب ملؤها حتى تتمكن من الحفظ.':'Red asterisks (*) signify required fields configured by your manager. They must be filled.'}</span>
+              </div>
+            </div>
+            
+            <button className="btn btn-primary" onClick={() => setShowHelp(false)} style={{ width: '100%', padding: '10px', fontSize: '13px', marginTop: 10 }}>
+              {lang==='ar'?'حسناً، فهمت':'Got It'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

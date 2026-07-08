@@ -448,6 +448,7 @@ function OwnerPageInner() {
   const [companyNameForWizard, setCompanyNameForWizard] = useState('');
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(1);
+  const [showHelp, setShowHelp] = useState(false);
   // Credential editing state
   const [credName, setCredName]         = useState('');
   const [credNameSaving, setCredNameSaving] = useState(false);
@@ -730,12 +731,12 @@ function OwnerPageInner() {
   },[authed]);
 
   useEffect(() => {
-    if (localStorage.getItem('flowxiq_trigger_owner_tutorial') === 'true') {
+    if (setupComplete && localStorage.getItem('flowxiq_trigger_owner_tutorial') === 'true') {
       localStorage.removeItem('flowxiq_trigger_owner_tutorial');
       setShowTour(true);
       setTourStep(1);
     }
-  }, []);
+  }, [setupComplete]);
 
   // Sync current order summary dynamically when items change in manager dashboard
   useEffect(() => {
@@ -821,6 +822,11 @@ function OwnerPageInner() {
           loadAll();
           loadNotifs();
           fetch('/api/usage').then(r=>r.json()).then(d=>{ if(d.vendors) setUsage(d); });
+          fetch('/api/setup').then(r=>r.json()).then(d=>{
+            const data = d.data ?? d;
+            setSetupComplete(data.setup_complete === 1);
+            setCompanyNameForWizard(data.companyName || '');
+          }).catch(()=>setSetupComplete(true));
         } else {
           fetch(`/api/session${storedCompanyId ? '?companyId=' + storedCompanyId : ''}`)
             .then(r=>r.json())
@@ -1257,6 +1263,10 @@ function OwnerPageInner() {
               <button className="btn btn-sm btn-primary" style={{fontWeight:600}}
                 onClick={()=>{loadAll();loadNotifs();showToast('Refreshed');}}>
                 &#8635; Refresh
+              </button>
+               <button className="btn btn-sm" style={{borderColor:'var(--blue-border)',background:'var(--blue-light)',color:'var(--blue)',fontWeight:600}}
+                onClick={()=>setShowHelp(true)}>
+                ❓ Help Guide
               </button>
               <button className="btn btn-sm btn-secondary" onClick={()=>window.location.href='/app'} style={{fontWeight:600}}>
                 &larr; Back
@@ -2878,6 +2888,42 @@ function OwnerPageInner() {
                 {tourStep < 4 ? 'Next Option →' : 'Get Started 🚀'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* HELPER GUIDE MODAL */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div className="hq-card hq-flex-col" style={{ width: '100%', maxWidth: '520px', background: '#090D1A', border: '1px solid #1F2937', borderRadius: '16px', padding: '24px', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1F2937', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📘</span> Manager Platform Quick Help Guide
+              </h3>
+              <button onClick={() => setShowHelp(false)} style={{ background: 'transparent', border: 'none', color: '#6B7280', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left', fontSize: '13px', color: '#9CA3AF', lineHeight: '1.5' }}>
+              <div>
+                <strong style={{ color: 'white', display: 'block', marginBottom: 4 }}>📊 Managing Inbound Orders:</strong>
+                <span>All order packages entered in real-time by workers appear here instantly. You can review color/size splits, modify unit pricing, and approve or flag items.</span>
+              </div>
+              <div>
+                <strong style={{ color: 'white', display: 'block', marginBottom: 4 }}>👥 Floor Employees Onboarding:</strong>
+                <span>Navigate to the <strong>Workers</strong> tab to register new floor employees, assign numeric login passcodes, and monitor commission metrics.</span>
+              </div>
+              <div>
+                <strong style={{ color: 'white', display: 'block', marginBottom: 4 }}>⚙️ Customizing Form Fields:</strong>
+                <span>In the <strong>Settings</strong> tab under <strong>Form Fields Setup</strong>, choose which input columns are required or disabled. Floor forms update dynamically.</span>
+              </div>
+              <div>
+                <strong style={{ color: 'white', display: 'block', marginBottom: 4 }}>📂 POS CSV Exporter:</strong>
+                <span>After confirming packages, use the <strong>Export</strong> tools to download structured CSV files formatted exactly for Square, Shopify, WooCommerce, Lightspeed, Clover, or custom templates.</span>
+              </div>
+            </div>
+            
+            <button className="btn btn-primary" onClick={() => setShowHelp(false)} style={{ width: '100%', padding: '10px', fontSize: '13px', marginTop: 10 }}>
+              Got It, Thanks!
+            </button>
           </div>
         </div>
       )}
