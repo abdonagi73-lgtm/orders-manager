@@ -71,6 +71,17 @@ interface AccessRequest {
   status: "pending" | "approved" | "rejected";
   notes: string;
   created_at: string;
+  logo_url?: string | null;
+  owner_name?: string | null;
+  business_type?: string | null;
+  state_province?: string | null;
+  city?: string | null;
+  timezone?: string | null;
+  currency?: string | null;
+  language?: string | null;
+  website?: string | null;
+  tax_id?: string | null;
+  phone?: string | null;
 }
 
 type Tab =
@@ -191,6 +202,7 @@ export default function HQPlatformOperations() {
   const [wizardSubmitting, setWizardSubmitting] = useState(false);
   const [wizardError, setWizardError] = useState("");
   const [createdCredentials, setCreatedCredentials] = useState<any | null>(null);
+  const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null);
 
   // --- Support Tickets Registry ---
   const [supportTickets, setSupportTickets] = useState([
@@ -557,6 +569,42 @@ export default function HQPlatformOperations() {
   };
 
   const handleRequestAction = async (reqId: string, action: "approved" | "rejected") => {
+    if (action === "approved") {
+      const req = requests.find(r => r.id === reqId);
+      if (!req) return;
+
+      // Pre-fill all fields in the onboarding wizard
+      setBizName(req.business_name || "");
+      setBizLogo(req.logo_url || "");
+      setBizIndustry(req.industry || "Retail");
+      setBizType(req.business_type || "retail");
+      setBizCountry(req.country || "United States");
+      setBizState(req.state_province || "");
+      setBizCity(req.city || "");
+      setBizTimezone(req.timezone || "America/New_York");
+      setBizCurrency(req.currency || "USD");
+      setBizLanguage(req.language || "English");
+      setBizWebsite(req.website || "");
+      setBizPhone(req.phone || req.whatsapp || "");
+      setBizEmail(req.email || "");
+      setBizTaxId(req.tax_id || "");
+      setOwnerName(req.owner_name || "");
+      setOwnerEmail(req.email || "");
+      setOwnerPhone(req.phone || req.whatsapp || "");
+
+      // Store request ID for approval linkage
+      setApprovingRequestId(req.id);
+
+      // Reset wizard status
+      setWizardError("");
+      setCreatedCredentials(null);
+      setWizardStep(1);
+
+      // Display Modal
+      setShowCreateWorkspaceModal(true);
+      return;
+    }
+
     setActionLoading(reqId + action);
     try {
       const res = await fetch(`/api/access-requests/${reqId}`, {
@@ -610,6 +658,7 @@ export default function HQPlatformOperations() {
       ownerName,
       ownerEmail,
       ownerPhone,
+      requestId: approvingRequestId || null,
     };
 
     try {
@@ -629,7 +678,14 @@ export default function HQPlatformOperations() {
           ownerName: data.owner_name || ownerName,
           ownerEmail: ownerEmail,
           passcode: data.activationPasscode,
+          ownerPassword: data.activationPasscode,
         });
+
+        // Mark access request approved in local state
+        if (approvingRequestId) {
+          setRequests((prev) => prev.map((r) => r.id === approvingRequestId ? { ...r, status: 'approved' as const } : r));
+          setApprovingRequestId(null);
+        }
         
         // Clear wizard fields
         setBizName("");

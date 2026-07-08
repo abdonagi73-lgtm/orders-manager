@@ -11,23 +11,26 @@ const CURRENT_SYSTEMS = [
   'WhatsApp + Photos', 'Excel / Google Sheets', 'POS System Only',
   'Paper / Handwritten', 'Other Software', 'Nothing (starting fresh)',
 ];
+const CURRENCIES = ['USD','EUR','GBP','AED','QAR','SAR','TRY','CAD','AUD'];
 
 export default function RequestAccessPage() {
   const [form, setForm] = useState({
     business_name: '', industry: '', country: '', email: '',
     whatsapp: '', num_workers: '1', current_system: '',
+    owner_name: '', business_type: 'retail', state_province: '', city: '',
+    currency: 'USD', language: 'en', website: '', tax_id: '', phone: ''
   });
   const [status, setStatus] = useState<'idle'|'loading'|'success'|'error'>('idle');
   const [error, setError] = useState('');
-
+ 
   function onChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   }
-
+ 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.business_name || !form.industry || !form.country || !form.email) {
-      setError('Please fill all required fields.'); return;
+    if (!form.business_name || !form.industry || !form.country || !form.email || !form.owner_name) {
+      setError('Please fill all required fields (Business Name, Owner Name, Industry, Country, Email).'); return;
     }
     setStatus('loading'); setError('');
     try {
@@ -165,9 +168,15 @@ export default function RequestAccessPage() {
               </p>
 
               <form className="ra-form" onSubmit={onSubmit} noValidate>
-                <div className="ra-field">
-                  <label>Business Name <span className="req">*</span></label>
-                  <input name="business_name" value={form.business_name} onChange={onChange} placeholder="e.g. Streetwear Supply Co." />
+                 <div className="ra-row">
+                  <div className="ra-field">
+                    <label>Business Name <span className="req">*</span></label>
+                    <input name="business_name" value={form.business_name} onChange={onChange} placeholder="e.g. Streetwear Supply Co." />
+                  </div>
+                  <div className="ra-field">
+                    <label>Owner / Manager Full Name <span className="req">*</span></label>
+                    <input name="owner_name" value={form.owner_name} onChange={onChange} placeholder="e.g. John Doe" />
+                  </div>
                 </div>
 
                 <div className="ra-row">
@@ -179,35 +188,89 @@ export default function RequestAccessPage() {
                     </select>
                   </div>
                   <div className="ra-field">
-                    <label>Country <span className="req">*</span></label>
-                    <input name="country" value={form.country} onChange={onChange} placeholder="e.g. United States" />
+                    <label>Business Type <span className="req">*</span></label>
+                    <select name="business_type" value={form.business_type} onChange={onChange}>
+                      <option value="retail">Retail Clothing</option>
+                      <option value="wholesale">Wholesale Sourcing</option>
+                      <option value="logistics">Warehouse Logistics</option>
+                    </select>
                   </div>
                 </div>
 
                 <div className="ra-row">
                   <div className="ra-field">
+                    <label>Country <span className="req">*</span></label>
+                    <input name="country" value={form.country} onChange={onChange} placeholder="e.g. United States" />
+                  </div>
+                  <div className="ra-field">
+                    <label>State / Province</label>
+                    <input name="state_province" value={form.state_province} onChange={onChange} placeholder="e.g. California" />
+                  </div>
+                </div>
+
+                <div className="ra-row">
+                  <div className="ra-field">
+                    <label>City</label>
+                    <input name="city" value={form.city} onChange={onChange} placeholder="e.g. Los Angeles" />
+                  </div>
+                  <div className="ra-field">
+                    <label>Preferred Currency</label>
+                    <select name="currency" value={form.currency} onChange={onChange}>
+                      {CURRENCIES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="ra-row">
+                  <div className="ra-field">
+                    <label>Language</label>
+                    <select name="language" value={form.language} onChange={onChange}>
+                      <option value="en">English</option>
+                      <option value="ar">Arabic</option>
+                      <option value="tr">Turkish</option>
+                    </select>
+                  </div>
+                  <div className="ra-field">
+                    <label>Website (optional)</label>
+                    <input name="website" value={form.website} onChange={onChange} placeholder="e.g. www.company.com" />
+                  </div>
+                </div>
+
+                <div className="ra-row">
+                  <div className="ra-field">
+                    <label>Tax ID / Business License</label>
+                    <input name="tax_id" value={form.tax_id} onChange={onChange} placeholder="e.g. TX-993848-A" />
+                  </div>
+                  <div className="ra-field">
                     <label>Number of Workers</label>
                     <input name="num_workers" type="number" min="1" max="500" value={form.num_workers} onChange={onChange} />
                   </div>
-                  <div className="ra-field">
-                    <label>Current System Used</label>
-                    <select name="current_system" value={form.current_system} onChange={onChange}>
-                      <option value="">Select current system…</option>
-                      {CURRENT_SYSTEMS.map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
+                </div>
+
+                <div className="ra-field">
+                  <label>Current System Used</label>
+                  <select name="current_system" value={form.current_system} onChange={onChange}>
+                    <option value="">Select current system…</option>
+                    {CURRENT_SYSTEMS.map(s => <option key={s}>{s}</option>)}
+                  </select>
                 </div>
 
                 <hr className="ra-divider" />
 
                 <div className="ra-field">
-                  <label>Business Email <span className="req">*</span></label>
+                  <label>Owner / Business Email <span className="req">*</span></label>
                   <input name="email" type="email" value={form.email} onChange={onChange} placeholder="you@company.com" />
                 </div>
 
-                <div className="ra-field">
-                  <label>WhatsApp Number <span style={{color:'var(--mk-text3)',fontWeight:400}}>(optional)</span></label>
-                  <input name="whatsapp" value={form.whatsapp} onChange={onChange} placeholder="+1 555 000 0000" />
+                <div className="ra-row">
+                  <div className="ra-field">
+                    <label>Primary Phone</label>
+                    <input name="phone" value={form.phone} onChange={onChange} placeholder="e.g. +1 555 000 0000" />
+                  </div>
+                  <div className="ra-field">
+                    <label>WhatsApp Number <span style={{color:'var(--mk-text3)',fontWeight:400}}>(optional)</span></label>
+                    <input name="whatsapp" value={form.whatsapp} onChange={onChange} placeholder="+1 555 000 0000" />
+                  </div>
                 </div>
 
                 {error && <div className="ra-error">{error}</div>}

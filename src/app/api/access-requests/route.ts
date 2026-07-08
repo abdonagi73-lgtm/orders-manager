@@ -8,10 +8,14 @@ import { randomUUID } from 'crypto';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { business_name, industry, country, email, whatsapp, num_workers, current_system } = body;
+    const {
+      business_name, industry, country, email, whatsapp, num_workers, current_system,
+      owner_name, business_type, state_province, city, timezone, currency, language,
+      website, tax_id, phone
+    } = body;
 
-    if (!business_name || !industry || !country || !email) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!business_name || !industry || !country || !email || !owner_name) {
+      return NextResponse.json({ error: 'Missing required fields (Business Name, Owner Name, Industry, Country, Email)' }, { status: 400 });
     }
 
     const id = randomUUID();
@@ -29,6 +33,16 @@ export async function POST(req: NextRequest) {
       status: 'pending',
       onboarding_token: '',
       notes: '',
+      owner_name: String(owner_name).trim(),
+      business_type: String(business_type || 'retail').trim(),
+      state_province: String(state_province || '').trim(),
+      city: String(city || '').trim(),
+      timezone: String(timezone || 'UTC').trim(),
+      currency: String(currency || 'USD').trim(),
+      language: String(language || 'en').trim(),
+      website: String(website || '').trim(),
+      tax_id: String(tax_id || '').trim(),
+      phone: String(phone || whatsapp || '').trim(),
       created_at: now,
       updated_at: now,
     });

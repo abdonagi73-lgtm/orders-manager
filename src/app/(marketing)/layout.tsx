@@ -179,6 +179,20 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         }
       `}</style>
       <div className="mk-body">
+        <div style={{
+          background: 'linear-gradient(90deg, #1E3A8A 0%, #3B82F6 100%)',
+          color: '#fff',
+          padding: '10px 16px',
+          fontSize: '13px',
+          fontWeight: 600,
+          textAlign: 'center',
+          letterSpacing: '0.03em',
+          borderBottom: '1px solid rgba(255,255,255,0.15)',
+          position: 'relative',
+          zIndex: 1010
+        }}>
+          🚧 Announcement: Flowxiq is currently under active development. Our public platform will be fully launched soon!
+        </div>
         <MarketingNav />
         <main>{children}</main>
         <footer className="mk-footer">

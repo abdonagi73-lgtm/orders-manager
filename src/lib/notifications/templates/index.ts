@@ -115,6 +115,26 @@ export function renderTemplate(
         `),
       };
 
+    case 'auth.workspace_approved':
+      return {
+        subject: `Your Flowxiq Workspace is Approved! — ${data.companyName}`,
+        html: baseLayout('Workspace Approved', `
+          ${h1(`Congratulations! Your workspace has been approved.`)}
+          ${p(`Hi ${data.name || 'there'},`)}
+          ${p(`We are pleased to inform you that your request for <strong style="color:#fff;">${data.companyName}</strong> has been approved.`)}
+          ${p(`You can log in to your dashboard using the temporary credentials below:`)}
+          <div style="background:#0A0F1C;border:1px solid #1E2E4F;border-radius:10px;padding:20px;margin:24px 0;font-family:sans-serif;color:#9CA3AF;line-height:1.8;text-align:left;">
+            <div style="margin-bottom:8px;"><strong>Workspace ID:</strong> <span style="color:#fff;font-family:monospace;font-size:15px;margin-left:8px;">${data.companyId}</span></div>
+            <div style="margin-bottom:8px;"><strong>Email/Username:</strong> <span style="color:#fff;font-family:monospace;font-size:15px;margin-left:8px;">${data.email}</span></div>
+            <div style="margin-bottom:8px;"><strong>Temporary Password:</strong> <span style="color:#3B82F6;font-family:monospace;font-size:16px;font-weight:700;margin-left:8px;">${data.tempPassword}</span></div>
+          </div>
+          ${p(`Upon your first login, you will be prompted to choose a permanent, secure password.`)}
+          ${ctaButton('Log In to Flowxiq', `${Platform.app.url}/app`)}
+          ${divider()}
+          ${p('If you have any questions or need onboarding assistance, please reply to this email.')}
+        `),
+      };
+
     case 'subscription.trial_ending':
       return {
         subject: `Your Flowxiq trial ends in ${data.daysLeft} days`,

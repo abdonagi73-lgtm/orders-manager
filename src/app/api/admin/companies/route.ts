@@ -1,7 +1,7 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { db } from '@/db/db';
-import { companies, users } from '@/db/schema';
+import { companies, users, accessRequests } from '@/db/schema';
 import { eq, ne } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { isSuperAdmin } from '@/lib/serverAuth';
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       ownerName,
       ownerEmail,
       ownerPhone,
+      requestId, // Read request ID
     } = body;
 
     if (!name || !ownerName || !ownerEmail) {
@@ -114,6 +115,32 @@ export async function POST(request: NextRequest) {
         role: 'admin',
         is_activated: false,
       });
+    }
+
+    // Update access request status if this workspace onboard was triggered by an access request approval
+    if (requestId) {
+      await db
+        .update(accessRequests)
+        .set({ status: 'approved', onboarding_token: '', updated_at: new Date().toISOString() })
+        .where(eq(accessRequests.id, requestId));
+    }
+
+    // Dispatch welcome email with temporary password
+    try {
+      const { dispatch } = await import('@/lib/notifications/dispatch');
+      await dispatch({
+        event: 'auth.workspace_approved',
+        recipientEmail: ownerEmail.trim().toLowerCase(),
+        recipientName: ownerName.trim(),
+        data: {
+          companyName: name.trim(),
+          companyId: companyId,
+          email: ownerEmail.trim().toLowerCase(),
+          tempPassword: tempPasscode,
+        }
+      });
+    } catch (err) {
+      console.error('[workspace creation] welcome email dispatch failed:', err);
     }
 
     // Return created company + activation passcode

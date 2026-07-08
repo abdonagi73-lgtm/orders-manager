@@ -179,6 +179,16 @@ export const accessRequests = sqliteTable('access_requests', {
   status:           text('status').default('pending').notNull(),   // pending | approved | rejected
   onboarding_token: text('onboarding_token').default('').notNull(),
   notes:            text('notes').default('').notNull(),
+  owner_name:       text('owner_name'),
+  business_type:    text('business_type'),
+  state_province:   text('state_province'),
+  city:             text('city'),
+  timezone:         text('timezone'),
+  currency:         text('currency'),
+  language:         text('language'),
+  website:          text('website'),
+  tax_id:           text('tax_id'),
+  phone:            text('phone'),
   created_at:       text('created_at').notNull(),
   updated_at:       text('updated_at').notNull(),
 });

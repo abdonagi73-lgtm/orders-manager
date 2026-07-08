@@ -23,7 +23,8 @@ export type NotificationEvent =
   | 'subscription.suspended'
   // Auth
   | 'auth.password_reset'
-  | 'auth.welcome';
+  | 'auth.welcome'
+  | 'auth.workspace_approved';
 
 export interface NotificationPayload {
   event: NotificationEvent;
