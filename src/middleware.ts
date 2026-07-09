@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
     pathname === '/api/session' ||
+    pathname === '/api/test-db' ||
     pathname === '/favicon.ico' ||
     pathname === '/' ||
     pathname.startsWith('/request-access') ||
