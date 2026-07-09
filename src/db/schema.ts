@@ -310,3 +310,34 @@ export const trusted_devices = sqliteTable('trusted_devices', {
   expires_at:         text('expires_at').notNull(),
   created_at:         text('created_at').notNull(),
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLATFORM DEPLOYMENTS / BUILD HISTORY
+// ─────────────────────────────────────────────────────────────────────────────
+export const deployments = sqliteTable('deployments', {
+  id:          text('id').primaryKey(),
+  version:     text('version').notNull(),
+  status:      text('status').notNull(),
+  branch:      text('branch').notNull(),
+  commit:      text('commit').notNull(),
+  deployedAt:  text('deployedAt').notNull(),
+  author:      text('author').notNull(),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT MESSAGES
+// ─────────────────────────────────────────────────────────────────────────────
+export const chatMessages = sqliteTable('chat_messages', {
+  id:           text('id').primaryKey(),
+  company_id:   text('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
+  sender_id:    text('sender_id').notNull(),
+  sender_name:  text('sender_name').notNull(),
+  sender_role:  text('sender_role').notNull(), // worker | manager | owner | admin | super_admin
+  recipient_id: text('recipient_id'), // null for "all managers"
+  message:      text('message').notNull(),
+  created_at:   text('created_at').notNull(),
+}, (t) => ({
+  idx_chat_company: index('idx_chat_company_id').on(t.company_id),
+  idx_chat_sender:  index('idx_chat_sender_id').on(t.sender_id),
+}));
+

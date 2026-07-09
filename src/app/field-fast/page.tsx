@@ -457,7 +457,7 @@ function FieldFastInner() {
   const searchParams = useSearchParams();
   const location = searchParams.get('location') || '';
 
-  type Screen = 'login'|'orders'|'detail'|'setup'|'entry'|'cart'|'success'|'earnings';
+  type Screen = 'login'|'orders'|'detail'|'setup'|'entry'|'cart'|'success'|'earnings'|'chat';
   const [screen, setScreen] = useState<Screen>(()=>{
     // Restore screen on refresh (if worker was logged in)
     if(typeof window !== 'undefined'){
@@ -476,6 +476,10 @@ function FieldFastInner() {
   const [companyName, setCompanyName] = useState('Flowxiq');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [companyInputId, setCompanyInputId] = useState('');
+
+  // Chat-related states
+  const [chatMessages, setChatMessages] = useState<{ id: string; sender_name: string; sender_role: string; sender_id: string; message: string; created_at: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
 
   // Comprehensive translations for worker portal
   const T:{[k:string]:{[k:string]:string}} = {
@@ -948,6 +952,56 @@ function FieldFastInner() {
       }
     }
   }, []);
+
+  const loadChat = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chat");
+      if (res.ok) {
+        const d = await res.json();
+        if (d.success && d.messages) {
+          setChatMessages(d.messages);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load chat messages", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!worker?.id) return;
+    loadChat();
+    const iv = setInterval(() => {
+      loadChat();
+    }, 4000);
+    return () => clearInterval(iv);
+  }, [worker, screen, loadChat]);
+
+  async function sendChatMessage() {
+    if (!chatInput.trim()) return;
+    const msg = chatInput.trim();
+    setChatInput("");
+    try {
+      // Optimistic update
+      const tempId = `temp_${Date.now()}`;
+      setChatMessages(prev => [...prev, {
+        id: tempId,
+        sender_id: worker?.id || "",
+        sender_name: worker?.name || "Worker",
+        sender_role: "worker",
+        message: msg,
+        created_at: new Date().toISOString()
+      }]);
+
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+      loadChat();
+    } catch {
+      showToast("Error sending message");
+    }
+  }
 
   async function verifyPin(){
     setPinLoading(true); setPinError(false);
@@ -1752,7 +1806,9 @@ function FieldFastInner() {
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
           <button className="btn btn-sm" onClick={signOutWorker} title="Back to home">🏠</button>
           <button className="btn btn-sm" onClick={()=>{ if(worker) loadOrders(worker.id); }} title="Refresh">↻</button>
+          <button className="btn btn-sm" onClick={()=>goTo('chat')}>💬 {lang==='ar'?'الدردشة':'Chat'}</button>
           <button className="btn btn-sm" onClick={()=>goTo('earnings')}>{t('earnings')}</button>
+          <button className="btn btn-sm" onClick={()=>setShowHelp(true)}>❓ {lang==='ar'?'الدليل':'Guide'}</button>
           <a href={`/worker-settings?id=${worker?.id || ''}&name=${encodeURIComponent(worker?.name||'')}`} className="btn btn-sm">⚙️</a>
           <button className="btn btn-sm" onClick={signOutWorker}>{t('signOut')}</button>
         </div>
@@ -2002,6 +2058,87 @@ function FieldFastInner() {
             </div>
           )}
           {myOrders.length===0&&<div className="empty"><div className="empty-text">{t('noCommissionRecords')}</div></div>}
+        </div>
+        {overlays}
+      </div>
+    );
+  }
+
+  // ── CHAT SCREEN ──
+  if(screen==='chat'){
+    return (
+      <div className="page" dir={lang==='ar'?'rtl':'ltr'}>
+        {offlineBar}
+        <div className="header"><div className="container"><div className="header-inner" style={{height:'auto',minHeight:56,padding:'8px 0',flexWrap:'wrap',gap:12}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            {logoUrl ? (
+              <img src={logoUrl} alt="logo" style={{width:28,height:28,borderRadius:6,objectFit:'contain',flexShrink:0}} />
+            ) : (
+              <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>💬</div>
+            )}
+            <div><div className="header-title">{lang==='ar'?'الدردشة':'Chat'}</div><div className="header-sub">{worker?.name}</div></div>
+          </div>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
+            <button className="btn btn-sm" onClick={loadChat} title="Refresh">↻</button>
+          </div>
+        </div></div></div>
+        
+        <div className="container" style={{display:'flex',flexDirection:'column',height:'calc(100vh - 120px)',maxHeight:'700px',paddingTop:16,paddingBottom:24}}>
+          {/* Chat Messages Log */}
+          <div style={{flex:1,overflowY:'auto',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:16,display:'flex',flexDirection:'column',gap:12,marginBottom:12}}>
+            {chatMessages.length === 0 ? (
+              <div className="empty" style={{margin:'auto'}}><div className="empty-text">{lang==='ar'?'لا توجد رسائل بعد. ابدأ المحادثة!':'No messages yet. Start the conversation!'}</div></div>
+            ) : (
+              chatMessages.map((msg, index) => {
+                const isMe = msg.sender_id === worker?.id;
+                return (
+                  <div key={msg.id || index} style={{display:'flex',justifyContent:isMe?'flex-end':'flex-start'}}>
+                    <div style={{
+                      maxWidth:'80%',
+                      background:isMe?'var(--blue)':'var(--surface-2)',
+                      color:isMe?'#fff':'var(--text)',
+                      borderRadius:'12px',
+                      padding:'10px 14px',
+                      fontSize:13,
+                      lineHeight:1.4,
+                      boxShadow:'var(--shadow-sm)'
+                    }}>
+                      {!isMe && <div style={{fontWeight:700,fontSize:10,color:'var(--text-3)',marginBottom:3}}>{msg.sender_name} ({msg.sender_role})</div>}
+                      <div style={{wordBreak:'break-word'}}>{msg.message}</div>
+                      <div style={{fontSize:9,color:isMe?'rgba(255,255,255,0.7)':'var(--text-3)',textAlign:'right',marginTop:4}}>
+                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Chat Input Area */}
+          <div style={{display:'flex',gap:8}}>
+            <input
+              type="text"
+              placeholder={lang==='ar'?'اكتب رسالة للفرع...':'Type a message to managers...'}
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
+              style={{
+                flex:1,
+                background:'var(--surface)',
+                border:'1px solid var(--border)',
+                borderRadius:'8px',
+                padding:'12px 14px',
+                fontSize:14,
+                color:'var(--text)',
+                outline:'none'
+              }}
+            />
+            <button className="btn btn-primary" onClick={sendChatMessage} style={{padding:'0 20px',fontSize:14}}>
+              {lang==='ar'?'إرسال':'Send'}
+            </button>
+          </div>
         </div>
         {overlays}
       </div>

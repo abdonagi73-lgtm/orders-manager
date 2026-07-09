@@ -7,7 +7,7 @@ import { calcUnitCost, calcRetailPrice } from '@/lib/pricing';
 import { SubscriptionSection, IntegrationsSection, ActivitySection } from './settings-sections';
 import SetupWizard from '@/components/SetupWizard';
 
-type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'settings';
+type Tab = 'orders' | 'items' | 'prices' | 'analytics' | 'commission' | 'intelligence' | 'timeline' | 'workers' | 'chat' | 'settings';
 
 // -- ExpandPanel: simple CSS expand, triggered by arrow button --
 function ExpandPanel({ open, children }:{ open:boolean; children:React.ReactNode }){
@@ -449,6 +449,12 @@ function OwnerPageInner() {
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(1);
   const [showHelp, setShowHelp] = useState(false);
+  
+  // Manager Chat States
+  const [chatMessages, setChatMessages] = useState<{ id: string; sender_name: string; sender_role: string; sender_id: string; message: string; created_at: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
+  
   // Credential editing state
   const [credName, setCredName]         = useState('');
   const [credNameSaving, setCredNameSaving] = useState(false);
@@ -621,6 +627,57 @@ function OwnerPageInner() {
         orderId, matches:matches.filter((m, i) => matches.indexOf(m) === i)
       })));
     } finally { setMgmtSearching(false); }
+  }
+
+  const loadChat = useCallback(async (workerId: string) => {
+    if (!workerId) return;
+    try {
+      const res = await fetch(`/api/chat?workerId=${workerId}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.success && d.messages) {
+          setChatMessages(d.messages);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load chat messages", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authed || tab !== 'chat' || !selectedWorkerId) return;
+    loadChat(selectedWorkerId);
+    const iv = setInterval(() => {
+      loadChat(selectedWorkerId);
+    }, 4000);
+    return () => clearInterval(iv);
+  }, [authed, tab, selectedWorkerId, loadChat]);
+
+  async function sendChatMessage() {
+    if (!selectedWorkerId || !chatInput.trim()) return;
+    const msg = chatInput.trim();
+    setChatInput("");
+    try {
+      // Optimistic update
+      const tempId = `temp_${Date.now()}`;
+      setChatMessages(prev => [...prev, {
+        id: tempId,
+        sender_id: 'manager',
+        sender_name: loggedInName || 'Manager',
+        sender_role: 'manager',
+        message: msg,
+        created_at: new Date().toISOString()
+      }]);
+
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, recipientId: selectedWorkerId })
+      });
+      loadChat(selectedWorkerId);
+    } catch {
+      showToast("Error sending message");
+    }
   }
 
   async function loadNotifs() {
@@ -1082,7 +1139,7 @@ function OwnerPageInner() {
           </button>
           <div style={{marginTop:20}}>
             <div style={{fontSize:11,color:'var(--text-3)',textAlign:'center',marginBottom:10,textTransform:'uppercase',letterSpacing:'.06em',fontWeight:600}}>Switch role</div>
-            <a href="/field" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',
+            <a href="/field-fast" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',
               background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--r)',
               textDecoration:'none',color:'var(--text-2)',transition:'all .12s'}}
               onMouseOver={e=>(e.currentTarget.style.borderColor='var(--green)')}
@@ -1285,13 +1342,13 @@ function OwnerPageInner() {
 
       <div className="container-wide" style={{paddingTop:16,paddingBottom:40}}>
         <div className="tabs">
-          {(['orders','items','prices','analytics','commission','intelligence','timeline','workers','settings'] as Tab[]).map(t=>(
+          {(['orders','items','prices','analytics','commission','intelligence','timeline','workers','chat','settings'] as Tab[]).map(t=>(
             <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>{
               setTab(t);
               const oId = (t === 'items' && selectedOrder) ? selectedOrder.id : '';
               window.history.pushState({ tab: t, orderId: oId }, '', `?tab=${t}${oId ? '&orderId='+oId : ''}`);
             }}>
-              {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t==='intelligence'?'Vendors':t==='timeline'?'Timeline':t.charAt(0).toUpperCase()+t.slice(1)}
+              {t==='commission'?'Commission':t==='analytics'?'Analytics':t==='prices'?'Prices':t==='intelligence'?'Vendors':t==='timeline'?'Timeline':t==='chat'?'Team Chat':t.charAt(0).toUpperCase()+t.slice(1)}
               {t==='items'&&selectedOrder&&` ' ${selectedOrder.name}`}
               {t==='commission'&&orders.filter(o=>o.workerCommission>0&&!o.commissionPaid).length>0&&
                 <span style={{background:'var(--red)',color:'#fff',borderRadius:10,padding:'1px 6px',fontSize:10,marginLeft:4}}>
@@ -2095,6 +2152,119 @@ function OwnerPageInner() {
           </>
         )}
 
+        {/* -- TEAM CHAT TAB -- */}
+        {tab==='chat'&&(
+          <div style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 240px)', minHeight: '520px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
+            {/* Sidebar with Workers */}
+            <div style={{ width: '280px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--surface-2)' }}>
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
+                Active Workers
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {workers.length === 0 ? (
+                  <div className="empty" style={{ padding: '24px 16px', fontSize: '12px' }}>No workers registered yet.</div>
+                ) : (
+                  workers.map(w => {
+                    const isSelected = selectedWorkerId === w.id;
+                    return (
+                      <button
+                        key={w.id}
+                        onClick={() => {
+                          setSelectedWorkerId(w.id);
+                          loadChat(w.id);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'block',
+                          textAlign: 'left',
+                          padding: '14px 16px',
+                          border: 'none',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                          borderLeft: isSelected ? '3px solid var(--blue)' : '3px solid transparent',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: '13px', color: isSelected ? 'var(--blue)' : 'var(--text)' }}>{w.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>Role: Worker</div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Chat Pane */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px' }}>
+              {selectedWorkerId ? (
+                <>
+                  {/* Messages Log */}
+                  <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px', background: 'var(--bg)' }}>
+                    {chatMessages.length === 0 ? (
+                      <div className="empty" style={{ margin: 'auto' }}>No messages yet. Send a message to start!</div>
+                    ) : (
+                      chatMessages.map((msg, index) => {
+                        const isMe = msg.sender_role !== 'worker';
+                        return (
+                          <div key={msg.id || index} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                            <div style={{
+                              maxWidth: '75%',
+                              background: isMe ? 'var(--blue)' : 'var(--surface-2)',
+                              color: isMe ? '#fff' : 'var(--text)',
+                              borderRadius: '12px',
+                              padding: '10px 14px',
+                              fontSize: '13px',
+                              lineHeight: 1.4,
+                              boxShadow: 'var(--shadow-sm)'
+                            }}>
+                              {!isMe && <div style={{ fontWeight: 700, fontSize: '10px', color: 'var(--text-3)', marginBottom: '3px' }}>{msg.sender_name}</div>}
+                              <div style={{ wordBreak: 'break-word' }}>{msg.message}</div>
+                              <div style={{ fontSize: '9px', color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--text-3)', textAlign: 'right', marginTop: '4px' }}>
+                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Input area */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Type a message to the worker..."
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
+                      style={{
+                        flex: 1,
+                        background: 'var(--bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        fontSize: '13px',
+                        color: 'var(--text)',
+                        outline: 'none'
+                      }}
+                    />
+                    <button className="btn btn-primary" onClick={sendChatMessage} style={{ padding: '0 24px', fontSize: '13px' }}>
+                      Send
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="empty" style={{ margin: 'auto', textAlign: 'center' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>💬</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>Select a worker from the sidebar to start chatting</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '4px' }}>Discuss orders, markup pricing, and vendor details in real-time.</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* -- SETTINGS TAB -- */}
         {tab==='settings'&&(()=>{
 
@@ -2876,10 +3046,18 @@ function OwnerPageInner() {
               
               <button
                 onClick={() => {
-                  if (tourStep < 4) {
-                    setTourStep(s => s + 1);
+                  if (tourStep === 1) {
+                    setTab('workers');
+                    setTourStep(2);
+                  } else if (tourStep === 2) {
+                    setTab('settings');
+                    setTourStep(3);
+                  } else if (tourStep === 3) {
+                    setTab('settings');
+                    setTourStep(4);
                   } else {
                     setShowTour(false);
+                    setTab('orders');
                   }
                 }}
                 className="btn btn-primary"

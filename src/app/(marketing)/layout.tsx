@@ -216,8 +216,8 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               <h4>Resource Center</h4>
               <a href="/#pricing">Subscription Matrix</a>
               <a href="/#faq">Common Objections FAQ</a>
-              <a href="/app">Field Worker Access</a>
-              <a href="/app">Super-Admin HQ Access</a>
+              <a href="/field-fast">Field Worker Access</a>
+              <a href="/super-admin">Super-Admin HQ Access</a>
             </div>
             <div className="mk-footer-col">
               <h4>Legal Trust</h4>

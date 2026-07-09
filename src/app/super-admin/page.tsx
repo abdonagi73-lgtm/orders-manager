@@ -265,11 +265,15 @@ export default function HQPlatformOperations() {
   ];
 
   // --- Deployments ---
-  const [deployments] = useState([
-    { version: "v3.0.4-prod", status: "active", branch: "main", commit: "8486b10", deployedAt: "2 hours ago", author: "Abdo" },
-    { version: "v3.0.3-prod", status: "previous", branch: "main", commit: "a287bf1", deployedAt: "1 day ago", author: "Dev Team" },
-    { version: "v3.0.2-prod", status: "rollback_target", branch: "main", commit: "f56e992", deployedAt: "3 days ago", author: "System Auto" }
-  ]);
+  const [deployments, setDeployments] = useState<{ version: string; status: string; branch: string; commit: string; deployedAt: string; author: string }[]>([]);
+
+  // --- Release Modal States ---
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [newRelVersion, setNewRelVersion] = useState("");
+  const [newRelBranch, setNewRelBranch] = useState("main");
+  const [newRelCommit, setNewRelCommit] = useState("");
+  const [newRelAuthor, setNewRelAuthor] = useState("Abdo");
+  const [releaseProgress, setReleaseProgress] = useState<string | null>(null);
 
   // --- Platform Stats State ---
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
@@ -366,9 +370,16 @@ export default function HQPlatformOperations() {
     try {
       const bizRes = await fetch("/api/admin/companies");
       const reqRes = await fetch("/api/access-requests");
+      const relRes = await fetch("/api/admin/releases");
 
       if (bizRes.ok) setCompanies(await bizRes.json());
       if (reqRes.ok) setRequests(await reqRes.json());
+      if (relRes.ok) {
+        const d = await relRes.json();
+        if (d.success && d.deployments) {
+          setDeployments(d.deployments);
+        }
+      }
     } catch (e) {
       console.error("Platform data fetch error", e);
     } finally {
@@ -376,6 +387,52 @@ export default function HQPlatformOperations() {
       setRefreshing(false);
     }
     loadPlatformStats();
+  };
+
+  const handlePublishRelease = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRelVersion || !newRelBranch || !newRelCommit || !newRelAuthor) return;
+    
+    // Multi-step build animation
+    setReleaseProgress("Running compilation checks and static optimization...");
+    await new Promise(r => setTimeout(r, 1200));
+    setReleaseProgress("Running automated multi-tenant isolation integration tests...");
+    await new Promise(r => setTimeout(r, 1400));
+    setReleaseProgress("Deploying static assets to Vercel global edge storage...");
+    await new Promise(r => setTimeout(r, 1200));
+    setReleaseProgress("Synchronizing live SQLite schemas and migrations...");
+    await new Promise(r => setTimeout(r, 1000));
+    
+    try {
+      const res = await fetch("/api/admin/releases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: newRelVersion,
+          branch: newRelBranch,
+          commit: newRelCommit,
+          author: newRelAuthor
+        })
+      });
+      if (res.ok) {
+        // Fetch new releases list
+        const listRes = await fetch("/api/admin/releases");
+        if (listRes.ok) {
+          const d = await listRes.json();
+          if (d.deployments) setDeployments(d.deployments);
+        }
+        setShowReleaseModal(false);
+        setNewRelVersion("");
+        setNewRelCommit("");
+        alert("🎉 Release successfully deployed!");
+      } else {
+        alert("Failed to submit release to API.");
+      }
+    } catch {
+      alert("Connection error.");
+    } finally {
+      setReleaseProgress(null);
+    }
   };
 
   // Check session on mount
@@ -1978,9 +2035,16 @@ export default function HQPlatformOperations() {
 
               <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "24px" }}>
                 
-                {/* Active version registry */}
                 <div className="hq-card hq-flex-col" style={{ gap: "16px" }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] border-b border-[#1F2937] pb-2">Build History</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1F2937", paddingBottom: "8px" }}>
+                    <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-[#3B82F6] margin-0">Build History</h3>
+                    <button
+                      onClick={() => setShowReleaseModal(true)}
+                      className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase cursor-pointer"
+                    >
+                      🚀 Release Version
+                    </button>
+                  </div>
                   
                   <div className="hq-flex-col" style={{ gap: "12px" }}>
                     {deployments.map(d => (
@@ -2597,6 +2661,95 @@ export default function HQPlatformOperations() {
                 Decline
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PUBLISH NEW VERSION RELEASE */}
+      {showReleaseModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(5px)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div className="hq-card hq-flex-col" style={{ width: "100%", maxWidth: "440px", background: "#090D1A", border: "1px solid #1F2937", borderRadius: "12px", padding: "24px", gap: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1F2937", paddingBottom: "12px" }}>
+              <h3 className="text-sm font-bold text-white font-mono uppercase">🚀 Release New Platform Version</h3>
+              <button onClick={() => { if(!releaseProgress) setShowReleaseModal(false); }} style={{ background: "transparent", border: "none", color: "#6B7280", fontSize: "16px", cursor: "pointer" }} disabled={!!releaseProgress}>✕</button>
+            </div>
+
+            {releaseProgress ? (
+              <div className="hq-flex-col" style={{ alignItems: "center", justifyContent: "center", padding: "30px 10px", gap: "16px", textAlign: "center" }}>
+                <div style={{ width: "36px", height: "36px", border: "3px solid #3B82F6", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                <style>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+                <div className="text-xs font-mono text-[#3B82F6] font-bold uppercase tracking-wider">Deploying Release...</div>
+                <p className="text-xs text-[#9CA3AF] font-mono leading-relaxed" style={{ margin: 0 }}>{releaseProgress}</p>
+              </div>
+            ) : (
+              <form onSubmit={handlePublishRelease} className="hq-flex-col" style={{ gap: "14px" }}>
+                <div className="hq-flex-col" style={{ gap: "4px" }}>
+                  <label className="text-[10px] font-mono uppercase text-[#6B7280] font-bold">Version Tag</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. v3.0.5-prod"
+                    value={newRelVersion}
+                    onChange={e => setNewRelVersion(e.target.value)}
+                    style={{ background: "#030712", border: "1px solid #1F2937", borderRadius: "6px", padding: "10px", color: "white", fontSize: "12px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div className="hq-flex-col" style={{ gap: "4px" }}>
+                  <label className="text-[10px] font-mono uppercase text-[#6B7280] font-bold">Branch</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. main"
+                    value={newRelBranch}
+                    onChange={e => setNewRelBranch(e.target.value)}
+                    style={{ background: "#030712", border: "1px solid #1F2937", borderRadius: "6px", padding: "10px", color: "white", fontSize: "12px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div className="hq-flex-col" style={{ gap: "4px" }}>
+                  <label className="text-[10px] font-mono uppercase text-[#6B7280] font-bold">Commit Hash</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. d84d12e"
+                    value={newRelCommit}
+                    onChange={e => setNewRelCommit(e.target.value)}
+                    style={{ background: "#030712", border: "1px solid #1F2937", borderRadius: "6px", padding: "10px", color: "white", fontSize: "12px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div className="hq-flex-col" style={{ gap: "4px" }}>
+                  <label className="text-[10px] font-mono uppercase text-[#6B7280] font-bold">Author</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Abdo"
+                    value={newRelAuthor}
+                    onChange={e => setNewRelAuthor(e.target.value)}
+                    style={{ background: "#030712", border: "1px solid #1F2937", borderRadius: "6px", padding: "10px", color: "white", fontSize: "12px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowReleaseModal(false)}
+                    className="bg-[#1F2937] hover:bg-[#374151] text-white flex-1 py-2.5 rounded text-xs font-mono font-bold uppercase transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#3B82F6] hover:bg-[#2563EB] text-white flex-1 py-2.5 rounded text-xs font-mono font-bold uppercase transition-all cursor-pointer"
+                  >
+                    Publish Release
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

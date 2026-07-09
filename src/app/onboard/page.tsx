@@ -156,7 +156,8 @@ function OnboardWizard() {
         return;
       }
       setStep(6);
-      setTimeout(() => router.push('/admin'), 2500);
+      localStorage.setItem('flowxiq_trigger_owner_tutorial', 'true');
+      setTimeout(() => router.push('/owner'), 2500);
     } catch {
       setError('Connection error. Please try again.');
       setSubmitting(false);
