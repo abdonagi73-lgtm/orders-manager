@@ -16,7 +16,7 @@ async function seed() {
   const systemAdminTenant = {
     id: 'system-admin-tenant',
     name: 'System Administration',
-    logo_url: '/logo-flowriq.png',
+    logo_url: '/logo-flowxiq-navy.png',
     currency: 'USD',
     commission_rate: 0,
     status: 'active',

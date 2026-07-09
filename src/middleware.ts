@@ -51,8 +51,8 @@ export async function middleware(request: NextRequest) {
 
   // 3. Permission-based route protection (no hardcoded role strings)
 
-  // /flowriq-console — platform admin only
-  if (pathname.startsWith('/flowriq-console')) {
+  // /flowxiq-console — platform admin only
+  if (pathname.startsWith('/flowxiq-console')) {
     if (!hasPermission(session, Permissions.PLATFORM_ADMIN)) {
       return NextResponse.redirect(new URL('/app', request.url));
     }
@@ -104,5 +104,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo-flowriq\\.png|logo\\.png|icon.*\\.png|manifest\\.json|sw\\.js).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo-flowriq\\.png|logo-flowxiq-navy\\.png|logo-flowxiq-white\\.png|logo-flowxiq-dark\\.png|logo\\.png|icon.*\\.png|manifest\\.json|sw\\.js).*)'],
 };

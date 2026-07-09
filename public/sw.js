@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE = 'orders-manager-v1';
+const CACHE = 'flowxiq-v1';
 const STATIC = ['/', '/field', '/owner'];
 
 self.addEventListener('install', e => {

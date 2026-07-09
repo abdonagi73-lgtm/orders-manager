@@ -228,7 +228,7 @@ export default function SignupPage() {
       <div className="su-card">
         <header className="su-header">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-flowriq.png" alt="Flowxiq" className="su-logo" />
+          <img src="/logo-flowxiq-navy.png" alt="Flowxiq" className="su-logo" />
           <h1 className="su-title">Create Workspace</h1>
           <div className="su-sub">Register &amp; Deploy Systems</div>
         </header>

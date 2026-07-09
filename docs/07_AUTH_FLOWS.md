@@ -140,7 +140,7 @@ POST /api/auth/logout
 | `/onboard*` | No | — |
 | `/request-access*` | No | — |
 | `/super-admin` | Yes | `platform:admin` |
-| `/flowriq-console*` | Yes | `platform:admin` |
+| `/flowxiq-console*` | Yes | `platform:admin` |
 | `/api/auth/*` | No | — |
 | `/api/v1/*` | Yes (via session cookie) | Route-specific |
 | `/api/access-requests` GET | Yes | `platform:admin` |
