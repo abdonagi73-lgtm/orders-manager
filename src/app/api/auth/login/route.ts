@@ -83,7 +83,8 @@ export async function POST(request: Request) {
       .where(
         or(
           eq(users.email, loginInput.trim().toLowerCase()),
-          eq(users.id, loginInput.trim())
+          eq(users.id, loginInput.trim()),
+          eq(users.name, loginInput.trim())
         )
       );
 
