@@ -7,6 +7,7 @@ import { Permissions } from './lib/rbac/permissions';
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('session')?.value;
   const { pathname } = request.nextUrl;
+  console.log('MIDDLEWARE PATH:', pathname, 'TOKEN_EXISTS:', !!token);
 
   // 1. Static assets & public pages whitelist (no auth required)
   const isPublic =
