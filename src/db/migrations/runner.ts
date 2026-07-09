@@ -180,6 +180,24 @@ const migrations: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_subscriptions_company   ON subscriptions(company_id)`,
     ],
   },
+  {
+    id: '010_chat_messages_table',
+    sql: [
+      `CREATE TABLE IF NOT EXISTS chat_messages (
+        id           TEXT PRIMARY KEY,
+        company_id   TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        sender_id    TEXT NOT NULL,
+        sender_name  TEXT NOT NULL,
+        sender_role  TEXT NOT NULL,
+        recipient_id TEXT,
+        message      TEXT NOT NULL,
+        created_at   TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_chat_company_id  ON chat_messages(company_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_chat_sender_id   ON chat_messages(sender_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_chat_created_at  ON chat_messages(company_id, created_at ASC)`,
+    ],
+  },
 ];
 
 // ─── Runner ──────────────────────────────────────────────────────────────────
