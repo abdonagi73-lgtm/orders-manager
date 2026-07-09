@@ -2107,7 +2107,16 @@ function FieldFastInner() {
                       {!isMe && <div style={{fontWeight:700,fontSize:10,color:'var(--text-3)',marginBottom:3}}>{msg.sender_name} ({msg.sender_role})</div>}
                       <div style={{wordBreak:'break-word'}}>{msg.message}</div>
                       <div style={{fontSize:9,color:isMe?'rgba(255,255,255,0.7)':'var(--text-3)',textAlign:'right',marginTop:4}}>
-                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                        {(() => {
+                          if (!msg.created_at) return '';
+                          try {
+                            const d = new Date(msg.created_at);
+                            if (isNaN(d.getTime())) return '';
+                            return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                          } catch {
+                            return '';
+                          }
+                        })()}
                       </div>
                     </div>
                   </div>
