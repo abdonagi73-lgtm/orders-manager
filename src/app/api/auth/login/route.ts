@@ -131,7 +131,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ selectWorkspace: true, workspaces });
 
-  } catch {
-    return NextResponse.json({ error: 'Internal login error' }, { status: 500 });
+  } catch (err: any) {
+    console.error('LOGIN ERROR DETAILS:', err);
+    return NextResponse.json({ error: 'Internal login error: ' + (err.message || String(err)) }, { status: 500 });
   }
 }
