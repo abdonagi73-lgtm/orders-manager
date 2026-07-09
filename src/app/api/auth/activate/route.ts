@@ -3,6 +3,7 @@ import { db } from '@/db/db';
 import { users, companies } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { encryptSession } from '@/lib/auth';
+import { Platform } from '@/config/platform';
 import * as bcrypt from 'bcryptjs';
 
 // POST: First-time owner sets their permanent password and activates their account
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ success: true, role: user.role });
     response.cookies.set('session', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: Platform.app.isProduction,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7-day session for owners
       path: '/',

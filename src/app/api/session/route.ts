@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { encryptSession, decryptSession } from '@/lib/auth';
 import { rateLimit, getClientIp } from '@/lib/api/rateLimit';
 import { isSubscriptionActive } from '@/lib/subscription/gate';
+import { Platform } from '@/config/platform';
 
 /**
  * Find a user by password hash within an optional company/role scope.
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
 
         response.cookies.set('session', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: Platform.app.isProduction,
           sameSite: 'lax',
           maxAge: 60 * 60 * 24, // 24 hours
           path: '/',
@@ -228,7 +229,7 @@ export async function POST(req: NextRequest) {
 
         response.cookies.set('session', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: Platform.app.isProduction,
           sameSite: 'lax',
           maxAge: 60 * 60 * 24, // 24 hours
           path: '/',

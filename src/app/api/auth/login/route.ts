@@ -3,6 +3,7 @@ import { db } from '@/db/db';
 import { users, companies } from '@/db/schema';
 import { eq, or } from 'drizzle-orm';
 import { encryptSession } from '@/lib/auth';
+import { Platform } from '@/config/platform';
 import * as bcrypt from 'bcryptjs';
 
 // Build session token + response helper
@@ -19,7 +20,7 @@ async function buildSessionResponse(user: typeof users.$inferSelect, company: ty
   const response = NextResponse.json({ success: true, role: user.role, companyId: company.id });
   response.cookies.set('session', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: Platform.app.isProduction,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24,
     path: '/',
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
         .innerJoin(companies, eq(users.company_id, companies.id))
         .where(eq(users.id, selectedUserId));
 
-      if (results.length === 0) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      if (results.length === 0) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
 
       const { user, company } = results[0];
 
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
       }
 
       const match = bcrypt.compareSync(password, user.pin_hash);
-      if (!match) return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
+      if (!match) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
 
       // First-time owner: must set permanent password
       if (!user.is_activated && (user.role === 'admin' || user.role === 'owner')) {

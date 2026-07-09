@@ -3,6 +3,7 @@ import { db } from '@/db/db';
 import { companies, users, vendors, accessRequests } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { encryptSession } from '@/lib/auth';
+import { Platform } from '@/config/platform';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({ success: true });
     response.cookies.set('session', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: Platform.app.isProduction,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',

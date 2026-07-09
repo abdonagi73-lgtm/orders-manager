@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { Platform } from '@/config/platform';
 
-const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
+const SHEET_ID = Platform.google.sheetId;
 const TAB = 'Usage';
 
 function getAuth() {
   return new google.auth.GoogleAuth({
     credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: (process.env.GOOGLE_PRIVATE_KEY||'').replace(/\\n/g,'\n'),
+      client_email: Platform.google.serviceAccountEmail,
+      private_key: Platform.google.privateKey,
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });

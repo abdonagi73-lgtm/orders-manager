@@ -15,6 +15,7 @@
  * NOTE: rateLimit() is now async. All callers must await it.
  */
 
+import { Platform } from '@/config/platform';
 import { getClientIp as _getClientIp } from './rateLimitHelpers';
 
 export { getClientIp } from './rateLimitHelpers';
@@ -26,8 +27,8 @@ export interface RateLimitResult {
 }
 
 // ─── Upstash Redis path ────────────────────────────────────────────────────────
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const UPSTASH_URL   = Platform.upstash.redisUrl;
+const UPSTASH_TOKEN = Platform.upstash.redisToken;
 
 let _ratelimiter: Map<string, import('@upstash/ratelimit').Ratelimit> | null = null;
 

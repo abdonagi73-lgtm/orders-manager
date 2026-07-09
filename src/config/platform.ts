@@ -38,6 +38,19 @@ export const Platform = {
     replyTo: 'support@flowxiq.com',
   },
 
+  google: {
+    sheetId: process.env.GOOGLE_SHEET_ID || '',
+    serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
+    get privateKey(): string {
+      return (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+    },
+  },
+
+  upstash: {
+    redisUrl: process.env.UPSTASH_REDIS_REST_URL || '',
+    redisToken: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+  },
+
   encryption: {
     // 64-char hex string = 32 bytes for AES-256-GCM
     get key(): string {
