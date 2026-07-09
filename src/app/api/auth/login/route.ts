@@ -133,16 +133,6 @@ export async function POST(request: Request) {
 
   } catch (err: any) {
     console.error('LOGIN ERROR DETAILS:', err);
-    const dbUrl = process.env.TURSO_DATABASE_URL || '';
-    const token = process.env.TURSO_AUTH_TOKEN || '';
-    return NextResponse.json({
-      error: 'Internal login error: ' + (err.message || String(err)),
-      debug: {
-        dbUrl: dbUrl.slice(0, 30),
-        tokenLength: token.length,
-        tokenPrefix: token.slice(0, 15),
-        tokenSuffix: token.slice(-15)
-      }
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Internal login error' }, { status: 500 });
   }
 }
