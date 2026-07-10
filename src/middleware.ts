@@ -24,6 +24,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/onboard') ||
     pathname === '/field-fast' ||      // Worker portal uses internal PIN auth
     pathname.startsWith('/field-fast/') ||
+    pathname === '/worker-settings' ||  // Worker settings uses sessionStorage auth
+    pathname.startsWith('/worker-settings/') ||
     pathname === '/owner' ||           // Owner portal uses internal PIN auth
     pathname.startsWith('/owner/') ||
     pathname.startsWith('/privacy') || // Public legal pages (startsWith covers /privacy and /privacy/)

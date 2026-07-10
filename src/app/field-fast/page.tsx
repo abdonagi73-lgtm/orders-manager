@@ -45,14 +45,16 @@ interface CartItem {
   orig?:OrderItem;
 }
 
+// Default form fields — vendor is always shown as the primary combobox,
+// these fields appear inside the add-item form per item
 const defaultFields = [
-  { id: 'code', label: 'Item code', type: 'text', required: true, source: 'pos' },
-  { id: 'category', label: 'Category', type: 'text', required: false, source: 'pos' },
-  { id: 'colors', label: 'Colors', type: 'text', required: false, source: 'pos' },
-  { id: 'sizes', label: 'Sizes', type: 'text', required: false, source: 'pos' },
-  { id: 'price', label: 'Price', type: 'number', required: true, source: 'pos' },
-  { id: 'photo', label: 'Photo', type: 'text', required: false, source: 'pos' },
-  { id: 'notes', label: 'Notes', type: 'text', required: false, source: 'pos' }
+  { id: 'code',     label: 'Item code', type: 'text',   required: true,  source: 'pos' },
+  { id: 'category', label: 'Category',  type: 'text',   required: false, source: 'pos' },
+  { id: 'colors',  label: 'Colors',    type: 'text',   required: false, source: 'pos' },
+  { id: 'sizes',   label: 'Sizes',     type: 'text',   required: false, source: 'pos' },
+  { id: 'price',   label: 'Price',     type: 'number', required: true,  source: 'pos' },
+  { id: 'photo',   label: 'Photo',     type: 'text',   required: false, source: 'pos' },
+  { id: 'notes',   label: 'Notes',     type: 'text',   required: false, source: 'pos' },
 ];
 
 function parseVoiceInput(transcript: string, vendors: string[], categories: string[]) {
@@ -958,7 +960,10 @@ function FieldFastInner() {
 
   const loadChat = useCallback(async () => {
     try {
-      const res = await fetch("/api/chat");
+      const token = sessionStorage.getItem('ff_token') || '';
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch("/api/chat", { headers });
       if (res.ok) {
         const d = await res.json();
         if (d.success && d.messages) {
@@ -983,6 +988,9 @@ function FieldFastInner() {
     if (!chatInput.trim()) return;
     const msg = chatInput.trim();
     setChatInput("");
+    const token = sessionStorage.getItem('ff_token') || '';
+    const authHeaders: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) authHeaders['Authorization'] = `Bearer ${token}`;
     try {
       // Optimistic update
       const tempId = `temp_${Date.now()}`;
@@ -997,7 +1005,7 @@ function FieldFastInner() {
 
       await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({ message: msg })
       });
       loadChat();
@@ -1032,6 +1040,9 @@ function FieldFastInner() {
       if(d.worker.logoUrl) setLogoUrl(d.worker.logoUrl);
       sessionStorage.setItem('ff_worker', JSON.stringify(d.worker));
       sessionStorage.setItem('ff_screen', 'orders');
+      // Store JWT in sessionStorage (tab-isolated) — NOT a cookie
+      // This lets manager and worker portals coexist in different browser tabs
+      if (d.token) { sessionStorage.setItem('ff_token', d.token); }
       // Load user language immediately
       const ws = localStorage.getItem(`workerSettings_${d.worker.id}`);
       if(ws){ try{ const s=JSON.parse(ws); if(s.lang) setLang(s.lang); }catch{} }
@@ -1571,13 +1582,14 @@ function FieldFastInner() {
     reader.readAsDataURL(file);
   }
 
-  // Clears the session cookie AND sessionStorage, then redirects to /app
-  // This prevents the /app login page from seeing role='worker' and looping back
-  async function signOutWorker() {
+  // Clears sessionStorage (worker token is never stored as a cookie)
+  // then redirects to /app login page
+  function signOutWorker() {
     sessionStorage.removeItem('ff_worker');
     sessionStorage.removeItem('ff_screen');
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
-    window.location.replace('/app');
+    sessionStorage.removeItem('ff_token');
+    setWorker(null);
+    setScreen('login');
   }
 
   // Add popstate listener for phone back button
@@ -1705,6 +1717,40 @@ function FieldFastInner() {
         </div>
       )}
       {toast&&<div className="toast-wrap"><div className="toast">{toast}</div></div>}
+      {/* WORKER HELP GUIDE OVERLAY — included here so it works from every screen */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div className="card hq-flex-col" style={{ width: '100%', maxWidth: '440px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', gap: '16px', color: 'var(--text)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📱</span> {lang==='ar'?'دليل مساعد الموظف السريع':'Worker Fast-Entry Guide'}
+              </h3>
+              <button onClick={() => setShowHelp(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-3)', lineHeight: '1.4' }}>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📝 {lang==='ar'?'١. اختيار المورد':'1. Select Vendor First'}:</strong>
+                <span>{lang==='ar'?'اختر اسم المورد من القائمة بالأعلى لفتح نموذج إدخال البضاعة.':'Choose a vendor name from the dropdown to unlock the item details form.'}</span>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📦 {lang==='ar'?'٢. إدخال البضاعة وحفظها':'2. Adding Items'}:</strong>
+                <span>{lang==='ar'?'أدخل الكود، واللون، والمقاسات، والسعر ثم اضغط \"حفظ البضاعة\".':'Fill in the code, color list, sizes, and price. Click \"Save Item\" to add to current order.'}</span>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📶 {lang==='ar'?'٣. العمل بدون إنترنت':'3. Offline Support'}:</strong>
+                <span>{lang==='ar'?'يمكنك كتابة الطلبات حتى لو انقطع الإنترنت. سيتم حفظها محلياً ومزامنتها تلقائياً لاحقاً.':'You can enter orders offline. They will save locally and auto-sync when network is back.'}</span>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>⚠️ {lang==='ar'?'٤. حقول إجبارية':'4. Required Fields'}:</strong>
+                <span>{lang==='ar'?'الحقول التي بجانبها نجمة حمراء (*) هي إجبارية ويجب ملؤها حتى تتمكن من الحفظ.':'Red asterisks (*) signify required fields configured by your manager. They must be filled.'}</span>
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowHelp(false)} style={{ width: '100%', padding: '10px', fontSize: '13px', marginTop: 10 }}>
+              {lang==='ar'?'حسناً، فهمت':'Got It'}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 
@@ -2079,7 +2125,7 @@ function FieldFastInner() {
             ) : (
               <div style={{width:28,height:28,background:'var(--surface-2)',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>💬</div>
             )}
-            <div><div className="header-title">{lang==='ar'?'الدردشة':'Chat'}</div><div className="header-sub">{worker?.name}</div></div>
+            <div><div className="header-title">{lang==='ar'?'دردشة الفريق':'Team Chat'}</div><div className="header-sub">{lang==='ar'?`${worker?.name} ← رسائلك تصل للمديرين`:`${worker?.name} · Messages go to your manager`}</div></div>
           </div>
           <div style={{display:'flex',gap:6,alignItems:'center'}}>
             <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
@@ -2171,25 +2217,12 @@ function FieldFastInner() {
         </div>
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
           <button className="btn btn-sm" onClick={()=>goTo('orders')} title="Back to orders">←</button>
-          <button className="btn btn-sm" onClick={()=>{ setOrderName(''); setOrderType('store'); }} title="Reset">↻</button>
+          <button className="btn btn-sm" onClick={()=>setOrderName('')} title="Reset">↻</button>
         </div>
       </div></div></div>
       <div className="container" style={{paddingTop:16,paddingBottom:40}}>
         <div className="card">
           <div className="card-title">{t('orderEntry')}</div>
-          <div className="field">
-            <label className="label">{t('orderType')}</label>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
-              <div onClick={()=>setOrderType('store')} style={{padding:14,borderRadius:'var(--r)',cursor:'pointer',textAlign:'center',
-                border:`2px solid ${orderType==='store'?'var(--green)':'var(--border)'}`,background:orderType==='store'?'var(--green-light)':'var(--surface)'}}>
-                <div style={{fontWeight:600,fontSize:13,color:orderType==='store'?'var(--green)':'var(--text)'}}>{t('storeBuy')}</div>
-              </div>
-              <div onClick={()=>setOrderType('online')} style={{padding:14,borderRadius:'var(--r)',cursor:'pointer',textAlign:'center',
-                border:`2px solid ${orderType==='online'?'var(--blue)':'var(--border)'}`,background:orderType==='online'?'var(--blue-light)':'var(--surface)'}}>
-                <div style={{fontWeight:600,fontSize:13,color:orderType==='online'?'var(--blue)':'var(--text)'}}>{t('onlineStore')}</div>
-              </div>
-            </div>
-          </div>
           <div className="field">
             <label className="label">{t('orderName')}</label>
             <input type="text" placeholder="e.g. Summer 2026 Restock" value={orderName}
@@ -2711,42 +2744,6 @@ function FieldFastInner() {
         </div>
       )}
       {overlays}
-      {/* WORKER HELP GUIDE OVERLAY */}
-      {showHelp && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div className="card hq-flex-col" style={{ width: '100%', maxWidth: '440px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', gap: '16px', color: 'var(--text)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>📱</span> {lang==='ar'?'دليل مساعد الموظف السريع':'Worker Fast-Entry Guide'}
-              </h3>
-              <button onClick={() => setShowHelp(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: '16px', cursor: 'pointer' }}>✕</button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-3)', lineHeight: '1.4' }}>
-              <div>
-                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📝 {lang==='ar'?'١. اختيار المورد':'1. Select Vendor First'}:</strong>
-                <span>{lang==='ar'?'اختر اسم المورد من القائمة بالأعلى لفتح نموذج إدخال البضاعة.':'Choose a vendor name from the dropdown to unlock the item details form.'}</span>
-              </div>
-              <div>
-                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📦 {lang==='ar'?'٢. إدخال البضاعة وحفظها':'2. Adding Items'}:</strong>
-                <span>{lang==='ar'?'أدخل الكود، واللون، والمقاسات، والسعر ثم اضغط "حفظ البضاعة".':'Fill in the code, color list, sizes, and price. Click "Save Item" to add to current order.'}</span>
-              </div>
-              <div>
-                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>📶 {lang==='ar'?'٣. العمل بدون إنترنت':'3. Offline Support'}:</strong>
-                <span>{lang==='ar'?'يمكنك كتابة الطلبات حتى لو انقطع الإنترنت. سيتم حفظها محلياً ومزامنتها تلقائياً لاحقاً.':'You can enter orders offline. They will save locally and auto-sync when network is back.'}</span>
-              </div>
-              <div>
-                <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>⚠️ {lang==='ar'?'٤. حقول إجبارية':'4. Required Fields'}:</strong>
-                <span>{lang==='ar'?'الحقول التي بجانبها نجمة حمراء (*) هي إجبارية ويجب ملؤها حتى تتمكن من الحفظ.':'Red asterisks (*) signify required fields configured by your manager. They must be filled.'}</span>
-              </div>
-            </div>
-            
-            <button className="btn btn-primary" onClick={() => setShowHelp(false)} style={{ width: '100%', padding: '10px', fontSize: '13px', marginTop: 10 }}>
-              {lang==='ar'?'حسناً، فهمت':'Got It'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

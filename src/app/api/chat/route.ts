@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { chatMessages } from '@/db/schema';
 import { eq, or, and, asc } from 'drizzle-orm';
-import { cookies } from 'next/headers';
 import { decryptSession } from '@/lib/auth';
 
-async function getSession() {
-  const token = cookies().get('session')?.value;
+async function getSession(req: NextRequest) {
+  // 1. Try Bearer token (worker portal — tab-isolated, no shared cookie)
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    if (token) return decryptSession(token);
+  }
+  // 2. Fall back to session cookie (manager/admin portal)
+  const token = req.headers.get('cookie')?.split('; ').find(r => r.startsWith('session='))?.split('=')[1];
   if (!token) return null;
   return decryptSession(token);
 }
@@ -14,7 +20,7 @@ async function getSession() {
 // GET: Fetch conversation messages
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
@@ -75,7 +81,7 @@ export async function GET(req: NextRequest) {
 // POST: Send a new message
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }

@@ -175,8 +175,12 @@ export async function POST(req: NextRequest) {
           commissionRate: company.commission_rate,
         });
 
-        const response = NextResponse.json({
+        // Return the token in the JSON body (NOT as a cookie).
+        // This keeps worker auth isolated to the browser tab via sessionStorage,
+        // so a manager and a worker can be signed in simultaneously in different tabs.
+        return NextResponse.json({
           ok: true,
+          token,
           worker: { 
             id: user.id, 
             name: user.name,
@@ -185,16 +189,6 @@ export async function POST(req: NextRequest) {
             companyId: company.id,
           },
         });
-
-        response.cookies.set('session', token, {
-          httpOnly: true,
-          secure: Platform.app.isProduction,
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24, // 24 hours
-          path: '/',
-        });
-
-        return response;
       }
       return NextResponse.json({ ok: false, error: 'Incorrect password' });
     }
