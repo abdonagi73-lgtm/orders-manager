@@ -901,14 +901,17 @@ function FieldFastInner() {
       }
     }).catch(() => {});
 
-    // Bind offline listener and queue checker
+    // Initial offline queue check on mount
     const queue = JSON.parse(localStorage.getItem('flowxiq_offline_queue') || '[]');
     setOfflineQueue(queue);
-    window.addEventListener('online', runOfflineSync);
     if (navigator.onLine && queue.length > 0) {
       runOfflineSync();
     }
+  }, []); // Run only once on mount to restore session and prevent infinite loop
 
+  // Bind offline listener and queue checker
+  useEffect(() => {
+    window.addEventListener('online', runOfflineSync);
     return () => {
       window.removeEventListener('online', runOfflineSync);
     };
