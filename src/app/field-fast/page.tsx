@@ -612,6 +612,8 @@ function FieldFastInner() {
   const [savingItem, setSavingItem] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [shippingCost, setShippingCost] = useState('');
+  const [extraCost, setExtraCost] = useState('');
+  const [extraCostReason, setExtraCostReason] = useState('');
   const [openOrderId, setOpenOrderId] = useState<string|null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<string,boolean>>({});
   const [recentlyTouched, setRecentlyTouched] = useState<Record<string,number>>({}); // orderId -> timestamp // tracks which swipe card is open
@@ -981,6 +983,8 @@ function FieldFastInner() {
     setOrderDate(order.startDate);
     setOrderType(order.orderType||'store');
     setShippingCost(String(order.shippingCost||''));
+    setExtraCost(String(order.extraCost||''));
+    setExtraCostReason(order.extraCostReason||'');
     setDeletedServerIds([]);
     setCart([]);
     setCurrentVendor('');  // Don't pre-set vendor — show all items
@@ -1007,7 +1011,7 @@ function FieldFastInner() {
   function startNewOrder(){
     setEditingExisting(null); setLiveOrder(null);
     setOrderName(''); setOrderDate(new Date().toISOString().split('T')[0]);
-    setOrderType('store'); setShippingCost(''); setCart([]); setCurrentVendor('');
+    setOrderType('store'); setShippingCost(''); setExtraCost(''); setExtraCostReason(''); setCart([]); setCurrentVendor('');
     setDeletedServerIds([]); setFormOpen(false);
     goTo('setup');
   }
@@ -1024,12 +1028,18 @@ function FieldFastInner() {
     if(cart.length===0){ setErrorBox({title:'Cannot submit',items:['Add at least one item first']}); return; }
     const activeOrder=editingExisting||liveOrder;
     if(!activeOrder){ setErrorBox({title:'No active order',items:['Something went wrong — please go back']}); return; }
+    // Validate: if extra cost entered, reason is required
+    if(Number(extraCost)>0 && !extraCostReason.trim()){
+      setErrorBox({title:'Reason required',items:['You entered an extra cost — please add a reason for it']});
+      return;
+    }
     setSubmitting(true);
     try {
       const totalValue=cartTotal;
       const shipping=Number(shippingCost)||0;
+      const extra=Number(extraCost)||0;
       const commission=parseFloat((totalValue*0.03).toFixed(2));
-      const totalOrderCost=parseFloat((totalValue+shipping+commission).toFixed(2));
+      const totalOrderCost=parseFloat((totalValue+shipping+extra+commission).toFixed(2));
       for(const sid of deletedServerIds){
         await fetch('/api/items',{method:'DELETE',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({id:sid})}).catch(()=>{});
@@ -1037,12 +1047,13 @@ function FieldFastInner() {
       const updated={...activeOrder,name:orderName.trim(),startDate:orderDate,orderType,
         shippingCost:shipping,workerCommission:commission,totalOrderCost,
         itemCount:cart.length,totalValue,
+        extraCost:extra,extraCostReason:extraCostReason.trim(),
         status:(keepOpen?'open':'submitted') as Order['status']};
       await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',order:updated})});
       fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({orderId:activeOrder.id,orderName:activeOrder.name,
-          action:`Order ${keepOpen?'saved (open)':'submitted'} · ${cart.length} items · $${totalValue.toFixed(2)}`,
+          action:`Order ${keepOpen?'saved (open)':'submitted'} · ${cart.length} items · $${totalValue.toFixed(2)}${extra>0?` · +$${extra} extra (${extraCostReason})`:''}`,
           by:worker!.name})}).catch(()=>{});
       setDeletedServerIds([]); setLiveOrder(null);
       if(worker) loadOrders(worker.id);
@@ -1300,6 +1311,8 @@ function FieldFastInner() {
               setOrderDate(order.startDate);
               setOrderType(order.orderType||'store');
               setShippingCost(String(order.shippingCost||''));
+              setExtraCost(String(order.extraCost||''));
+              setExtraCostReason(order.extraCostReason||'');
               setDeletedServerIds([]);
               setCart([]);
               setCurrentVendor('');
@@ -1541,7 +1554,7 @@ function FieldFastInner() {
         <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>{t('orderSubmittedTitle')}</div>
         <div style={{fontSize:14,color:'var(--text-3)',marginBottom:32}}>&quot;{orderName}&quot; · {cart.length} {cart.length===1?t('packLabel'):t('packsLabel')}</div>
         <button className="btn btn-primary" style={{minWidth:200}} onClick={()=>{
-          setCart([]); setOrderName(''); setShippingCost(''); setCurrentVendor('');
+          setCart([]); setOrderName(''); setShippingCost(''); setExtraCost(''); setExtraCostReason(''); setCurrentVendor('');
           setEditingExisting(null); resetItemForm(); goTo('orders');
         }}>{t('backToOrders')}</button>
       </div>
@@ -1604,6 +1617,12 @@ function FieldFastInner() {
               <span style={{color:'var(--text-3)'}}>{t('ship')}</span>
               <span>${Number(shippingCost||0).toFixed(2)}</span>
             </div>
+            {Number(extraCost)>0&&(
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
+                <span style={{color:'var(--text-3)'}}>Extra{extraCostReason?` — ${extraCostReason}`:''}</span>
+                <span>${Number(extraCost).toFixed(2)}</span>
+              </div>
+            )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
               <span style={{color:'var(--text-3)'}}>{t('commission')} (3%)</span>
               <span style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</span>
@@ -1612,7 +1631,7 @@ function FieldFastInner() {
               padding:'6px 0',marginTop:4,borderTop:'1px solid var(--border)'}}>
               <span>{t('totalOrderCost')}</span>
               <span style={{color:'var(--green)'}}>
-                ${(cartTotal+Number(shippingCost||0)+cartTotal*0.03).toFixed(2)}
+                ${(cartTotal+Number(shippingCost||0)+Number(extraCost||0)+cartTotal*0.03).toFixed(2)}
               </span>
             </div>
           </div>
@@ -1634,11 +1653,52 @@ function FieldFastInner() {
           </div>
         ))}
 
-        {/* SHIPPING + ACTION BUTTONS */}
+        {/* SHIPPING + EXTRA COST */}
         <div className="card" style={{marginBottom:12}}>
-          <div className="field" style={{marginBottom:0}}>
+          <div className="field" style={{marginBottom:10}}>
             <label className="label">{t('shippingCostLabel')}</label>
             <input type="number" step="0.01" placeholder="0.00" value={shippingCost} onChange={e=>setShippingCost(e.target.value)}/>
+          </div>
+          <div className="field" style={{marginBottom: Number(extraCost)>0 ? 10 : 0}}>
+            <label className="label">
+              Extra cost ($) — optional
+              {Number(extraCost)>0&&!extraCostReason.trim()&&
+                <span style={{color:'var(--red)',marginLeft:6,fontSize:11}}>⚠ reason required</span>}
+            </label>
+            <input type="number" step="0.01" placeholder="0.00" value={extraCost}
+              onChange={e=>setExtraCost(e.target.value)}/>
+          </div>
+          {Number(extraCost)>0&&(
+            <div className="field" style={{marginBottom:0}}>
+              <label className="label">Reason <span style={{color:'var(--red)'}}>*required</span></label>
+              <input type="text" placeholder="e.g. Extra packaging, customs fee, rush fee…"
+                value={extraCostReason} onChange={e=>setExtraCostReason(e.target.value)}
+                style={{borderColor:!extraCostReason.trim()?'var(--red)':''}}/>
+            </div>
+          )}
+          {/* Totals summary */}
+          <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'2px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Purchase value</span><strong>${cartTotal.toFixed(2)}</strong>
+            </div>
+            {Number(shippingCost)>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'2px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Shipping</span><span>${Number(shippingCost).toFixed(2)}</span>
+            </div>}
+            {Number(extraCost)>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'2px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Extra{extraCostReason?` (${extraCostReason})`:''}</span>
+              <span>${Number(extraCost).toFixed(2)}</span>
+            </div>}
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'2px 0'}}>
+              <span style={{color:'var(--text-3)'}}>Commission (3%)</span>
+              <span style={{color:'var(--green)'}}>${(cartTotal*0.03).toFixed(2)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:15,fontWeight:700,
+              padding:'6px 0',marginTop:4,borderTop:'1px solid var(--border)'}}>
+              <span>Total</span>
+              <span style={{color:'var(--green)'}}>
+                ${(cartTotal+Number(shippingCost||0)+Number(extraCost||0)+cartTotal*0.03).toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:10}}>

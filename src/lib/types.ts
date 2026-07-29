@@ -45,6 +45,8 @@ export interface Order {
   closedAt: string;
   itemCount: number;
   totalValue: number;
+  extraCost?: number;
+  extraCostReason?: string;
 }
 
 export interface UsageData {

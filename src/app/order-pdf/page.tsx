@@ -41,8 +41,9 @@ function PDFInner() {
   items.forEach(i=>{ if(!byVendor[i.vendor]) byVendor[i.vendor]=[]; byVendor[i.vendor].push(i); });
   const purchaseValue = items.reduce((s,i)=>s+i.price*i.qty, 0);
   const shipping = order.shippingCost || 0;
+  const extra = order.extraCost || 0;
   const commission = parseFloat((purchaseValue*0.03).toFixed(2));
-  const totalOrderCost = parseFloat((purchaseValue+shipping+commission).toFixed(2));
+  const totalOrderCost = parseFloat((purchaseValue+shipping+extra+commission).toFixed(2));
   const totalPacks = items.length;
   const totalVariants = items.reduce((s,i)=>s+i.qty, 0);
   const docRef = `CFY-${order.id.slice(0,8).toUpperCase()}`;
@@ -363,6 +364,12 @@ function PDFInner() {
               <span className="total-label">Worker commission (3%)</span>
               <span className="total-val" style={{color:'#1A5C3A'}}>${commission.toFixed(2)}</span>
             </div>
+            {extra>0&&(
+              <div className="total-row">
+                <span className="total-label">Extra cost{order.extraCostReason?` — ${order.extraCostReason}`:''}</span>
+                <span className="total-val">${extra.toFixed(2)}</span>
+              </div>
+            )}
             <div className="total-row grand">
               <span>TOTAL ORDER COST</span>
               <span>${totalOrderCost.toFixed(2)}</span>

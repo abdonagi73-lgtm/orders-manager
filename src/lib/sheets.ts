@@ -65,7 +65,7 @@ export async function saveWorkers(workers: Worker[]): Promise<void> {
 export async function getAllOrders(): Promise<Order[]> {
   const sheets = await getSheets();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:O`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A2:Q`,
   });
   return (res.data.values ?? []).filter(r => r[0]).map(r => {
     // Detect column layout by inspecting key positions:
@@ -106,6 +106,8 @@ export async function getAllOrders(): Promise<Order[]> {
       closedAt: r[base + 1] ?? '',
       itemCount: parseInt(r[base + 2]) || 0,
       totalValue: parseFloat(r[base + 3]) || 0,
+      extraCost: parseFloat(r[15]) || 0,
+      extraCostReason: r[16] ?? '',
     };
   });
 }
@@ -123,7 +125,7 @@ export async function createOrder(order: Order): Promise<void> {
   const nextRow = (colA.data.values ?? []).length + 1;
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_ORDERS}!A${nextRow}:O${nextRow}`,
+    range: `${TAB_ORDERS}!A${nextRow}:Q${nextRow}`,
     valueInputOption: 'RAW',
     requestBody: { values: [orderToRow(order)] },
   });
@@ -141,7 +143,7 @@ export async function updateOrder(order: Order): Promise<void> {
     if (rowIndex < 1) return false;
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${TAB_ORDERS}!A${rowIndex + 1}:O${rowIndex + 1}`,
+      range: `${TAB_ORDERS}!A${rowIndex + 1}:Q${rowIndex + 1}`,
       valueInputOption: 'RAW',
       requestBody: { values: [orderToRow(order)] },
     });
@@ -164,6 +166,7 @@ function orderToRow(o: Order): string[] {
     String(o.totalOrderCost || 0), String(o.commissionPaid || false),
     o.orderType || 'store', o.createdAt, o.closedAt,
     String(o.itemCount), String(o.totalValue),
+    String(o.extraCost || 0), o.extraCostReason || '',
   ];
 }
 
@@ -348,9 +351,9 @@ export async function initSheet(): Promise<void> {
     requestBody: { values: [['id','name','pin']] },
   });
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:O1`,
+    spreadsheetId: SHEET_ID, range: `${TAB_ORDERS}!A1:Q1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','commissionPaid','orderType','createdAt','closedAt','itemCount','totalValue']] },
+    requestBody: { values: [['id','name','startDate','workerId','workerName','status','shippingCost','workerCommission','totalOrderCost','commissionPaid','orderType','createdAt','closedAt','itemCount','totalValue','extraCost','extraCostReason']] },
   });
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID, range: `${TAB_ITEMS}!A1:N1`,

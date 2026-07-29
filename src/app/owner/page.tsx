@@ -789,6 +789,11 @@ function OwnerPageInner() {
   }
 
   async function saveOrderEdit(order: Order) {
+    // Validate: extra cost requires a reason
+    if((order.extraCost||0)>0 && !(order.extraCostReason||'').trim()){
+      showToast('⚠ Please enter a reason for the extra cost');
+      return;
+    }
     await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'update',order})});
     setOrders(prev=>prev.map(o=>o.id===order.id?order:o));
@@ -1963,6 +1968,20 @@ function OwnerPageInner() {
                 <label className="label">Worker commission ($)</label>
                 <input type="number" step="0.01" value={editOrderModal.workerCommission}
                   onChange={e=>setEditOrderModal({...editOrderModal,workerCommission:Number(e.target.value)})}/>
+              </div>
+              <div className="field">
+                <label className="label">Extra cost ($)</label>
+                <input type="number" step="0.01" placeholder="0.00" value={editOrderModal.extraCost||''}
+                  onChange={e=>setEditOrderModal({...editOrderModal,extraCost:Number(e.target.value)})}/>
+              </div>
+              <div className="field">
+                <label className="label">
+                  Extra cost reason {(editOrderModal.extraCost||0)>0&&<span style={{color:'var(--red)'}}>*</span>}
+                </label>
+                <input type="text" placeholder="e.g. Rush fee, customs…"
+                  value={editOrderModal.extraCostReason||''}
+                  style={{borderColor:(editOrderModal.extraCost||0)>0&&!(editOrderModal.extraCostReason||'').trim()?'var(--red)':''}}
+                  onChange={e=>setEditOrderModal({...editOrderModal,extraCostReason:e.target.value})}/>
               </div>
               <div className="field">
                 <label className="label">Total order cost ($)</label>
