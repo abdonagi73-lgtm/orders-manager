@@ -500,7 +500,8 @@ function FieldFastInner() {
       itemRemovedToast: 'Item removed', orderSubmittedToast: 'Order submitted!',
       packLabel: 'pack', packsLabel: 'packs', itemsLabel: 'items',
       newPinInput: 'New PIN', changePIN: 'Change PIN', workerID: 'Worker ID',
-      voiceBtn: '🎙️ Voice', listening: 'Listening...', matchForm: 'Form pre-filled! Please review and modify.'
+      voiceBtn: '🎙️ Voice', listening: 'Listening...', matchForm: 'Form pre-filled! Please review and modify.',
+      extraCostLabel: 'Extra cost ($) — optional', extraCostReason: 'Extra', extraCostReasonRequired: 'Reason *required', extraCostReasonPlaceholder: 'e.g. Extra packaging, customs fee, rush fee…', reasonRequired: '⚠ reason required', extraCostReasonRequiredLabel: 'Reason *required'
     },
     ar:{
       signIn: 'تسجيل الدخول', pin: 'رمز الموظف', incorrectPin: 'الرمز غير صحيح',
@@ -536,7 +537,8 @@ function FieldFastInner() {
       itemRemovedToast: 'تم إزالة المنتج', orderSubmittedToast: 'تم إرسال الطلب!',
       packLabel: 'حزمة', packsLabel: 'حزم', itemsLabel: 'منتجات',
       newPinInput: 'رمز جديد', changePIN: 'تغيير الرمز', workerID: 'معرّف الموظف',
-      voiceBtn: '🎙️ صوتي', listening: 'جاري الاستماع...', matchForm: 'تم ملء النموذج! يرجى المراجعة والتعديل.'
+      voiceBtn: '🎙️ صوتي', listening: 'جاري الاستماع...', matchForm: 'تم ملء النموذج! يرجى المراجعة والتعديل.',
+      extraCostLabel: 'تكلفة إضافية ($) — اختياري', extraCostReason: 'السبب', extraCostReasonRequired: 'السبب *مطلوب', extraCostReasonPlaceholder: 'مثل: رسوم جمارك، تعبئة إضافية، رسوم استعجال…', reasonRequired: '⚠ السبب مطلوب', extraCostReasonRequiredLabel: 'السبب *مطلوب'
     },
     tr:{
       signIn: 'Giriş yap', pin: 'Çalışan PIN', incorrectPin: 'Geçersiz PIN',
@@ -572,7 +574,8 @@ function FieldFastInner() {
       itemRemovedToast: 'Ürün silindi', orderSubmittedToast: 'Sipariş gönderildi!',
       packLabel: 'seri', packsLabel: 'seri', itemsLabel: 'ürün',
       newPinInput: 'Yeni PIN', changePIN: 'PIN Değiştir', workerID: 'Çalışan ID',
-      voiceBtn: '🎙️ Sesli', listening: 'Dinleniyor...', matchForm: 'Form dolduruldu! Lütfen kontrol edin.'
+      voiceBtn: '🎙️ Sesli', listening: 'Dinleniyor...', matchForm: 'Form dolduruldu! Lütfen kontrol edin.',
+      extraCostLabel: 'Ek maliyet ($) — isteğe bağlı', extraCostReason: 'Neden', extraCostReasonRequired: 'Neden *gerekli', extraCostReasonPlaceholder: 'ör. Ek ambalaj, gümrük ücreti, acele ücreti…', reasonRequired: '⚠ neden gerekli', extraCostReasonRequiredLabel: 'Neden *gerekli'
     }
   };
   const t = (k:string) => T[lang]?.[k] || T.en[k] || k;
@@ -940,7 +943,15 @@ function FieldFastInner() {
             onClick={()=>setExpandedRows(prev=>({...prev,[item.tempId]:!prev[item.tempId]}))}>
             <div style={{fontWeight:600,fontFamily:'monospace',fontSize:13}}>{item.code}</div>
             <div style={{fontSize:11,color:'var(--text-3)',marginTop:2}}>
-              {item.category} · {item.colors.length}c × {item.sizes.length}s · <strong>{item.qty}</strong> variants · ${item.price}
+              {(()=>{
+                const cm:Record<string,number>={};
+                item.colors.forEach((c:string)=>{cm[c]=(cm[c]||0)+1;});
+                const uniq=Object.keys(cm).length;
+                const colorStr=Object.entries(cm).length<=3
+                  ? Object.entries(cm).map(([c,n])=>n>1?`${c}×${n}`:c).join(', ')
+                  : `${uniq} colors`;
+                return `${item.category} · ${colorStr} · ${item.sizes.length}sz · `;
+              })()}<strong>{item.qty}</strong> {lang==='ar'?'خيار':'var'} · ${item.price}
             </div>
           </div>
           {item.photo&&<img src={item.photo} alt="" style={{width:30,height:30,borderRadius:4,objectFit:'cover',flexShrink:0}}/>}
@@ -965,7 +976,11 @@ function FieldFastInner() {
         {expanded&&(
           <div style={{padding:'0 12px 12px',borderTop:'1px solid var(--border)',marginTop:0}}>
             <div style={{fontSize:12,color:'var(--text-2)',padding:'8px 0',lineHeight:1.8}}>
-              <div><strong>Colors:</strong> {item.colors.join(', ')}</div>
+              <div><strong>Colors:</strong> {(()=>{
+                const cm:Record<string,number>={};
+                item.colors.forEach((c:string)=>{cm[c]=(cm[c]||0)+1;});
+                return Object.entries(cm).map(([c,n])=>n>1?`${c} ×${n}`:c).join(', ');
+              })()}</div>
               <div><strong>Sizes:</strong> {item.sizes.join(', ')}</div>
               <div><strong>Variants:</strong> {item.qty} <span style={{fontSize:11,color:'var(--text-3)'}}>({item.colors.length} colors × {item.sizes.length} sizes)</span></div>
               <div><strong>Line total:</strong> <span style={{color:'var(--green)',fontWeight:700}}>${(item.price*item.qty).toFixed(2)}</span></div>
@@ -1030,7 +1045,7 @@ function FieldFastInner() {
     if(!activeOrder){ setErrorBox({title:'No active order',items:['Something went wrong — please go back']}); return; }
     // Validate: if extra cost entered, reason is required
     if(Number(extraCost)>0 && !extraCostReason.trim()){
-      setErrorBox({title:'Reason required',items:['You entered an extra cost — please add a reason for it']});
+      setErrorBox({title:t('extraCostReasonRequired'),items:[t('extraCostLabel')+' — '+t('extraCostReason')]});
       return;
     }
     setSubmitting(true);
@@ -1619,7 +1634,7 @@ function FieldFastInner() {
             </div>
             {Number(extraCost)>0&&(
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
-                <span style={{color:'var(--text-3)'}}>Extra{extraCostReason?` — ${extraCostReason}`:''}</span>
+                <span style={{color:'var(--text-3)'}}>{t('extraCostReason')}{extraCostReason?` — ${extraCostReason}`:''}</span>
                 <span>${Number(extraCost).toFixed(2)}</span>
               </div>
             )}
@@ -1661,16 +1676,16 @@ function FieldFastInner() {
           </div>
           <div className="field" style={{marginBottom: Number(extraCost)>0 ? 10 : 0}}>
             <label className="label">
-              Extra cost ($) — optional
+              {t('extraCostLabel')}
               {Number(extraCost)>0&&!extraCostReason.trim()&&
-                <span style={{color:'var(--red)',marginLeft:6,fontSize:11}}>⚠ reason required</span>}
+                <span style={{color:'var(--red)',marginLeft:6,fontSize:11}}>{t('reasonRequired')}</span>}
             </label>
             <input type="number" step="0.01" placeholder="0.00" value={extraCost}
               onChange={e=>setExtraCost(e.target.value)}/>
           </div>
           {Number(extraCost)>0&&(
             <div className="field" style={{marginBottom:0}}>
-              <label className="label">Reason <span style={{color:'var(--red)'}}>*required</span></label>
+              <label className="label">{t('extraCostReasonRequired')}</label>
               <input type="text" placeholder="e.g. Extra packaging, customs fee, rush fee…"
                 value={extraCostReason} onChange={e=>setExtraCostReason(e.target.value)}
                 style={{borderColor:!extraCostReason.trim()?'var(--red)':''}}/>
